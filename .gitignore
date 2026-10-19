@@ -1,0 +1,21 @@
+# Python
+venv/
+__pycache__/
+*.pyc
+
+# macOS
+.DS_Store
+
+# Sprites drawn by the code on first run (redrawn whenever the drawing code changes)
+assets/generated/
+
+# Screenshots taken with S; only the README preview is kept
+screenshots/*
+!screenshots/preview.png
+
+# Original sprite sheets the game no longer uses (not ours to redistribute)
+assets/cat/
+assets/pigeon/
+assets/food/
+assets/background/
+assets/sheets/
