@@ -30,6 +30,7 @@ import pygame
 from .entities.cat import Mark
 from .entities.wildlife import (Bat, Bird, BirdFlock, Butterfly, Crow, Deer, Duck, Fox, GoldenButterfly, Grasshopper,
                                 Heron, Moth, PeekingMouse, Pumpkin, Sparrow, art, halloween)
+from .chance import Hawkes, count, lognormal, peaks, sample
 from .settings import SETTINGS
 from .util import clamp, value_noise
 
@@ -41,6 +42,9 @@ MEAN = {tier: 60.0 * minutes for tier, minutes in _EVENTS["tiers"].items()}
 CHECK = float(_EVENTS["check"])
 CAPTION_TIME = float(_EVENTS["caption_seconds"])
 OVERDUE_BOOST = float(_EVENTS["overdue_boost"])
+HOURS = _EVENTS.get("hours", {})
+COUNTS = FX["counts"]
+STAYS = FX["stays"]
 BIG = ("rare", "legendary")
 
 # Real meteor showers: (month, peak day, name).  Active the night of the
@@ -128,16 +132,15 @@ class MeteorShower(Effect):
 
     def __init__(self, world):
         self.world = world
-        self.timer = 3.0
+        m = FX["meteors"]
+        self.stars = Hawkes(world.rng, m["mean_wait"], m["excite"], m["memory"])   # they come in little bursts
 
     def update(self, dt):
         env = self.world.env
         if env.sun > 0.05 or not shower_tonight(env.clock.moment):
             self.alive = False
             return
-        self.timer -= dt
-        if self.timer <= 0:
-            self.timer = self.world.rng.uniform(*FX["meteor_every"])
+        if self.stars.step(dt):
             if env.weather.cloud < 0.5:
                 self.world.effects.append(ShootingStar(self.world))
 
@@ -145,15 +148,16 @@ class MeteorShower(Effect):
 class Mist(Effect):
     """Dawn mist lying over the grass, drifting, lifting as the sun climbs."""
 
-    RISE = float(FX["mist_rise"])
-    LIFT = float(FX["mist_lift"])
 
     def __init__(self, world):
         self.world = world
         self.age = 0.0
         self.density = 0.0
         self.lifting = None
-        self.max_age = world.rng.uniform(*FX["mist_lasts_minutes"]) * 60
+        spread = world.day.spread
+        self.rise = sample(world.rng, FX["mist_rise"], spread)
+        self.lift = sample(world.rng, FX["mist_lift"], spread)
+        self.max_age = sample(world.rng, FX["mist_lasts_minutes"], spread) * 60
         self._surface = None
         self._for = None
 
@@ -163,11 +167,11 @@ class Mist(Effect):
         if self.lifting is None and (env.sun > 0.8 or env.wind.strength > 0.6 or self.age > self.max_age):
             self.lifting = self.density
         if self.lifting is not None:
-            self.density = max(0.0, self.density - self.lifting * dt / self.LIFT)
+            self.density = max(0.0, self.density - self.lifting * dt / self.lift)
             if self.density <= 0:
                 self.alive = False
         else:
-            self.density = min(1.0, self.age / self.RISE)
+            self.density = min(1.0, self.age / self.rise)
 
     def _fog(self, r):
         key = (r.S, self.world.width, self.world.height)
@@ -206,7 +210,7 @@ class Rainbow(Effect):
     def __init__(self, world):
         self.world = world
         self.age = 0.0
-        self.duration = world.rng.uniform(*FX["rainbow_lasts_minutes"]) * 60
+        self.duration = sample(world.rng, FX["rainbow_lasts_minutes"], world.day.spread) * 60
         self._levels = {}
         self._for = None
 
@@ -266,7 +270,7 @@ class Whirl(Effect):
         from .particles import AUTUMN_LEAF_COLORS, LEAF_COLORS
         colors = AUTUMN_LEAF_COLORS if autumn else LEAF_COLORS
         self.leaves = [[rng.uniform(0, 6.28), rng.uniform(3, 10), rng.uniform(2, 22), rng.uniform(4, 8),
-                        rng.choice(colors)] for _ in range(rng.randint(10, 16))]
+                        rng.choice(colors)] for _ in range(count(rng, COUNTS["whirl_leaves"]))]
         self.t = 0.0
         self.seen = False
 
@@ -308,7 +312,7 @@ class Fireworks(Effect):
         self.bursts = []          # [x, y, age, colour, speed]
         self.timer = 1.0
         self.age = 0.0
-        self.duration = FX["fireworks_minutes"] * 60
+        self.duration = sample(world.rng, FX["fireworks_minutes"]) * 60
 
     def update(self, dt):
         rng = self.world.rng
@@ -370,7 +374,7 @@ class Seeds(Effect):
     def __init__(self, world):
         self.world = world
         rng = world.rng
-        self.left = rng.randint(8, 14)
+        self.left = count(rng, COUNTS["dandelion_seeds"])
         self.y = rng.uniform(40, world.height - 40)
         self.timer = 0.0
 
@@ -503,7 +507,8 @@ class Puddles(Effect):
                 clear = all(t.walkable(x + dx, y + dy) and not t.under_roof(x + dx, y + dy)
                             for dx, dy in ((-rx - 3, 0), (rx + 3, 0), (0, -ry - 2), (0, ry + 2)))
                 if clear and all(abs(x - p.x) > 30 for p in self.items):
-                    self.items.append(Puddle(x, y, rx, ry, rng.uniform(*FX["puddles_last_minutes"]) * 60))
+                    life = sample(rng, FX["puddles_last_minutes"], world.day.spread) * 60
+                    self.items.append(Puddle(x, y, rx, ry, life))
                     break
         if not self.items:
             self.alive = False
@@ -545,11 +550,10 @@ class ButterflyDance(Effect):
     """Two butterflies spiralling round each other, rising, then going
     their own ways."""
 
-    DURATION = float(FX["butterfly_dance"])
-
     def __init__(self, world):
         self.world = world
         rng = world.rng
+        self.DURATION = sample(rng, FX["butterfly_dance"], world.day.spread)
         self.species = rng.choice(["white", "brimstone", "orange", "blue"])
         self.frames = art()["butterfly"][self.species]
         cat = world.cat
@@ -647,6 +651,12 @@ class Event:
     def affinity(self, p):
         """How much Mochi's character draws this event (weight multiplier)."""
         return 1.0
+
+    def timing(self, world):
+        """How right the time of day is, 0..1: a smooth peak on the clock
+        (from the settings) rather than a window that switches on and off."""
+        spec = HOURS.get(self.name)
+        return 1.0 if spec is None else peaks(world.env.clock.standard_hour, spec)
 
     def caption(self, world):
         return self.title
@@ -825,7 +835,7 @@ class Moths(Event):
                 and world.count("moth") == 0)
 
     def start(self, world, events):
-        for _ in range(world.rng.randint(1, 3)):
+        for _ in range(count(world.rng, COUNTS["moths"])):
             m = Moth(world)
             m.x = world.rng.uniform(40, world.width - 40)
             world.entities.append(m)
@@ -875,7 +885,7 @@ class DewyWeb(Event):
 
     def ready(self, world):
         env = world.env
-        return (env.clock.between(5.0, 8.5) and env.season != "winter" and env.rain < 0.05 and env.sun > 0.2
+        return (self.timing(world) > 0.15 and env.season != "winter" and env.rain < 0.05 and env.sun > 0.2
                 and env.temperature < 17 and world.terrain.bushes
                 and not any(isinstance(e, DewWeb) for e in world.effects))
 
@@ -890,7 +900,7 @@ class MorningMist(Event):
 
     def ready(self, world):
         env = world.env
-        return (env.clock.between(4.8, 7.4) and env.wind.strength < 0.45 and env.rain < 0.1
+        return (self.timing(world) > 0.15 and env.wind.strength < 0.45 and env.rain < 0.1
                 and env.temperature < 16 and not any(isinstance(e, Mist) for e in world.effects))
 
     def start(self, world, events):
@@ -929,11 +939,11 @@ class DuskBats(Event):
 
     def ready(self, world):
         env = world.env
-        return (env.clock.between(19.5, 21.6) and env.sun < 0.3 and env.rain < 0.05
+        return (self.timing(world) > 0.15 and env.sun < 0.3 and env.rain < 0.05
                 and world.director.warmth > 13 and world.count("bat") == 0)
 
     def start(self, world, events):
-        for _ in range(world.rng.randint(1, 3)):
+        for _ in range(count(world.rng, COUNTS["bats"])):
             world.entities.append(Bat(world))
         return True
 
@@ -961,8 +971,7 @@ class FoxVisit(Event):
 
     def ready(self, world):
         env = world.env
-        twilight = env.clock.between(4.6, 7.8) or env.clock.between(18.6, 22.5)
-        return twilight and env.rain < 0.2 and world.count("fox") == 0
+        return self.timing(world) > 0.15 and env.rain < 0.2 and world.count("fox") == 0
 
     def start(self, world, events):
         fox = Fox(world)
@@ -1019,7 +1028,7 @@ class DuckFamily(Event):
                 and world.count("duck") == 0)
 
     def start(self, world, events):
-        duck = Duck(world, brood=world.rng.randint(3, 6))
+        duck = Duck(world, brood=count(world.rng, COUNTS["ducklings"]))
         if not duck.ok:
             return None
         world.entities.append(duck)
@@ -1091,7 +1100,7 @@ class DeerAtDawn(Event):
 
     def ready(self, world):
         env = world.env
-        return (env.clock.between(4.6, 7.6) and env.rain < 0.1 and env.wind.strength < 0.6
+        return (self.timing(world) > 0.15 and env.rain < 0.1 and env.wind.strength < 0.6
                 and env.snow_cover < 0.7 and world.count("deer") == 0)
 
     def start(self, world, events):
@@ -1194,10 +1203,11 @@ class NewYear(Notice):
         return c.date.month == 1 and c.date.day == 1 and c.hour < 0.3
 
     def start(self, world, events):
-        events.noisy_until = world.time + FX["fireworks_minutes"] * 60 + 5
+        fx = Fireworks(world)
+        events.noisy_until = world.time + fx.duration + 5
         cat = world.cat
         cat.attend("fireworks", cat.act_flee_noise(), wake=True)
-        return Fireworks(world)
+        return fx
 
 
 class Halloween(Notice):
@@ -1363,9 +1373,12 @@ class Events:
             if not options:
                 continue
             event = self._pick(options)
+            if world.rng.random() > event.timing(world):
+                continue        # the hour is only half right: maybe another time
             if event.omen:
                 self._hush()
-                self.pending = (event, now + event.omen)
+                wobble = 1.0 + world.rng.gauss(0.0, _EVENTS["omen_spread"])
+                self.pending = (event, now + event.omen * max(0.4, wobble))
                 self.since[tier] = 0.0
                 return
             if self.happen(event):
@@ -1373,7 +1386,8 @@ class Events:
 
     def _pick(self, options):
         p = self.world.cat.p
-        weights = [e.weight * e.affinity(p) for e in options]
+        world = self.world
+        weights = [e.weight * e.affinity(p) * e.timing(world) for e in options]
         r = self.world.rng.uniform(0, sum(weights))
         for e, w in zip(options, weights):
             r -= w
@@ -1407,7 +1421,7 @@ class Events:
         if effect is not None:
             world.effects.append(effect)
         now = world.time
-        self.ready_at[event.name] = now + event.cooldown
+        self.ready_at[event.name] = now + lognormal(world.rng, event.cooldown, _EVENTS["cooldown_spread"])
         self.since[event.tier] = 0.0
         self.active.append((event, effect, now + 60.0))
         if quiet:

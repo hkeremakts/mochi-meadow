@@ -18,6 +18,8 @@ import os
 import sys
 import tomllib
 
+from .chance import is_spec
+
 # Tables keyed by event name, where a settings file may add names.
 OPEN_TABLES = {"events.cooldown_minutes", "events.omen_seconds"}
 DEFAULTS_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "defaults.toml")
@@ -44,6 +46,15 @@ def _merge(base, extra, where, problems):
             problems.append(f"unknown setting {name}")
             continue
         current = base[key]
+        if isinstance(current, dict) and is_spec(current):
+            # A shape of chance may be swapped for any other shape.
+            if isinstance(value, dict) and is_spec(value):
+                base[key] = value
+            elif _number(value):
+                base[key] = value
+            else:
+                problems.append(f"{name} should be a number or a shape of chance (see habitat/chance.py)")
+            continue
         if isinstance(current, dict):
             if isinstance(value, dict):
                 _merge(current, value, name, problems)

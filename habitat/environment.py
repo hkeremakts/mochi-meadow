@@ -7,7 +7,7 @@ import random
 import numpy as np
 import pygame
 
-from .config import WEATHER_BLEND, WEATHER_MAX_HOLD, WEATHER_MIN_HOLD
+from .chance import Day, Drift, around, sample
 from .settings import SETTINGS
 from .sky import Sky, mean_temperature
 from .util import Noise1D, clamp, dither_mask, lerp_color, smoothstep, value_noise
@@ -148,20 +148,43 @@ QUICK_BLEND = float(SETTINGS["weather"]["quick_blend"])   # seconds to ease into
 
 
 class Weather:
-    def __init__(self, rng, state="clear", locked=False):
+    """Spells of weather.  Each spell lasts a time drawn for its kind (a
+    rain may be a passing shower or an all-day soaking), shortened or
+    lengthened by the day's volatility; its cloud cover varies a little
+    from the kind's usual; and within it the rain and wind wander and
+    return rather than holding still."""
+
+    def __init__(self, rng, state="clear", locked=False, day=None):
         self.rng = rng
+        self.day = day if day is not None else Day(0, SETTINGS["day"])
         self.state = state
         self.locked = locked
-        target = WEATHER_STATES[state]
-        self.cloud = target["cloud"]
-        self.wind = target["wind"]
-        self.rain = target["rain"]
-        self.hold = rng.uniform(WEATHER_MIN_HOLD, WEATHER_MAX_HOLD)
+        self.spell = 0            # counts spells, so others can notice a change
         self.quick = 0.0          # seconds of fast blending left (after a key press)
+        w = SETTINGS["weather"]
+        wander = w["wander"]
+        self.rain_wander = Drift(rng, 0.0, wander["rain_sd"], wander["rain_seconds"])
+        self.wind_wander = Drift(rng, 0.0, wander["wind_sd"], wander["wind_seconds"])
+        self._start_spell(state)
+        self.cloud = self.target["cloud"]
+        self.wind = self.target["wind"]
+        self.rain = self.target["rain"]
+
+    def _start_spell(self, state):
+        rng = self.rng
+        w = SETTINGS["weather"]
+        spread = self.day.spread
+        self.hold = sample(rng, w["hold_minutes"][state], spread) * 60.0 / self.day.volatility
+        self.blend = sample(rng, w["blend"], spread)
+        base = WEATHER_STATES[state]
+        m = clamp(base["cloud"], 0.02, 0.98)
+        c = w["cloud_steadiness"]
+        self.target = dict(base, cloud=rng.betavariate(m * c, (1.0 - m) * c))
+        self.spell += 1
 
     def force(self, state, locked=None):
         self.state = state
-        self.hold = self.rng.uniform(WEATHER_MIN_HOLD, WEATHER_MAX_HOLD)
+        self._start_spell(state)
         if locked is not None:
             self.locked = locked
 
@@ -185,27 +208,39 @@ class Weather:
                     if r <= 0:
                         break
                 self.force(name)
-        target = WEATHER_STATES[self.state]
+        target = self.target
         quick = self.quick > 0
         self.quick = max(0.0, self.quick - dt)
-        k = 1.0 - math.exp(-dt * 3.0 / (QUICK_BLEND if quick else WEATHER_BLEND))
+        k = 1.0 - math.exp(-dt * 3.0 / (QUICK_BLEND if quick else self.blend))
+        gust = 1.0 + self.wind_wander.step(dt)
+        heavier = 1.0 + self.rain_wander.step(dt)
         self.cloud += (target["cloud"] - self.cloud) * k
-        self.wind += (target["wind"] - self.wind) * k
+        self.wind += (clamp(target["wind"] * gust, 0.0, 1.0) - self.wind) * k
         # Rain arrives a little after the clouds and stops a little before.
-        rain_target = target["rain"] if (self.cloud > 0.7 or quick) else 0.0
+        rain_target = clamp(target["rain"] * heavier, 0.0, 1.0) if (self.cloud > 0.7 or quick) else 0.0
         self.rain += (rain_target - self.rain) * k
 
 
 class Wind:
     def __init__(self, rng):
+        self.rng = rng
         self.gusts = Noise1D(rng)
         self.wobble = Noise1D(rng)
         self.direction = rng.choice((-1.0, 1.0))
+        self.toward = self.direction
         self.t = rng.uniform(0, 100)
         self.strength = 0.2
 
+    def veer(self, prevailing, scatter):
+        """A new spell's wind: from around the day's prevailing side,
+        scattered (von Mises), and always with some sideways push."""
+        angle = around(self.rng, 0.0 if prevailing > 0 else math.pi, scatter)
+        across = math.cos(angle)
+        self.toward = math.copysign(max(0.35, abs(across)), across)
+
     def update(self, dt, base):
         self.t += dt
+        self.direction += (self.toward - self.direction) * min(1.0, dt / 20.0)   # turns over a few seconds
         gust = self.gusts(self.t * 0.22)
         self.strength = base * (0.45 + 0.85 * gust)
 
@@ -284,10 +319,15 @@ def _day_value(ordinal):
 
 
 class Environment:
-    def __init__(self, rng, width, height, clock, weather_state="clear", weather_locked=False):
+    def __init__(self, rng, width, height, clock, weather_state="clear", weather_locked=False, seed=0):
         self.clock = clock
-        self.weather = Weather(rng, weather_state, weather_locked)
+        self.day = Day(seed, SETTINGS["day"])
+        self.day.update(clock.date)
+        self.weather = Weather(rng, weather_state, weather_locked, self.day)
         self.wind = Wind(rng)
+        self.wind.veer(self.day.prevailing, SETTINGS["weather"]["wind_scatter"])
+        self.wind.direction = self.wind.toward
+        self._spell = self.weather.spell
         self.clouds = CloudLayer(rng, width, height)
         self.clouds.seed_initial(self.weather.cloud, self.weather.rain)
         self.temperature = self._temperature()
@@ -318,7 +358,11 @@ class Environment:
 
     def update(self, dt):
         self.clock.update(dt)
+        self.day.update(self.clock.date)
         self.weather.update(dt, self.season)
+        if self.weather.spell != self._spell:
+            self._spell = self.weather.spell
+            self.wind.veer(self.day.prevailing, SETTINGS["weather"]["wind_scatter"])
         self.wind.update(dt, self.weather.wind)
         self.clouds.update(dt, self.weather.cloud, self.weather.rain, self.wind)
         self.temperature = self._temperature()

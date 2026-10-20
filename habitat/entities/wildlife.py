@@ -15,11 +15,15 @@ import pygame
 
 from .. import bird_art, cat_anims, critter_art, deer_art, fox_art, pixelrig, pond_art
 from ..assets import generated_library
+from ..chance import count, sample
 from ..paths import find_path, widen
+from ..settings import SETTINGS
 from ..util import clamp
 from .base import Entity
 
 _ART = {}
+COUNTS = SETTINGS["effects"]["counts"]
+STAYS = SETTINGS["effects"]["stays"]
 
 
 def art():
@@ -1906,7 +1910,7 @@ class Deer(Entity):
         self.facing = 1 if side < 0 else -1
         self.state = "walk"
         self.timer = 0.0
-        self.bouts = rng.randint(2, 4)
+        self.bouts = count(rng, COUNTS["deer_bouts"])
         self.leaving = False
         self.fleeing = False
 
@@ -1966,7 +1970,7 @@ class Deer(Entity):
             if self.leaving:
                 self.alive = False
                 return
-            self.state, self.timer = "graze", self.rng.uniform(8, 16)
+            self.state, self.timer = "graze", sample(self.rng, STAYS["deer_grazes"])
             self._play("graze_start", fps=5, loop=False)
             return
         tx, ty = self.route[0]
@@ -1989,7 +1993,7 @@ class Deer(Entity):
         """After looking about: graze again, or move on."""
         self.bouts -= 1
         if self.bouts > 0:
-            self.state, self.timer = "graze", self.rng.uniform(8, 16)
+            self.state, self.timer = "graze", sample(self.rng, STAYS["deer_grazes"])
             self._play("graze_start", fps=5, loop=False)
         else:
             self.leaving = True
@@ -2029,7 +2033,7 @@ class Heron(Entity):
         self.z = 70.0
         self.state = "fly_in"
         self.timer = 0.0
-        self.rounds = rng.randint(3, 5)
+        self.rounds = count(rng, COUNTS["heron_rounds"])
         self.facing = self.spot[2] if self.spot else 1     # toward the water
         self.flight_facing = 1 if side < 0 else -1
 
@@ -2088,7 +2092,7 @@ class Heron(Entity):
         if self.state == "stand":
             self._play("stand", self.facing, fps=1.5)
             if self.timer <= 0:
-                self.state, self.timer = "hunt", rng.uniform(8, 18)
+                self.state, self.timer = "hunt", sample(rng, STAYS["heron_hunts"])
         elif self.state == "hunt":
             self._play("hunt", self.facing, fps=5, loop=False)
             if self.timer <= 0:

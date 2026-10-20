@@ -51,7 +51,3 @@ EDGE_MARGIN_BOTTOM = 10
 
 # The bowl is refilled at these hours (someone comes out with food).
 MEAL_TIMES = tuple(SETTINGS["meals"]["times"])
-
-# Time & weather ----------------------------------------------------------
-WEATHER_MIN_HOLD, WEATHER_MAX_HOLD = (float(v) for v in _weather["hold"])
-WEATHER_BLEND = float(_weather["blend"])

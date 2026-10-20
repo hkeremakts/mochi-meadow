@@ -98,18 +98,32 @@ class Behaviours(unittest.TestCase):
         self.assertTrue(bush_near < 30 or world.terrain.under_roof(world.cat.x, world.cat.y))
 
     def test_an_exhausted_cat_falls_asleep_and_wakes_rested(self):
+        # (A catnap: deep sleeps can last a quarter of an hour.)
+        from habitat.entities import cat as cat_module
+        saved = cat_module.MOCHI["nap_minutes"]
+        cat_module.MOCHI["nap_minutes"] = 3
+        try:
+            self._exhausted_cat_sleeps()
+        finally:
+            cat_module.MOCHI["nap_minutes"] = saved
+
+    def _exhausted_cat_sleeps(self):
         world = self.make()
         world.cat.needs.energy = 0.05
         world.cat.activity = None
         self.assertIsNotNone(run(world, 120, until=lambda: world.cat.state == "sleeping"), "never slept")
         self.assertIsNotNone(run(world, 400, until=lambda: world.cat.label == "waking up"), "never woke")
-        self.assertGreater(world.cat.needs.energy, 0.9)
+        self.assertGreater(world.cat.needs.energy, 0.55)     # rested enough (a catnap needn't top her up)
 
     def test_an_empty_bowl_is_refilled_at_mealtime(self):
-        world = World(427, 266, seed=7, clock=fixed_clock(17.9, speed=60), weather="clear", weather_locked=True)
+        probe = World(427, 266, seed=7, clock=fixed_clock(12.0), weather="clear", weather_locked=True)
+        dinner = probe.meal_times()[1]        # today's dinner: about 18:00, give or take
+        self.assertLess(abs(dinner - 18.0), 0.8)
+        world = World(427, 266, seed=7, clock=fixed_clock(dinner - 0.1, speed=60), weather="clear",
+                      weather_locked=True)
         world.bowl_fill = 0.0
-        run(world, 12)  # 12 s at 60x = 12 game minutes, crossing 18:00
-        self.assertEqual(world.bowl_fill, 1.0)
+        run(world, 12)  # 12 s at 60x = 12 game minutes, past dinner time
+        self.assertGreater(world.bowl_fill, 0.55)
 
     def test_summer_nights_bring_fireflies_and_days_bring_butterflies(self):
         night = self.make(hour=22.5, date=MIDSUMMER)

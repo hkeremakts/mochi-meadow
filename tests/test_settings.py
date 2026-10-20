@@ -20,7 +20,7 @@ def write(text):
 class Defaults(unittest.TestCase):
     def test_the_defaults_are_the_values_the_meadow_was_tuned_with(self):
         d = settings.DEFAULTS
-        self.assertEqual(d["weather"]["hold"], [240, 600])
+        self.assertEqual(d["weather"]["hold_minutes"]["clear"]["typical"], 25)
         self.assertEqual(d["meals"]["times"], [7.5, 18.0])
         self.assertEqual(d["events"]["tiers"]["rare"], 180)
         self.assertEqual(d["mochi"]["needs"]["energy_awake"], 720)
@@ -41,23 +41,23 @@ class Defaults(unittest.TestCase):
 
 class YourOwn(unittest.TestCase):
     def test_a_file_changes_only_what_it_names(self):
-        path = write("[weather]\nhold = [600, 3600]\n[mochi.cooldowns]\nmeow = 30\n")
+        path = write("[weather.hold_minutes]\nrain = { typical = 60, spread = 0.5 }\n[mochi.cooldowns]\nmeow = 30\n")
         try:
             s = settings.load(path, quiet=True)
         finally:
             os.unlink(path)
-        self.assertEqual(s["weather"]["hold"], [600, 3600])
+        self.assertEqual(s["weather"]["hold_minutes"]["rain"], {"typical": 60, "spread": 0.5})
         self.assertEqual(s["mochi"]["cooldowns"]["meow"], 30)
         self.assertEqual(s["weather"]["blend"], settings.DEFAULTS["weather"]["blend"])
         self.assertEqual(s["mochi"]["cooldowns"]["zoomies"], settings.DEFAULTS["mochi"]["cooldowns"]["zoomies"])
 
     def test_mistakes_are_ignored_not_fatal(self):
-        path = write('[weather]\nhold = "long"\nblend = [1, 2]\nfoo = 3\n[mochi]\nwalk_speed = 30\n')
+        path = write('[weather]\nquick_blend = "long"\nblend = "slow"\nfoo = 3\n[mochi]\nwalk_speed = 30\n')
         try:
             s = settings.load(path, quiet=True)
         finally:
             os.unlink(path)
-        self.assertEqual(s["weather"]["hold"], settings.DEFAULTS["weather"]["hold"])
+        self.assertEqual(s["weather"]["quick_blend"], settings.DEFAULTS["weather"]["quick_blend"])
         self.assertEqual(s["weather"]["blend"], settings.DEFAULTS["weather"]["blend"])
         self.assertNotIn("foo", s["weather"])
         self.assertEqual(s["mochi"]["walk_speed"], 30)      # the good line still counts

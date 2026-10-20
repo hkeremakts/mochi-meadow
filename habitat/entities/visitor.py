@@ -12,7 +12,9 @@ import numpy as np
 import pygame
 
 from .. import cat_art
+from ..chance import sample
 from ..personality import BEST_FRIENDS
+from ..settings import SETTINGS
 from .cat import UNREACHABLE, Cat, cat_library
 
 # Mochi's palette index -> the visitor's colour.
@@ -27,6 +29,9 @@ GINGER = {
     cat_art.PINK: (226, 146, 136),
     cat_art.IRIS: (222, 172, 62),
 }
+
+
+STAYS = SETTINGS["effects"]["stays"]
 
 
 class Recoloured(dict):
@@ -182,7 +187,7 @@ class VisitorCat(Cat):
             self.phase = "friendly"
         self.label = "sitting with Mochi"
         yield from self.to_posture("sit")
-        end = world.time + rng.uniform(25, 50)
+        end = world.time + sample(rng, STAYS["ginger_sits"], world.day.spread)
         while world.time < end:
             if rng.random() < self.dt * 0.08:
                 yield from self.once("groom", fps=6)

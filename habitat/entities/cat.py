@@ -23,6 +23,7 @@ from ..config import (CAT_ANCHOR, CAT_RUN_SPEED, CAT_STALK_SPEED, CAT_TROT_SPEED
                       NEED_RATES)
 from ..paths import find_path
 from ..personality import Personality
+from ..chance import Drift, lognormal, sample
 from ..settings import SETTINGS
 from ..util import approach, clamp
 from .base import Entity
@@ -40,7 +41,8 @@ POSTURES = ("stand", "sit", "lie", "sleep")
 SLEEP_IN = {"loaf": "doze", "curl": "curlup", "flat": "sprawl"}
 SLEEP_OUT = {"loaf": "undoze", "curl": "uncurl", "flat": "unsprawl"}
 ARRIVED, PARTIAL, UNREACHABLE = "arrived", "partial", "unreachable"
-COOL = SETTINGS["mochi"]["cooldowns"]
+MOCHI = SETTINGS["mochi"]
+COOL = MOCHI["cooldowns"]
 RAIN = SETTINGS["mochi"]["rain"]
 DRIZZLE_CHANCE = RAIN["drizzle_chance"]   # per look-round (every 0.35 s): about once in five minutes of drizzle
 
@@ -167,7 +169,8 @@ class Cat(Entity):
         self._next_blink = self.rng.uniform(1.0, 4.0)
         self.carrying = None      # the name of a gift in her mouth
         self._dressed = {}
-        self.pace = self.rng.uniform(0.92, 1.08)
+        self.pace = sample(self.rng, MOCHI["pace"])
+        self._mood_wander = Drift(self.rng, 0.0, MOCHI["mood_wander"], 600.0)
         self.idle_pose()
         self._first_scene()
 
@@ -227,7 +230,7 @@ class Cat(Entity):
     def _update_needs(self, dt):
         n = self.needs
         p = self.p
-        tires = p.lean("lazy", 0.75, 1.3)
+        tires = p.lean("lazy", 0.75, 1.3) / self.world.day.energy      # a sleepy day tires her sooner
         if self.posture == "sleep":
             n.energy += NEED_RATES["energy_sleep"] * dt * p.lean("lazy", 1.3, 0.7)   # lazy cats sleep longer
         elif self.speed > 55 or self.activity_name in ("hunt", "zoomies", "butterfly"):
@@ -241,6 +244,9 @@ class Cat(Entity):
             n.play += NEED_RATES["play"] * dt * p.lean("playful", 0.7, 1.4)
         n.clamp()
         p.settle(dt)
+        if type(self) is Cat:
+            before = self._mood_wander.value
+            p.feel(self._mood_wander.step(dt) - before)     # moods drift a little of their own accord
 
     def _update_blink(self, dt):
         if self._blink > 0:
@@ -625,10 +631,17 @@ class Cat(Entity):
     # ======================================================================
     # Choosing what to do
 
+    def _enough(self, setting):
+        """How long until she's had enough of something (Weibull: the longer
+        it goes on, the likelier she is to stop)."""
+        return sample(self.rng, MOCHI[setting], self.world.day.spread)
+
     def _cooldown_ok(self, name):
         return self.world.time >= self._cooldowns.get(name, 0.0)
 
     def _cool(self, name, seconds):
+        """Not again for about ``seconds``: more or less, as with any cat."""
+        seconds = lognormal(self.rng, seconds, MOCHI["cooldown_spread"])
         self._cooldowns[name] = self.world.time + seconds
 
     def _choose(self):
@@ -642,9 +655,9 @@ class Cat(Entity):
         if n.energy < sleepy or (night and n.energy < sleepy + 0.3):
             options.append(("nap", 2.5 + (sleepy + 0.3 - n.energy) * 8 + (2.5 if night else 0.0)))
         if n.hunger > 0.55 and spots["bowl"]:
-            options.append(("eat", 2.0 + n.hunger * 4))
+            options.append(("eat", 2.0 + n.hunger * 4 + (12.0 if n.hunger > 0.85 else 0.0)))   # starving comes first
         if n.thirst > 0.55 and spots["drink"]:
-            options.append(("drink", 2.0 + n.thirst * 4))
+            options.append(("drink", 2.0 + n.thirst * 4 + (12.0 if n.thirst > 0.85 else 0.0)))
         if n.groom > 0.55 and self._cooldown_ok("groom"):
             options.append(("groom", 1.0 + n.groom * 2.5))
         options.append(("wander", 2.0 + (0.8 if twilight else 0.0)))
@@ -769,6 +782,10 @@ class Cat(Entity):
         if best is None:
             return
         score, prey = best
+        if (self.p.has("chatterer") and prey.kind in ("pigeon", "sparrow") and getattr(prey, "state", "") == "ground"
+                and self._cooldown_ok("chatter") and self.rng.random() < 0.08):
+            self._start("chatter", self.act_chatter(prey))     # not play: she simply can't help it
+            return
         if n.play < 0.3:
             return
         eagerness = (0.2 + 0.8 * n.play) * self.p.lean("playful", 0.6, 1.4)
@@ -776,10 +793,6 @@ class Cat(Entity):
             p = self.p
             if prey.kind == "crow" and p["bold"] > 0.65 and self.rng.random() < 0.5 and self._cooldown_ok("hunt"):
                 self._start("hiss", self.act_hiss(prey))
-                return
-            if prey.kind in ("pigeon", "sparrow") and p.has("chatterer") and self._cooldown_ok("chatter") \
-                    and getattr(prey, "state", "") == "ground" and self.rng.random() < 0.5:
-                self._start("chatter", self.act_chatter(prey))
                 return
             if prey.kind == "golden_butterfly":
                 self._start("golden", self.act_follow(prey))
@@ -900,7 +913,7 @@ class Cat(Entity):
         self.label = "sitting"
         self.speed = 0.0
         yield from self.to_posture("sit")
-        duration = self.rng.uniform(8.0, 24.0)
+        duration = self._enough("sit_seconds")
         elapsed = 0.0
         next_glance = self.rng.uniform(3.0, 7.0)
         looking = False
@@ -929,7 +942,7 @@ class Cat(Entity):
         self.label = "sunbathing" if sunny else "loafing"
         self.speed = 0.0
         yield from self.to_posture("lie")
-        duration = self.rng.uniform(20.0, 55.0)
+        duration = self._enough("loaf_seconds")
         elapsed = 0.0
         while elapsed < duration:
             elapsed += self.dt
@@ -974,7 +987,12 @@ class Cat(Entity):
                     world.say(f"{self.name} has a favourite nap spot now", "uncommon")
         if self.p.has("kneader") or (self.p.mood > 0.5 and self.rng.random() < 0.3):
             yield from self.knead()
-        yield from self.doze(until=lambda: self.needs.energy >= 0.97 and not self._sleep_in())
+        # A catnap or a proper sleep; she wakes once it's over and she's
+        # rested enough (and sleeps on at night).
+        length = sample(self.rng, MOCHI["nap_minutes"], self.world.day.spread) * 60.0
+        start = self.world.time
+        yield from self.doze(until=lambda: self.world.time - start >= length and self.needs.energy >= 0.55
+                             and not self._sleep_in())
 
     def _sleep_style(self):
         env = self.world.env
@@ -1063,7 +1081,7 @@ class Cat(Entity):
         self.p.feel(0.1)
         yield from self.once("eat_start", fps=8)
         self.show("eat", fps=self.rng.uniform(5.0, 6.5))
-        duration = self.rng.uniform(7.0, 12.0)
+        duration = sample(self.rng, MOCHI["eat_seconds"])
         elapsed = 0.0
         while elapsed < duration and world.bowl_fill > 0:
             elapsed += self.dt
@@ -1121,7 +1139,7 @@ class Cat(Entity):
             return
         self.label = "watching the pond"
         yield from self.to_posture("sit")
-        yield from self.wait(self.rng.uniform(10.0, 28.0))
+        yield from self.wait(self._enough("pond_watch_seconds"))
 
     def act_explore(self):
         t = self.world.terrain
@@ -1508,7 +1526,7 @@ class Cat(Entity):
         try:
             self.label = "waiting out the drizzle"
             yield from self.to_posture("sit")
-            end = self.world.time + self.rng.uniform(*RAIN["drizzle_stay"])
+            end = self.world.time + sample(self.rng, RAIN["drizzle_stay"], self.world.day.spread)
             while self.world.time < end and 0.05 < env.rain <= RAIN["shelter_above"]:
                 yield
         finally:
@@ -1807,7 +1825,7 @@ class Cat(Entity):
                 yield from self.go(gx, gy, gait="walk", max_time=6.0)
         yield from self.face((creature.x, creature.y))
         yield from self.to_posture("sit")
-        end = self.world.time + self.rng.uniform(6.0, 16.0)
+        end = self.world.time + self._enough("watch_seconds")
         while self.world.time < end and creature.alive and not getattr(creature, "hidden", False):
             yield
         self._ignored[id(creature)] = self.world.time + self.rng.uniform(60, 160)

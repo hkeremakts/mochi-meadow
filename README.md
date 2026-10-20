@@ -218,12 +218,39 @@ file, [`habitat/defaults.toml`](habitat/defaults.toml):
   legendary omens, and how long effects last
 - frame rates
 
+### Natural chance
+
+Things that vary use the shape of chance that suits them
+([`habitat/chance.py`](habitat/chance.py)), rather than a flat "anything
+between a and b":
+
+| Shape | Used for |
+|---|---|
+| log-normal: mostly typical, now and then much longer | how long weather lasts, blends, stays, cooldowns |
+| a mixture of kinds | rain (a passing shower, a soaking, or rarely all day); naps (a catnap or a deep sleep) |
+| Weibull: the longer it goes on, the likelier it ends | how long Mochi loafs, sits or watches the pond before she's had enough |
+| normal, clipped | each day's mealtimes (a little early or late), her pace |
+| exponential | waits for something to turn up |
+| Hawkes: arrivals that cluster | pigeons, sparrows and passing birds come in busy spells and quiet lulls; meteor-shower stars come in little bursts |
+| Ornstein-Uhlenbeck: wander and return | rain heaviness and wind inside a spell, Mochi's mood |
+| von Mises: smooth peaks on the clock | when fireflies, mice, hedgehogs, bats, mist, the fox and the deer are about (no switches at set hours) |
+| beta, Poisson, Pareto | how full the bowl is filled; how many ducklings, bats or moths; a rare huge flock of sparrows |
+
+On top of that every day has its own character, decided at dawn and the
+same however often the meadow restarts that day. It has a volatility (a
+settled or a changeable day of weather), a busyness for the wildlife,
+Mochi's energy, and a spread that makes the whole day's chances steadier or
+wilder. The info panel (`I`) names it, for example "a changeable day,
+lively wildlife, Mochi sleepy".
+
+### Your own settings
+
 To change something, don't edit that file. Make your own `settings.toml`
 with just the values you want, in the same sections, for example:
 
 ```toml
-[weather]
-hold = [600, 3600]        # weather lasts 10 minutes to an hour
+[weather.hold_minutes]
+rain = { typical = 45, spread = 0.6, max = 240 }   # longer, wetter rain
 
 [events.tiers]
 rare = 60                 # rare things about once an hour
@@ -253,6 +280,8 @@ habitat/
   events.py          encounters: rarity tiers, conditions, effects
   journal.py         what has been seen, kept between runs
   settings.py        loads defaults.toml and your own settings on top
+  chance.py          shapes of chance, smooth daily peaks, clustering,
+                     wandering values, and each day's character
   defaults.toml      every tuning value, commented
   personality.py     Mochi's traits, quirks, mood and friendships
   render.py          one integer pixel zoom for all art, depth sorting,

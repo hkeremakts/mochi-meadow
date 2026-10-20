@@ -147,6 +147,7 @@ class Character(unittest.TestCase):
 class Gifts(unittest.TestCase):
     def test_she_carries_a_gift_to_the_bowl_and_leaves_it(self):
         w = meadow(cat())
+        w.entities = [w.cat]            # nothing to distract her on the way
         w.cat._start("gift", w.cat.act_gift("feather"))
         carried = False
         for _ in range(int(120 / DT)):

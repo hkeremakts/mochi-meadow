@@ -6,6 +6,7 @@ import random
 
 from . import art
 from .config import MEAL_TIMES
+from .chance import Hawkes, count, peaks, sample
 from .settings import SETTINGS
 from .environment import Clock, Environment
 from .events import CAPTION_TIME, Caption, Events, GlassTap
@@ -20,8 +21,9 @@ from .terrain import generate_terrain
 from .water import WaterFX
 
 # ...and if it sits empty this long (real seconds), it gets topped up anyway.
-EMPTY_BOWL_PATIENCE = float(SETTINGS["meals"]["empty_bowl_patience"])
+MEALS = SETTINGS["meals"]
 WILD = SETTINGS["wildlife"]
+HOURS = WILD["hours"]
 
 
 class World:
@@ -34,7 +36,8 @@ class World:
         self.time = 0.0
         self.dt_hint = 1 / 60
         self.terrain = generate_terrain(width, height, self.seed)
-        self.env = Environment(self.rng, width, height, clock or Clock(), weather, weather_locked)
+        self.env = Environment(self.rng, width, height, clock or Clock(), weather, weather_locked, seed=self.seed)
+        self.day = self.env.day
         self.particles = Particles(self)
         self.water = WaterFX(self)
         self.entities = []
@@ -48,6 +51,9 @@ class World:
         self._bowl_sprites = [art.bowl(level, random.Random(self.seed + i)) for i, level in
                               enumerate((0.0, 0.34, 0.67, 1.0))]
         self._empty_for = 0.0
+        self._patience = 0.0
+        self._meals_for = None
+        self._meals = []
         self._last_hour = self.env.hour
         self.scenery = Scenery(self.terrain)
         self.scenery_version = 0
@@ -113,17 +119,33 @@ class World:
     def glass_tap(self, x, y):
         self.effects.append(GlassTap(x, y))
 
+    def meal_times(self):
+        """Today's mealtimes: the usual hours, a little early or late, and
+        differently so each day (the same however often the meadow
+        restarts that day)."""
+        date = self.env.clock.date
+        if self._meals_for != date:
+            rng = random.Random(date.toordinal() * 31 + self.seed)
+            self._meals = [meal + sample(rng, MEALS["lateness"]) for meal in MEAL_TIMES]
+            self._meals_for = date
+        return self._meals
+
+    def _refill(self):
+        self.bowl_fill = sample(self.rng, MEALS["refill"])
+
     def _update_bowl(self, dt):
         hour = self.env.hour
-        for meal in MEAL_TIMES:
+        for meal in self.meal_times():
             crossed = self._last_hour < meal <= hour or (hour < self._last_hour and (meal > self._last_hour or meal <= hour))
             if crossed:
-                self.bowl_fill = 1.0
+                self._refill()
         self._last_hour = hour
         if self.bowl_fill <= 0.02:
+            if self._empty_for == 0.0:
+                self._patience = sample(self.rng, MEALS["empty_bowl_patience"], self.day.spread)
             self._empty_for += dt
-            if self._empty_for > EMPTY_BOWL_PATIENCE:
-                self.bowl_fill = 1.0
+            if self._empty_for > self._patience:
+                self._refill()
         else:
             self._empty_for = 0.0
         self._sync_bowl()
@@ -203,15 +225,16 @@ class Director:
         self.world = world
         self.timer = 0.0
         rng = world.rng
-        self.next_pigeons = rng.uniform(*WILD["pigeons_first"])
-        self.next_sparrows = rng.uniform(*WILD["sparrows_first"])
+        # Bird visits cluster: one flock makes another likelier for a while.
+        self.pigeons = Hawkes(rng, **WILD["pigeons"])
+        self.sparrows = Hawkes(rng, **WILD["sparrows"])
+        self.flyovers = Hawkes(rng, **WILD["overhead"])
         self.wet = 0.0            # how recently it rained: snails come out
         self.hog_night = rng.random() < WILD["hedgehog_night_chance"]
         self._rolled = False
-        self.next_birds = rng.uniform(*WILD["overhead_first"])
         self.spawn_wait = {}
         self.day_mouse = False
-        self.day_mouse_timer = rng.uniform(*WILD["day_mouse_first"])
+        self.day_mouse_timer = sample(rng, WILD["day_mouse_first"])
 
     def targets(self):
         env = self.world.env
@@ -226,26 +249,29 @@ class Director:
         t = {}
         # Insects need warmth: few in spring and autumn, none in winter.
         insects = clamp((warm - 10.0) / 8.0, 0.0, 1.0)
-        t["butterfly"] = round(4 * area * (1 - 0.55 * cloud) * calm * insects) if (sun > 0.55 and dry) else 0
-        firefly_ok = summer and warm > 16 and sun < 0.05 and dry and clock.between(20.6, 3.8)
-        t["firefly"] = round(22 * area * (1 - 0.4 * cloud)) if firefly_ok else 0
+        hour = clock.standard_hour
+        busy = self.world.day.busyness
+        t["butterfly"] = round(4 * area * (1 - 0.55 * cloud) * calm * insects * busy) if (sun > 0.55 and dry) else 0
+        glow = peaks(hour, HOURS["fireflies"])
+        firefly_ok = summer and warm > 16 and sun < 0.05 and dry and glow > 0.1
+        t["firefly"] = round(22 * area * (1 - 0.4 * cloud) * glow) if firefly_ok else 0
         if rain > 0.4 or env.snowing:
             t["mouse"] = 0
-        elif clock.between(18.5, 7.0):
-            t["mouse"] = 2 if area > 1.2 else 1
         else:
-            t["mouse"] = 1 if self.day_mouse else 0
+            night_mice = round((2 if area > 1.2 else 1) * peaks(hour, HOURS["mice"]))
+            t["mouse"] = night_mice or (1 if self.day_mouse else 0)
         t["ladybug"] = round(2 * area * insects) if (sun > 0.6 and dry) else 0
         pond = self.world.terrain.pond is not None
         t["dragonfly"] = (2 if area > 1.2 else 1) if (pond and sun > 0.6 and dry and wind < 0.65 and warm > 17) else 0
-        t["bee"] = round(4 * area * calm * insects) if (sun > 0.6 and dry and cloud < 0.6) else 0
+        t["bee"] = round(4 * area * calm * insects * busy) if (sun > 0.6 and dry and cloud < 0.6) else 0
         if pond:
-            evening = clock.between(19.0, 6.0) or rain > 0.15
+            evening = peaks(hour, HOURS["frogs_evening"]) > 0.5 or rain > 0.15
             awake = warm > 8 and not env.snowing   # frogs sleep through the cold months in the mud
             t["frog"] = (2 if evening else 1) if awake and (sun > 0.02 or evening) else 0
         t["snail"] = round(3 * area * self.wet) if (self.wet > 0.3 and rain < 0.3 and warm > 6) else 0
         hog_awake = warm > 7          # hedgehogs hibernate through the winter
-        t["hedgehog"] = 1 if (self.hog_night and hog_awake and clock.between(21.5, 4.5) and rain < 0.4) else 0
+        out_and_about = peaks(hour, HOURS["hedgehog"]) > 0.35
+        t["hedgehog"] = 1 if (self.hog_night and hog_awake and out_and_about and rain < 0.4) else 0
         return t
 
     @property
@@ -273,7 +299,7 @@ class Director:
             self._rolled = False
         self.day_mouse_timer -= dt
         if self.day_mouse_timer <= 0:
-            self.day_mouse_timer = rng.uniform(*WILD["day_mouse_check"])
+            self.day_mouse_timer = sample(rng, WILD["day_mouse_check"])
             self.day_mouse = rng.random() < WILD["day_mouse_chance"]
         self.timer -= dt
         if self.timer <= 0:
@@ -285,7 +311,7 @@ class Director:
                 if have < target and wait <= 0:
                     self._spawn(kind)
                     wait = WILD["mouse_wait"] if kind == "mouse" else WILD["spawn_wait"]
-                    self.spawn_wait[kind] = rng.uniform(*wait)
+                    self.spawn_wait[kind] = sample(rng, wait)
                 elif have > target:
                     for e in world.of_kind(kind):
                         if not getattr(e, "leaving", False):
@@ -296,24 +322,18 @@ class Director:
 
         if world.events.hushed:
             return   # something is about to happen: the birds stay away
+        busy = world.day.busyness
         # Pigeons visit in small flocks during the day.
-        self.next_pigeons -= dt
-        if self.next_pigeons <= 0:
-            self.next_pigeons = rng.uniform(*WILD["pigeons_every"])
-            if env.sun > 0.4 and env.rain < 0.2 and world.count("pigeon") == 0:
-                self._spawn_flock(Pigeon, rng.choice((1, 2, 2, 3)))
+        if self.pigeons.step(dt, busy if (env.sun > 0.4 and env.rain < 0.2) else 0.0):
+            if world.count("pigeon") == 0:
+                self._spawn_flock(Pigeon, count(rng, WILD["pigeon_flock"]))
         # Sparrows drop in, peck about and whirr off again.
-        self.next_sparrows -= dt
-        if self.next_sparrows <= 0:
-            self.next_sparrows = rng.uniform(*WILD["sparrows_every"])
-            if env.sun > 0.35 and env.rain < 0.2 and world.count("sparrow") == 0:
-                self._spawn_flock(Sparrow, rng.choice((3, 4, 4, 5, 6)), spread=(24, 12), gap=(10, 6))
+        if self.sparrows.step(dt, busy if (env.sun > 0.35 and env.rain < 0.2) else 0.0):
+            if world.count("sparrow") == 0:
+                self._spawn_flock(Sparrow, count(rng, WILD["sparrow_flock"]), spread=(24, 12), gap=(10, 6))
         # Birds pass high overhead; only their shadows reach the meadow.
-        self.next_birds -= dt
-        if self.next_birds <= 0:
-            self.next_birds = rng.uniform(*WILD["overhead_every"])
-            if env.sun > 0.5 and env.rain < 0.3:
-                world.overhead.append(BirdFlock(world))
+        if self.flyovers.step(dt, busy if (env.sun > 0.5 and env.rain < 0.3) else 0.0):
+            world.overhead.append(BirdFlock(world))
 
     def populate(self):
         """Start with the meadow already alive instead of waiting for

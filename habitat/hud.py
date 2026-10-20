@@ -130,7 +130,8 @@ class Hud:
         n = cat.needs
         needs = f"energy {n.energy:.0%}   hunger {n.hunger:.0%}   thirst {n.thirst:.0%}"
         day = sky.day
-        sun_line = f"sunrise {_hm(day.sunrise)}   sunset {_hm(day.sunset)}   {moon_name(sky.moon_age)}"
+        sun_line = (f"sunrise {_hm(day.sunrise)}   sunset {_hm(day.sunset)}   {moon_name(sky.moon_age)}"
+                    f"   ·   {world.day.describe()}")
         p = cat.p
         quirks = ", ".join(p.quirks)
         who = f"{cat.name}: {p.describe()}" + (f"; {quirks}" if quirks else "") + f"; feeling {p.mood_word}"
@@ -228,6 +229,11 @@ class Hud:
         p = world.cat.p
         lines.append((f"{world.cat.name}: mood {p.mood:+.2f} ({p.mood_word}), activity {world.cat.activity_name}",
                       self.small, dim))
+        d = world.day
+        wx = world.env.weather
+        lines.append((f"today: volatility {d.volatility:.2f}, busyness {d.busyness:.2f}, energy {d.energy:.2f}, "
+                      f"spread {d.spread:.2f}", self.small, dim))
+        lines.append((f"{wx.state} for another {wx.hold / 60:.0f} min (blend {wx.blend:.0f} s)", self.small, dim))
         self._panel(screen, lines, "topleft")
 
     def draw_guide(self, screen):

@@ -5,8 +5,27 @@
 # journal, ~/Library/Application Support/Meadow/settings.toml, or pass
 # --settings PATH).  Anything you leave out keeps the value here.
 #
-# Times are in real seconds unless a name says otherwise.  A pair [a, b]
-# is a range: a value is picked at random between a and b each time.
+# Times are in real seconds unless a name says otherwise.
+#
+# Values that vary are written as a shape of chance (see habitat/chance.py):
+#   { typical = 20, spread = 0.6 }    log-normal: usually about 20, now and then much more
+#   { mean = 7.5, sd = 0.25 }         normal: evenly either side of 7.5
+#   { mean_wait = 120 }               exponential: a wait for something to turn up
+#   { scale = 40, shape = 2.2 }       Weibull: how long until she's had enough
+#   { a = 9, b = 1.2 }                beta: a proportion between 0 and 1
+#   { poisson = 4.5 }                 Poisson: how many
+#   { pareto = 2.2, scale = 5 }       Pareto: a rare extreme (always give a max)
+#   { mix = [ { weight = 0.7, ... }, ... ] }   one of several kinds
+#   [4, 10]                           uniform between 4 and 10
+# Each may have min and max.  "spread" is in log units: 0.3 steady, 0.7 wild.
+
+# Each day has a character of its own, decided at dawn (the same however
+# often the meadow restarts that day).
+[day]
+volatility = { typical = 1.0, spread = 0.4, min = 0.4, max = 2.5 }   # how changeable the weather is
+busyness = { typical = 1.0, spread = 0.3, min = 0.5, max = 2.0 }     # how lively the wildlife is
+energy = { mean = 1.0, sd = 0.08, min = 0.8, max = 1.2 }             # Mochi's get-up-and-go
+spread = { typical = 1.0, spread = 0.25, min = 0.6, max = 1.6 }      # how wild the day's chances are
 
 [screen]
 fps = 60                  # in a window
@@ -22,9 +41,26 @@ screensaver_grace = 1.5           # seconds before input ends a screensaver
 save_every = 300                  # seconds between saves of the session to the journal
 
 [weather]
-hold = [240, 600]         # how long one kind of weather lasts
-blend = 45                # seconds to ease into the next weather
+blend = { typical = 45, spread = 0.5, min = 10, max = 180 }   # easing into the next weather: a sudden shower or a slow build
 quick_blend = 3           # ...and into one chosen with W
+cloud_steadiness = 25     # how closely each spell's cloud cover keeps to its kind's (beta)
+wind_scatter = 3.0        # how closely the wind keeps to the day's prevailing direction (von Mises)
+
+# How long each kind of weather lasts, in minutes (divided by the day's volatility).
+[weather.hold_minutes]
+clear = { typical = 25, spread = 0.7, min = 5, max = 240 }
+cloudy = { typical = 15, spread = 0.6, min = 4, max = 120 }
+windy = { typical = 10, spread = 0.6, min = 3, max = 60 }
+drizzle = { typical = 12, spread = 0.6, min = 3, max = 90 }
+# A passing shower, a proper soaking, or (rarely) rain all day.
+rain = { mix = [ { weight = 0.55, typical = 7, spread = 0.45 }, { weight = 0.4, typical = 30, spread = 0.5 }, { weight = 0.05, typical = 120, spread = 0.4 } ], min = 2, max = 300 }
+
+# Inside a spell, rain and wind wander and return (Ornstein-Uhlenbeck).
+[weather.wander]
+rain_sd = 0.22            # how far the rain strays from its usual heaviness (fraction)
+rain_seconds = 90         # how quickly it changes
+wind_sd = 0.25
+wind_seconds = 240
 
 # What each kind of weather looks like: cloud cover, wind, rain (0..1).
 [weather.states]
@@ -60,24 +96,37 @@ frost_forms = 1800        # seconds to a full frost
 frost_lifts = 1800        # seconds to lift at 1 C in full sun (faster when warmer)
 
 [meals]
-times = [7.5, 18.0]       # hours when the bowl is filled
-empty_bowl_patience = 420 # an empty bowl is topped up after this long anyway
+times = [7.5, 18.0]       # the usual hours the bowl is filled...
+lateness = { mean = 0.0, sd = 0.25, min = -0.75, max = 0.75 }   # ...give or take this many hours, each day
+refill = { a = 9, b = 1.2, min = 0.6, max = 1.0 }               # how full it gets
+empty_bowl_patience = { typical = 420, spread = 0.35, min = 180, max = 1200 }   # an empty bowl is topped up after this long anyway
 
 [wildlife]
-pigeons_first = [25, 70]  # seconds until the first pigeons may come...
-pigeons_every = [70, 210] # ...and between visits after that
-sparrows_first = [15, 60]
-sparrows_every = [50, 160]
-overhead_first = [15, 50] # birds flying over (only their shadows)
-overhead_every = [25, 80]
-spawn_wait = [4, 14]      # seconds between arrivals of one kind of creature
-mouse_wait = [20, 60]
-day_mouse_first = [120, 300]   # seconds until the first check for a daytime mouse
-day_mouse_check = [180, 420]
+# Visits that come in clusters (Hawkes): a background wait in seconds, and
+# how much each visit makes another likelier (per second, fading over memory).
+pigeons = { mean_wait = 140, excite = 0.004, memory = 600 }
+sparrows = { mean_wait = 105, excite = 0.006, memory = 480 }
+overhead = { mean_wait = 50, excite = 0.01, memory = 240 }   # birds flying over (only their shadows)
+pigeon_flock = { poisson = 1.8, min = 1, max = 6 }
+# Usually a handful of sparrows; once in a long while a great chattering flock.
+sparrow_flock = { mix = [ { weight = 0.92, poisson = 4.2 }, { weight = 0.08, pareto = 2.2, scale = 6 } ], min = 2, max = 16 }
+spawn_wait = { mean_wait = 8, min = 2, max = 40 }   # between arrivals of one kind of creature
+mouse_wait = { mean_wait = 40, min = 10, max = 180 }
+day_mouse_first = { mean_wait = 200, min = 30, max = 900 }   # the first check for a daytime mouse
+day_mouse_check = { mean_wait = 300, min = 60, max = 1200 }
 day_mouse_chance = 0.3    # odds that a mouse is about by day
 hedgehog_night_chance = 0.7
 
+# When creatures are about, as smooth peaks on the clock (standard hours:
+# sunrise is about 6.2 and sunset 19.4 whatever the season).
+[wildlife.hours]
+fireflies = { peak = 23.5, width = 2.2 }
+mice = [ { peak = 22.0, width = 3.0 }, { peak = 5.6, width = 1.2, height = 0.8 } ]
+frogs_evening = { peak = 21.5, width = 3.0 }
+hedgehog = { peak = 1.0, width = 2.4 }
+
 [mochi]
+pace = { mean = 1.0, sd = 0.05, min = 0.85, max = 1.15 }   # her own speed, decided once
 walk_speed = 26.0         # art pixels per second
 stalk_speed = 11.0
 trot_speed = 48.0
@@ -85,6 +134,18 @@ run_speed = 96.0
 favourite_after = 3       # naps in one spot before it is her favourite
 best_friends = 4          # good visits before the ginger cat naps beside her
 fox_fear_distance = 170   # a timid cat hides when a fox is this close (art pixels)
+
+cooldown_spread = 0.3     # cooldowns vary this much around their usual (log units)
+# A catnap or a proper sleep, in minutes (she wakes once it's over and she's rested enough).
+nap_minutes = { mix = [ { weight = 0.65, typical = 4, spread = 0.4 }, { weight = 0.35, typical = 16, spread = 0.4 } ], min = 1.5, max = 45 }
+# How long until she's had enough (Weibull: the longer it goes on, the likelier she stops).
+loaf_seconds = { scale = 40, shape = 2.2, min = 10, max = 150 }
+sit_seconds = { scale = 16, shape = 2.0, min = 4, max = 60 }
+pond_watch_seconds = { scale = 20, shape = 2.0, min = 6, max = 80 }
+watch_seconds = { scale = 11, shape = 2.0, min = 4, max = 40 }
+eat_seconds = { typical = 9, spread = 0.25, min = 5, max = 18 }
+mood_wander = 0.08        # her mood drifts a little on its own (Ornstein-Uhlenbeck sd)
+
 
 # Needs: seconds for each to go from empty to full (or full to empty).
 [mochi.needs]
@@ -96,7 +157,7 @@ thirst = 1100
 groom = 420
 play = 260
 
-# How long before she does the same thing again.
+# How long before she does the same thing again (typical; see cooldown_spread).
 [mochi.cooldowns]
 loaf = 90
 groom = 60
@@ -113,13 +174,15 @@ shelter_above = 0.35      # rain heavier than this sends her for cover
 drizzle_above = 0.08      # lighter than shelter_above but above this is a drizzle
 roof_preference = 0.85    # odds she picks the tree over a bush
 drizzle_chance = 0.0012   # odds per look-round (every 0.35 s) of a drizzle break
-drizzle_stay = [20, 60]   # seconds she waits out a drizzle under the tree
+drizzle_stay = { typical = 35, spread = 0.4, min = 15, max = 90 }   # seconds she waits out a drizzle under the tree
 venture_rate = 0.006      # per second: popping out into the rain (scaled by her character)
 
 [events]
 check = 4                 # seconds between rolls of the dice
 caption_seconds = 9
 overdue_boost = 1.5       # how fast the odds grow once a tier is overdue
+cooldown_spread = 0.3     # cooldowns vary this much around their usual (log units)
+omen_spread = 0.2         # omens vary this much (fraction)
 
 # The mean wait between events of each tier, in minutes, while you watch.
 [events.tiers]
@@ -156,6 +219,14 @@ legendary = 1440
 "the golden butterfly" = 720
 "a deer at dawn" = 1440
 
+# Events that belong to a time of day: smooth peaks on the clock (standard hours).
+[events.hours]
+"morning mist" = { peak = 6.0, width = 0.9 }
+"bats" = { peak = 20.6, width = 0.8 }
+"a fox" = [ { peak = 6.0, width = 1.1 }, { peak = 20.3, width = 1.3 } ]
+"a deer at dawn" = { peak = 6.0, width = 0.8 }
+"a dewy spider web" = { peak = 6.8, width = 1.0 }
+
 # Seconds of hush (the birds go quiet) before a legendary event.
 [events.omen_seconds]
 "the golden butterfly" = 25
@@ -163,13 +234,29 @@ legendary = 1440
 
 [effects]
 shooting_star = 0.75      # seconds for one streak
-meteor_every = [12, 50]   # seconds between shooting stars in a meteor shower
-mist_rise = 90            # seconds for dawn mist to thicken...
-mist_lift = 150           # ...and to lift
-mist_lasts_minutes = [15, 25]
+meteors = { mean_wait = 30, excite = 0.03, memory = 40 }   # a meteor shower's stars come in little bursts
+mist_rise = { typical = 90, spread = 0.4, min = 30, max = 300 }    # seconds for dawn mist to thicken...
+mist_lift = { typical = 150, spread = 0.4, min = 50, max = 500 }   # ...and to lift
+mist_lasts_minutes = { typical = 20, spread = 0.35, min = 8, max = 60 }
 rainbow_fade = 40
-rainbow_lasts_minutes = [4, 7]
+rainbow_lasts_minutes = { typical = 5, spread = 0.35, min = 2, max = 14 }
 rainbow_after_rain = 240  # a rainbow may come this long after the rain stops
-puddles_last_minutes = [8, 16]
-fireworks_minutes = 15
-butterfly_dance = 9
+puddles_last_minutes = { typical = 12, spread = 0.4, min = 4, max = 40 }
+fireworks_minutes = { mean = 15, sd = 3, min = 8, max = 25 }
+butterfly_dance = { typical = 9, spread = 0.25, min = 5, max = 18 }
+
+# How many.
+[effects.counts]
+ducklings = { poisson = 4.5, min = 2, max = 9 }
+bats = { poisson = 1.8, min = 1, max = 5 }
+moths = { poisson = 2.0, min = 1, max = 5 }
+dandelion_seeds = { poisson = 11, min = 5, max = 22 }
+whirl_leaves = { poisson = 13, min = 7, max = 22 }
+heron_rounds = { poisson = 4, min = 2, max = 8 }
+deer_bouts = { poisson = 3, min = 1, max = 6 }
+
+# How long, for visitors (Weibull: until they've had enough).
+[effects.stays]
+ginger_sits = { scale = 38, shape = 2.2, min = 15, max = 100 }
+deer_grazes = { scale = 12, shape = 2.0, min = 4, max = 30 }
+heron_hunts = { scale = 13, shape = 2.0, min = 4, max = 35 }
