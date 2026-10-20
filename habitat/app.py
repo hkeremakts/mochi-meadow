@@ -261,6 +261,8 @@ class App:
                 self.clock.set_speed(TIME_SPEEDS[self.speed_index])
             elif key == pygame.K_w:
                 self.world.env.weather.cycle()
+                self.hud.guide_time = 0.0
+                self.hud.toast(f"Weather: {self.world.env.weather_name}")
             elif key == pygame.K_n:
                 self.seed = random.randrange(1 << 30)
                 if self.journal.path:
@@ -320,6 +322,7 @@ class App:
                 elif self.show_journal:
                     self.hud.draw_journal(self.screen, self.world.events)
                 self.hud.draw_guide(self.screen)
+                self.hud.draw_toast(self.screen)
                 pygame.display.flip()
             frames += 1
             if self.args.frames and frames >= self.args.frames:

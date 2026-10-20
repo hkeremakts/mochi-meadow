@@ -50,6 +50,16 @@ class Keys(unittest.TestCase):
         app.handle(key(pygame.K_t))
         self.assertEqual(app.clock.speed, 1)
 
+    def test_w_weather_shows_within_seconds(self):
+        app = make()
+        for _ in range(4):                       # clear -> cloudy -> windy -> drizzle -> rain
+            app.handle(key(pygame.K_w))
+        self.assertEqual(app.world.env.weather.state, "rain")
+        for _ in range(4 * 30):
+            app.world.update(1 / 30)
+        self.assertGreater(app.world.env.rain, 0.6, "it should be raining after four seconds")
+        self.assertIn("Rain", app.hud.toast_text)
+
     def test_w_moves_to_the_next_weather(self):
         app = make()
         before = app.world.env.weather.state

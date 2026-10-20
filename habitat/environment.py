@@ -163,6 +163,9 @@ SEASON_BIAS = {
 }
 
 
+QUICK_BLEND = 3.0          # seconds to ease into a weather chosen with W
+
+
 class Weather:
     def __init__(self, rng, state="clear", locked=False):
         self.rng = rng
@@ -173,6 +176,7 @@ class Weather:
         self.wind = target["wind"]
         self.rain = target["rain"]
         self.hold = rng.uniform(WEATHER_MIN_HOLD, WEATHER_MAX_HOLD)
+        self.quick = 0.0          # seconds of fast blending left (after a key press)
 
     def force(self, state, locked=None):
         self.state = state
@@ -181,8 +185,11 @@ class Weather:
             self.locked = locked
 
     def cycle(self):
+        """The next weather, now: asked for with a key, it arrives in a few
+        seconds rather than drifting in over the better part of a minute."""
         names = list(WEATHER_STATES)
         self.force(names[(names.index(self.state) + 1) % len(names)])
+        self.quick = QUICK_BLEND * 2
 
     def update(self, dt, season=None):
         if not self.locked:
@@ -198,11 +205,13 @@ class Weather:
                         break
                 self.force(name)
         target = WEATHER_STATES[self.state]
-        k = 1.0 - math.exp(-dt * 3.0 / WEATHER_BLEND)
+        quick = self.quick > 0
+        self.quick = max(0.0, self.quick - dt)
+        k = 1.0 - math.exp(-dt * 3.0 / (QUICK_BLEND if quick else WEATHER_BLEND))
         self.cloud += (target["cloud"] - self.cloud) * k
         self.wind += (target["wind"] - self.wind) * k
         # Rain arrives a little after the clouds and stops a little before.
-        rain_target = target["rain"] if self.cloud > 0.7 else 0.0
+        rain_target = target["rain"] if (self.cloud > 0.7 or quick) else 0.0
         self.rain += (rain_target - self.rain) * k
 
 

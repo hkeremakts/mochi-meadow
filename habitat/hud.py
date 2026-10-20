@@ -59,6 +59,8 @@ class Hud:
     def __init__(self, screen_height):
         self.resize(screen_height)
         self.guide_time = 7.0
+        self.toast_text = ""
+        self.toast_time = 0.0
 
     def resize(self, screen_height):
         size = max(14, int(screen_height / 44))
@@ -70,6 +72,21 @@ class Hud:
 
     def update(self, dt):
         self.guide_time = max(0.0, self.guide_time - dt)
+        self.toast_time = max(0.0, self.toast_time - dt)
+
+    def toast(self, text):
+        """A short note in the corner, for something you just changed."""
+        self.toast_text = text
+        self.toast_time = 2.5
+
+    def draw_toast(self, screen):
+        if self.toast_time <= 0:
+            return
+        alpha = int(min(1.0, self.toast_time / 0.6) * 255)
+        layer = pygame.Surface(screen.get_size(), pygame.SRCALPHA)
+        self._panel(layer, [(self.toast_text, self.font, (236, 238, 240))], "topright", alpha=min(150, alpha))
+        layer.set_alpha(alpha)
+        screen.blit(layer, (0, 0))
 
     def show_guide(self):
         self.guide_time = 6.0
