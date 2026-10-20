@@ -163,7 +163,7 @@ class Odds(unittest.TestCase):
         w.events.update(0.0)
         self.assertTrue(w.events.hushed)
         self.assertEqual(w.count("golden_butterfly"), 0)
-        run(w, ev.GoldenButterflyEvent.omen + 1)
+        run(w, ev.ALL["the golden butterfly"].omen + 1)
         self.assertEqual(w.count("golden_butterfly"), 1)
 
 

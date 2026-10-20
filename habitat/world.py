@@ -6,6 +6,7 @@ import random
 
 from . import art
 from .config import MEAL_TIMES
+from .settings import SETTINGS
 from .environment import Clock, Environment
 from .events import CAPTION_TIME, Caption, Events, GlassTap
 from .entities.cat import Cat
@@ -19,7 +20,8 @@ from .terrain import generate_terrain
 from .water import WaterFX
 
 # ...and if it sits empty this long (real seconds), it gets topped up anyway.
-EMPTY_BOWL_PATIENCE = 420.0
+EMPTY_BOWL_PATIENCE = float(SETTINGS["meals"]["empty_bowl_patience"])
+WILD = SETTINGS["wildlife"]
 
 
 class World:
@@ -201,15 +203,15 @@ class Director:
         self.world = world
         self.timer = 0.0
         rng = world.rng
-        self.next_pigeons = rng.uniform(25, 70)
-        self.next_sparrows = rng.uniform(15, 60)
+        self.next_pigeons = rng.uniform(*WILD["pigeons_first"])
+        self.next_sparrows = rng.uniform(*WILD["sparrows_first"])
         self.wet = 0.0            # how recently it rained: snails come out
-        self.hog_night = rng.random() < 0.7
+        self.hog_night = rng.random() < WILD["hedgehog_night_chance"]
         self._rolled = False
-        self.next_birds = rng.uniform(15, 50)
+        self.next_birds = rng.uniform(*WILD["overhead_first"])
         self.spawn_wait = {}
         self.day_mouse = False
-        self.day_mouse_timer = rng.uniform(120, 300)
+        self.day_mouse_timer = rng.uniform(*WILD["day_mouse_first"])
 
     def targets(self):
         env = self.world.env
@@ -265,14 +267,14 @@ class Director:
         # Each midday decides whether a hedgehog will come by that night.
         if env.clock.between(12.0, 13.0):
             if not self._rolled:
-                self.hog_night = rng.random() < 0.7
+                self.hog_night = rng.random() < WILD["hedgehog_night_chance"]
                 self._rolled = True
         else:
             self._rolled = False
         self.day_mouse_timer -= dt
         if self.day_mouse_timer <= 0:
-            self.day_mouse_timer = rng.uniform(180, 420)
-            self.day_mouse = rng.random() < 0.3
+            self.day_mouse_timer = rng.uniform(*WILD["day_mouse_check"])
+            self.day_mouse = rng.random() < WILD["day_mouse_chance"]
         self.timer -= dt
         if self.timer <= 0:
             self.timer = 1.0
@@ -282,7 +284,8 @@ class Director:
                 self.spawn_wait[kind] = wait
                 if have < target and wait <= 0:
                     self._spawn(kind)
-                    self.spawn_wait[kind] = rng.uniform(4, 14) if kind != "mouse" else rng.uniform(20, 60)
+                    wait = WILD["mouse_wait"] if kind == "mouse" else WILD["spawn_wait"]
+                    self.spawn_wait[kind] = rng.uniform(*wait)
                 elif have > target:
                     for e in world.of_kind(kind):
                         if not getattr(e, "leaving", False):
@@ -296,19 +299,19 @@ class Director:
         # Pigeons visit in small flocks during the day.
         self.next_pigeons -= dt
         if self.next_pigeons <= 0:
-            self.next_pigeons = rng.uniform(70, 210)
+            self.next_pigeons = rng.uniform(*WILD["pigeons_every"])
             if env.sun > 0.4 and env.rain < 0.2 and world.count("pigeon") == 0:
                 self._spawn_flock(Pigeon, rng.choice((1, 2, 2, 3)))
         # Sparrows drop in, peck about and whirr off again.
         self.next_sparrows -= dt
         if self.next_sparrows <= 0:
-            self.next_sparrows = rng.uniform(50, 160)
+            self.next_sparrows = rng.uniform(*WILD["sparrows_every"])
             if env.sun > 0.35 and env.rain < 0.2 and world.count("sparrow") == 0:
                 self._spawn_flock(Sparrow, rng.choice((3, 4, 4, 5, 6)), spread=(24, 12), gap=(10, 6))
         # Birds pass high overhead; only their shadows reach the meadow.
         self.next_birds -= dt
         if self.next_birds <= 0:
-            self.next_birds = rng.uniform(25, 80)
+            self.next_birds = rng.uniform(*WILD["overhead_every"])
             if env.sun > 0.5 and env.rain < 0.3:
                 world.overhead.append(BirdFlock(world))
 

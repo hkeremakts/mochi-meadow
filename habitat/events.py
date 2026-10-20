@@ -30,13 +30,17 @@ import pygame
 from .entities.cat import Mark
 from .entities.wildlife import (Bat, Bird, BirdFlock, Butterfly, Crow, Deer, Duck, Fox, GoldenButterfly, Grasshopper,
                                 Heron, Moth, PeekingMouse, Pumpkin, Sparrow, art, halloween)
+from .settings import SETTINGS
 from .util import clamp, value_noise
 
 TIERS = ("common", "uncommon", "rare", "legendary")
 # Mean real seconds between events of each tier while you watch.
-MEAN = {"common": 7 * 60, "uncommon": 40 * 60, "rare": 3 * 3600, "legendary": 24 * 3600}
-CHECK = 4.0
-CAPTION_TIME = 9.0
+_EVENTS = SETTINGS["events"]
+FX = SETTINGS["effects"]
+MEAN = {tier: 60.0 * minutes for tier, minutes in _EVENTS["tiers"].items()}
+CHECK = float(_EVENTS["check"])
+CAPTION_TIME = float(_EVENTS["caption_seconds"])
+OVERDUE_BOOST = float(_EVENTS["overdue_boost"])
 BIG = ("rare", "legendary")
 
 # Real meteor showers: (month, peak day, name).  Active the night of the
@@ -84,7 +88,7 @@ class Effect:
 class ShootingStar(Effect):
     """A streak across the pond's mirror of the night sky."""
 
-    DURATION = 0.75
+    DURATION = float(FX["shooting_star"])
 
     def __init__(self, world):
         self.world = world
@@ -133,7 +137,7 @@ class MeteorShower(Effect):
             return
         self.timer -= dt
         if self.timer <= 0:
-            self.timer = self.world.rng.uniform(12, 50)
+            self.timer = self.world.rng.uniform(*FX["meteor_every"])
             if env.weather.cloud < 0.5:
                 self.world.effects.append(ShootingStar(self.world))
 
@@ -141,15 +145,15 @@ class MeteorShower(Effect):
 class Mist(Effect):
     """Dawn mist lying over the grass, drifting, lifting as the sun climbs."""
 
-    RISE = 90.0
-    LIFT = 150.0
+    RISE = float(FX["mist_rise"])
+    LIFT = float(FX["mist_lift"])
 
     def __init__(self, world):
         self.world = world
         self.age = 0.0
         self.density = 0.0
         self.lifting = None
-        self.max_age = world.rng.uniform(15, 25) * 60
+        self.max_age = world.rng.uniform(*FX["mist_lasts_minutes"]) * 60
         self._surface = None
         self._for = None
 
@@ -197,12 +201,12 @@ class Rainbow(Effect):
     it: we see it mirrored in the pond."""
 
     BANDS = [(120, 34, 34), (124, 74, 24), (110, 104, 26), (34, 96, 40), (30, 56, 120), (64, 32, 96)]
-    FADE = 40.0
+    FADE = float(FX["rainbow_fade"])
 
     def __init__(self, world):
         self.world = world
         self.age = 0.0
-        self.duration = world.rng.uniform(4, 7) * 60
+        self.duration = world.rng.uniform(*FX["rainbow_lasts_minutes"]) * 60
         self._levels = {}
         self._for = None
 
@@ -304,7 +308,7 @@ class Fireworks(Effect):
         self.bursts = []          # [x, y, age, colour, speed]
         self.timer = 1.0
         self.age = 0.0
-        self.duration = 15 * 60
+        self.duration = FX["fireworks_minutes"] * 60
 
     def update(self, dt):
         rng = self.world.rng
@@ -499,7 +503,7 @@ class Puddles(Effect):
                 clear = all(t.walkable(x + dx, y + dy) and not t.under_roof(x + dx, y + dy)
                             for dx, dy in ((-rx - 3, 0), (rx + 3, 0), (0, -ry - 2), (0, ry + 2)))
                 if clear and all(abs(x - p.x) > 30 for p in self.items):
-                    self.items.append(Puddle(x, y, rx, ry, rng.uniform(8, 16) * 60))
+                    self.items.append(Puddle(x, y, rx, ry, rng.uniform(*FX["puddles_last_minutes"]) * 60))
                     break
         if not self.items:
             self.alive = False
@@ -541,7 +545,7 @@ class ButterflyDance(Effect):
     """Two butterflies spiralling round each other, rising, then going
     their own ways."""
 
-    DURATION = 9.0
+    DURATION = float(FX["butterfly_dance"])
 
     def __init__(self, world):
         self.world = world
@@ -679,7 +683,7 @@ class _P:
 # --- common ---------------------------------------------------------------
 
 class TailChase(Event):
-    name, tier, cooldown = "tail chase", "common", 20 * 60
+    name, tier = "tail chase", "common"
 
     def affinity(self, p):
         return p.lean("playful", 0.3, 2.0) * (1.4 if p.mood > 0.5 else 1.0)
@@ -694,7 +698,7 @@ class TailChase(Event):
 
 
 class DandelionSeeds(Event):
-    name, tier, cooldown = "dandelion seeds", "common", 15 * 60
+    name, tier = "dandelion seeds", "common"
 
     def ready(self, world):
         env = world.env
@@ -705,7 +709,7 @@ class DandelionSeeds(Event):
 
 
 class FallingFeather(Event):
-    name, tier, cooldown = "a feather", "common", 20 * 60
+    name, tier = "a feather", "common"
 
     def affinity(self, p):
         return p.lean("curious", 0.5, 1.6)
@@ -718,7 +722,7 @@ class FallingFeather(Event):
 
 
 class CrowVisit(Event):
-    name, tier, cooldown = "a crow", "common", 25 * 60
+    name, tier = "a crow", "common"
 
     def ready(self, world):
         env = world.env
@@ -733,7 +737,7 @@ class CrowVisit(Event):
 
 
 class MousePeek(Event):
-    name, tier, cooldown = "a mouse peeking out", "common", 20 * 60
+    name, tier = "a mouse peeking out", "common"
 
     def affinity(self, p):
         return p.lean("curious", 0.5, 1.6)
@@ -752,7 +756,7 @@ class MousePeek(Event):
 
 
 class ShadowPounce(Event):
-    name, tier, cooldown = "pouncing on a shadow", "common", 30 * 60
+    name, tier = "pouncing on a shadow", "common"
 
     def affinity(self, p):
         return p.lean("playful", 0.3, 2.0)
@@ -778,7 +782,7 @@ class ShadowPounce(Event):
 
 
 class LeafChase(Event):
-    name, tier, cooldown = "chasing a leaf", "common", 20 * 60
+    name, tier = "chasing a leaf", "common"
 
     def affinity(self, p):
         return p.lean("playful", 0.3, 2.0)
@@ -793,7 +797,7 @@ class LeafChase(Event):
 
 
 class GrasshopperVisit(Event):
-    name, tier, cooldown = "a grasshopper", "common", 25 * 60
+    name, tier = "a grasshopper", "common"
 
     def ready(self, world):
         env = world.env
@@ -813,7 +817,7 @@ class GrasshopperVisit(Event):
 
 
 class Moths(Event):
-    name, tier, cooldown = "moths", "common", 40 * 60
+    name, tier = "moths", "common"
 
     def ready(self, world):
         env = world.env
@@ -829,7 +833,7 @@ class Moths(Event):
 
 
 class AfterRain(Event):
-    name, tier, cooldown = "puddles", "common", 2 * 3600
+    name, tier = "puddles", "common"
     weight = 5.0       # only possible just after a downpour
 
     def ready(self, world):
@@ -856,7 +860,7 @@ class AfterRain(Event):
 
 
 class TwoButterflies(Event):
-    name, tier, cooldown = "two butterflies dancing", "common", 30 * 60
+    name, tier = "two butterflies dancing", "common"
 
     def ready(self, world):
         env = world.env
@@ -867,7 +871,7 @@ class TwoButterflies(Event):
 
 
 class DewyWeb(Event):
-    name, tier, cooldown = "a dewy spider web", "common", 8 * 3600
+    name, tier = "a dewy spider web", "common"
 
     def ready(self, world):
         env = world.env
@@ -882,7 +886,7 @@ class DewyWeb(Event):
 # --- uncommon -------------------------------------------------------------
 
 class MorningMist(Event):
-    name, tier, title, cooldown = "morning mist", "uncommon", "Morning mist over the meadow", 6 * 3600
+    name, tier, title = "morning mist", "uncommon", "Morning mist over the meadow"
 
     def ready(self, world):
         env = world.env
@@ -894,13 +898,13 @@ class MorningMist(Event):
 
 
 class RainbowEvent(Event):
-    name, tier, title, cooldown = "a rainbow", "uncommon", "A rainbow, mirrored in the pond", 2 * 3600
+    name, tier, title = "a rainbow", "uncommon", "A rainbow, mirrored in the pond"
     weight = 4.0   # its moment is brief: take it when it comes
 
     def ready(self, world):
         env = world.env
         events = world.events
-        just_stopped = world.time - events.last_shower < 240 and env.rain < 0.05
+        just_stopped = world.time - events.last_shower < FX["rainbow_after_rain"] and env.rain < 0.05
         return (just_stopped and world.terrain.pond is not None and 4 < env.sky.sun_alt < 40
                 and env.weather.cloud < 0.85 and not env.snowing)
 
@@ -909,7 +913,7 @@ class RainbowEvent(Event):
 
 
 class LeafWhirl(Event):
-    name, tier, title, cooldown = "a whirlwind", "uncommon", "A gust spins up the leaves", 40 * 60
+    name, tier, title = "a whirlwind", "uncommon", "A gust spins up the leaves"
 
     def ready(self, world):
         env = world.env
@@ -921,7 +925,7 @@ class LeafWhirl(Event):
 
 
 class DuskBats(Event):
-    name, tier, title, cooldown = "bats", "uncommon", "Bats out hunting at dusk", 3 * 3600
+    name, tier, title = "bats", "uncommon", "Bats out hunting at dusk"
 
     def ready(self, world):
         env = world.env
@@ -937,7 +941,7 @@ class DuskBats(Event):
 # --- rare -------------------------------------------------------------------
 
 class ShootingStarEvent(Event):
-    name, tier, title, cooldown = "a shooting star", "rare", "A shooting star", 3600
+    name, tier, title = "a shooting star", "rare", "A shooting star"
 
     def ready(self, world):
         env = world.env
@@ -953,7 +957,7 @@ class ShootingStarEvent(Event):
 
 
 class FoxVisit(Event):
-    name, tier, title, cooldown = "a fox", "rare", "A fox trots through the meadow", 6 * 3600
+    name, tier, title = "a fox", "rare", "A fox trots through the meadow"
 
     def ready(self, world):
         env = world.env
@@ -969,7 +973,7 @@ class FoxVisit(Event):
 
 
 class HeronVisit(Event):
-    name, tier, title, cooldown = "a heron", "rare", "A heron comes fishing", 6 * 3600
+    name, tier, title = "a heron", "rare", "A heron comes fishing"
 
     def ready(self, world):
         env = world.env
@@ -985,7 +989,7 @@ class HeronVisit(Event):
 
 
 class AGift(Event):
-    name, tier, cooldown = "a gift", "uncommon", 5 * 3600
+    name, tier = "a gift", "uncommon"
 
     def affinity(self, p):
         return p.lean("affectionate", 0.3, 2.0)
@@ -1005,7 +1009,7 @@ class AGift(Event):
 
 
 class DuckFamily(Event):
-    name, tier, title, cooldown = "a duck and her ducklings", "rare", "A duck leads her ducklings to the pond", 8 * 3600
+    name, tier, title = "a duck and her ducklings", "rare", "A duck leads her ducklings to the pond"
 
     def ready(self, world):
         env = world.env
@@ -1024,7 +1028,7 @@ class DuckFamily(Event):
 
 
 class GingerVisit(Event):
-    name, tier, cooldown = "the ginger cat", "rare", 5 * 3600
+    name, tier = "the ginger cat", "rare"
 
     def affinity(self, p):
         return 1.0 + 0.2 * max(0, p.friendship("ginger"))
@@ -1048,7 +1052,7 @@ class GingerVisit(Event):
 
 
 class FourthWall(Event):
-    name, tier, title, cooldown = "Mochi noticed you", "rare", "Mochi has noticed you", 4 * 3600
+    name, tier, title = "Mochi noticed you", "rare", "Mochi has noticed you"
 
     def affinity(self, p):
         return p.lean("affectionate", 0.3, 2.0)
@@ -1068,8 +1072,7 @@ class FourthWall(Event):
 # --- legendary --------------------------------------------------------------
 
 class GoldenButterflyEvent(Event):
-    name, tier, title, cooldown = "the golden butterfly", "legendary", "A golden butterfly!", 12 * 3600
-    omen = 25.0
+    name, tier, title = "the golden butterfly", "legendary", "A golden butterfly!"
 
     def ready(self, world):
         env = world.env
@@ -1084,8 +1087,7 @@ class GoldenButterflyEvent(Event):
 
 
 class DeerAtDawn(Event):
-    name, tier, title, cooldown = "a deer at dawn", "legendary", "A deer, at first light", 24 * 3600
-    omen = 30.0
+    name, tier, title = "a deer at dawn", "legendary", "A deer, at first light"
 
     def ready(self, world):
         env = world.env
@@ -1192,7 +1194,7 @@ class NewYear(Notice):
         return c.date.month == 1 and c.date.day == 1 and c.hour < 0.3
 
     def start(self, world, events):
-        events.noisy_until = world.time + 15 * 60 + 5
+        events.noisy_until = world.time + FX["fireworks_minutes"] * 60 + 5
         cat = world.cat
         cat.attend("fireworks", cat.act_flee_noise(), wake=True)
         return Fireworks(world)
@@ -1230,6 +1232,10 @@ ROLLED = [TailChase(), DandelionSeeds(), FallingFeather(), CrowVisit(), MousePee
           GoldenButterflyEvent(), DeerAtDawn()]
 NOTICES = [Birthday(), FullMoon(), MeteorShowerNotice(), FirstSnow(), NewYear(), Halloween()]
 ALL = {e.name: e for e in ROLLED + NOTICES}
+# Cooldowns and omens come from the settings.
+for _event in ALL.values():
+    _event.cooldown = 60.0 * _EVENTS["cooldown_minutes"].get(_event.name, _event.cooldown / 60.0)
+    _event.omen = float(_EVENTS["omen_seconds"].get(_event.name, 0.0))
 
 
 # How a recap says each event ("While you were away, Mochi saw ...").
@@ -1305,7 +1311,7 @@ class Events:
         the tier is overdue (twice its mean wait: 2.5 times as likely)."""
         mean = MEAN[tier]
         overdue = max(0.0, self.since[tier] / mean - 1.0)
-        return CHECK / mean * (1.0 + 1.5 * overdue)
+        return CHECK / mean * (1.0 + OVERDUE_BOOST * overdue)
 
     def big_running(self):
         now = self.world.time

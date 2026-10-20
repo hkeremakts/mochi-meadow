@@ -1,0 +1,175 @@
+# The meadow's tuning: how the weather, Mochi and the encounters behave.
+#
+# These are the defaults.  To change something, don't edit this file: put
+# just the values you want in a settings.toml of your own (next to the
+# journal, ~/Library/Application Support/Meadow/settings.toml, or pass
+# --settings PATH).  Anything you leave out keeps the value here.
+#
+# Times are in real seconds unless a name says otherwise.  A pair [a, b]
+# is a range: a value is picked at random between a and b each time.
+
+[screen]
+fps = 60                  # in a window
+saver_fps = 30            # as a screensaver
+calm_fps = 15             # as a screensaver, when nothing on screen moves fast
+art_rows = 280            # roughly how many art pixels fit the screen's height
+min_zoom = 2
+max_zoom = 8
+lite_zoom = 2             # lite mode draws at this zoom and lets the GPU scale the rest
+window = [1280, 800]
+time_speeds = [1, 60, 600]        # what T cycles through
+screensaver_grace = 1.5           # seconds before input ends a screensaver
+save_every = 300                  # seconds between saves of the session to the journal
+
+[weather]
+hold = [240, 600]         # how long one kind of weather lasts
+blend = 45                # seconds to ease into the next weather
+quick_blend = 3           # ...and into one chosen with W
+
+# What each kind of weather looks like: cloud cover, wind, rain (0..1).
+[weather.states]
+clear = { cloud = 0.15, wind = 0.18, rain = 0.0 }
+cloudy = { cloud = 0.62, wind = 0.32, rain = 0.0 }
+windy = { cloud = 0.4, wind = 0.9, rain = 0.0 }
+drizzle = { cloud = 0.82, wind = 0.3, rain = 0.32 }
+rain = { cloud = 1.0, wind = 0.5, rain = 0.85 }
+
+# What tends to follow what (relative weights).
+[weather.next]
+clear = { clear = 5, cloudy = 3, windy = 2 }
+cloudy = { clear = 4, cloudy = 2, drizzle = 2, windy = 1, rain = 1 }
+windy = { clear = 4, cloudy = 4, windy = 1 }
+drizzle = { cloudy = 4, rain = 3, drizzle = 2, clear = 1 }
+rain = { drizzle = 5, cloudy = 4, rain = 1 }
+
+# Seasons tilt those weights: dry summers, wet and windy autumns.
+[weather.season_bias]
+summer = { clear = 1.6, cloudy = 0.8, windy = 0.7, drizzle = 0.6, rain = 0.7 }
+spring = { clear = 1.0, cloudy = 1.0, windy = 1.0, drizzle = 1.3, rain = 1.0 }
+autumn = { clear = 0.8, cloudy = 1.2, windy = 1.5, drizzle = 1.2, rain = 1.2 }
+winter = { clear = 0.8, cloudy = 1.4, windy = 1.0, drizzle = 1.0, rain = 1.0 }
+
+[cold]
+snow_below = 1.0          # Celsius: colder than this, rain falls as snow
+snow_settles = 900        # seconds of heavy snow to cover the ground
+snow_melts = 2400         # seconds to melt at 1.5 C above freezing (faster when warmer)
+sun_melt = 0.4            # how much sunshine adds to melting
+rain_melt = 3.0           # rain melts snow this many times faster
+frost_below = 1.5         # Celsius, on a clear, dark night
+frost_forms = 1800        # seconds to a full frost
+frost_lifts = 1800        # seconds to lift at 1 C in full sun (faster when warmer)
+
+[meals]
+times = [7.5, 18.0]       # hours when the bowl is filled
+empty_bowl_patience = 420 # an empty bowl is topped up after this long anyway
+
+[wildlife]
+pigeons_first = [25, 70]  # seconds until the first pigeons may come...
+pigeons_every = [70, 210] # ...and between visits after that
+sparrows_first = [15, 60]
+sparrows_every = [50, 160]
+overhead_first = [15, 50] # birds flying over (only their shadows)
+overhead_every = [25, 80]
+spawn_wait = [4, 14]      # seconds between arrivals of one kind of creature
+mouse_wait = [20, 60]
+day_mouse_first = [120, 300]   # seconds until the first check for a daytime mouse
+day_mouse_check = [180, 420]
+day_mouse_chance = 0.3    # odds that a mouse is about by day
+hedgehog_night_chance = 0.7
+
+[mochi]
+walk_speed = 26.0         # art pixels per second
+stalk_speed = 11.0
+trot_speed = 48.0
+run_speed = 96.0
+favourite_after = 3       # naps in one spot before it is her favourite
+best_friends = 4          # good visits before the ginger cat naps beside her
+fox_fear_distance = 170   # a timid cat hides when a fox is this close (art pixels)
+
+# Needs: seconds for each to go from empty to full (or full to empty).
+[mochi.needs]
+energy_awake = 720        # rested to sleepy, pottering about
+energy_active = 300       # ...running and hunting
+energy_sleep = 200        # a nap that restores her fully
+hunger = 1500
+thirst = 1100
+groom = 420
+play = 260
+
+# How long before she does the same thing again.
+[mochi.cooldowns]
+loaf = 90
+groom = 60
+watch_pond = 150
+wait_dinner = 3600
+chatter = 120
+tail_chase = 300
+meow = 150
+zoomies = 360
+drizzle = 480
+
+[mochi.rain]
+shelter_above = 0.35      # rain heavier than this sends her for cover
+drizzle_above = 0.08      # lighter than shelter_above but above this is a drizzle
+roof_preference = 0.85    # odds she picks the tree over a bush
+drizzle_chance = 0.0012   # odds per look-round (every 0.35 s) of a drizzle break
+drizzle_stay = [20, 60]   # seconds she waits out a drizzle under the tree
+venture_rate = 0.006      # per second: popping out into the rain (scaled by her character)
+
+[events]
+check = 4                 # seconds between rolls of the dice
+caption_seconds = 9
+overdue_boost = 1.5       # how fast the odds grow once a tier is overdue
+
+# The mean wait between events of each tier, in minutes, while you watch.
+[events.tiers]
+common = 7
+uncommon = 40
+rare = 180
+legendary = 1440
+
+# How long before the same event may happen again, in minutes.
+[events.cooldown_minutes]
+"tail chase" = 20
+"dandelion seeds" = 15
+"a feather" = 20
+"a crow" = 25
+"a mouse peeking out" = 20
+"pouncing on a shadow" = 30
+"chasing a leaf" = 20
+"a grasshopper" = 25
+"moths" = 40
+"puddles" = 120
+"two butterflies dancing" = 30
+"a dewy spider web" = 480
+"morning mist" = 360
+"a rainbow" = 120
+"a whirlwind" = 40
+"bats" = 180
+"a gift" = 300
+"a shooting star" = 60
+"Mochi noticed you" = 240
+"the ginger cat" = 300
+"a fox" = 360
+"a heron" = 360
+"a duck and her ducklings" = 480
+"the golden butterfly" = 720
+"a deer at dawn" = 1440
+
+# Seconds of hush (the birds go quiet) before a legendary event.
+[events.omen_seconds]
+"the golden butterfly" = 25
+"a deer at dawn" = 30
+
+[effects]
+shooting_star = 0.75      # seconds for one streak
+meteor_every = [12, 50]   # seconds between shooting stars in a meteor shower
+mist_rise = 90            # seconds for dawn mist to thicken...
+mist_lift = 150           # ...and to lift
+mist_lasts_minutes = [15, 25]
+rainbow_fade = 40
+rainbow_lasts_minutes = [4, 7]
+rainbow_after_rain = 240  # a rainbow may come this long after the rain stops
+puddles_last_minutes = [8, 16]
+fireworks_minutes = 15
+butterfly_dance = 9

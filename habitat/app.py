@@ -17,15 +17,17 @@ from .journal import Journal, default_path
 from .personality import Personality
 from .hud import Hud
 from .render import Renderer
+from .settings import SETTINGS
 from .sky import parse_place
 from .world import World
 
-TIME_SPEEDS = (1, 60, 600)
-SAVER_FPS = 30            # slow, ambient motion needs no more, and it halves the work
-CALM_FPS = 15             # ...and when nothing is moving fast, half that again
-SAVE_EVERY = 300.0        # seconds between journal saves of the session
-LITE_ZOOM = 2             # in lite mode the scene is drawn at this zoom, the GPU does the rest
-SCREENSAVER_GRACE = 1.5   # seconds before input ends a screensaver session
+_screen = SETTINGS["screen"]
+TIME_SPEEDS = tuple(_screen["time_speeds"])
+SAVER_FPS = _screen["saver_fps"]          # slow, ambient motion needs no more, and it halves the work
+CALM_FPS = _screen["calm_fps"]            # ...and when nothing is moving fast, half that again
+SAVE_EVERY = float(_screen["save_every"])  # seconds between journal saves of the session
+LITE_ZOOM = _screen["lite_zoom"]          # in lite mode the scene is drawn at this zoom, the GPU does the rest
+SCREENSAVER_GRACE = float(_screen["screensaver_grace"])  # seconds before input ends a screensaver session
 RESIZE_SETTLE = 0.25      # rebuild once the window has stopped changing size
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -91,6 +93,8 @@ def parse_args(argv=None):
                    help="don't remember anything between runs (a new cat and meadow each time)")
     p.add_argument("--name", help="what the cat is called (remembered)")
     p.add_argument("--debug-events", action="store_true", help="show event odds and timers (toggle with D)")
+    p.add_argument("--settings", metavar="PATH",
+                   help="a settings file of your own (see habitat/defaults.toml for every value)")
     p.add_argument("--frames", type=int, help=argparse.SUPPRESS)        # run N frames then exit
     p.add_argument("--screenshot", help=argparse.SUPPRESS)              # save the last frame here
     return p.parse_args(argv)

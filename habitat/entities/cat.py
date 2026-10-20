@@ -23,6 +23,7 @@ from ..config import (CAT_ANCHOR, CAT_RUN_SPEED, CAT_STALK_SPEED, CAT_TROT_SPEED
                       NEED_RATES)
 from ..paths import find_path
 from ..personality import Personality
+from ..settings import SETTINGS
 from ..util import approach, clamp
 from .base import Entity
 
@@ -39,7 +40,9 @@ POSTURES = ("stand", "sit", "lie", "sleep")
 SLEEP_IN = {"loaf": "doze", "curl": "curlup", "flat": "sprawl"}
 SLEEP_OUT = {"loaf": "undoze", "curl": "uncurl", "flat": "unsprawl"}
 ARRIVED, PARTIAL, UNREACHABLE = "arrived", "partial", "unreachable"
-DRIZZLE_CHANCE = 0.0012   # per look-round (every 0.35 s): about once in five minutes of drizzle
+COOL = SETTINGS["mochi"]["cooldowns"]
+RAIN = SETTINGS["mochi"]["rain"]
+DRIZZLE_CHANCE = RAIN["drizzle_chance"]   # per look-round (every 0.35 s): about once in five minutes of drizzle
 
 _LIBRARY = {}
 _EYES = {}
@@ -710,7 +713,7 @@ class Cat(Entity):
         if self.p["bold"] >= 0.35 or self.posture == "sleep" or self.activity_name == "hide":
             return False
         for e in self.world.entities:
-            if e.kind == "fox" and e.alive and not e.hidden and self.distance_to(e) < 170:
+            if e.kind == "fox" and e.alive and not e.hidden and self.distance_to(e) < SETTINGS["mochi"]["fox_fear_distance"]:
                 if self.world.terrain.spots["shelter"]:
                     self.p.feel(-0.2)
                     self._start("hide", self.act_hide_from(e))
@@ -731,11 +734,12 @@ class Cat(Entity):
         if not self.interruptible:
             return
         env = self.world.env
-        if env.rain > 0.35 and not self.sheltered and self.activity_name != "shelter":
+        if env.rain > RAIN["shelter_above"] and not self.sheltered and self.activity_name != "shelter":
             if self.world.terrain.spots["shelter"] or self.world.terrain.spots["roof"]:
                 self._start("shelter", self.act_shelter())
                 return
-        if (0.08 < env.rain <= 0.35 and not self.sheltered and self.world.terrain.spots["roof"]
+        if (RAIN["drizzle_above"] < env.rain <= RAIN["shelter_above"] and not self.sheltered
+                and self.world.terrain.spots["roof"]
                 and self.posture != "sleep" and self._cooldown_ok("drizzle")
                 and self.activity_name not in ("eat", "drink", "hunt", "zoomies", "drizzle", "shelter")
                 and self.rng.random() < DRIZZLE_CHANCE):
@@ -919,7 +923,7 @@ class Cat(Entity):
             self.idle_pose()
 
     def act_loaf(self):
-        self._cool("loaf", 90)
+        self._cool("loaf", COOL["loaf"])
         env = self.world.env
         sunny = env.sun > 0.6 and env.weather.cloud < 0.45
         self.label = "sunbathing" if sunny else "loafing"
@@ -956,7 +960,7 @@ class Cat(Entity):
         self.idle_pose()
         yield from self.wait(self.rng.uniform(1.0, 2.5))
         self.needs.groom = 0.0
-        self._cool("groom", 60)
+        self._cool("groom", COOL["groom"])
 
     def act_nap(self, spot=None):
         self.label = "looking for a cozy spot"
@@ -1110,7 +1114,7 @@ class Cat(Entity):
         spots = self.world.terrain.spots["watch"]
         if not spots:
             return
-        self._cool("watch_pond", 150)
+        self._cool("watch_pond", COOL["watch_pond"])
         self.label = "heading to the pond"
         ok = yield from self.go_to_spot(spots[0])
         if not ok:
@@ -1249,7 +1253,7 @@ class Cat(Entity):
 
     def act_wait_dinner(self):
         """Bowl watchers know when dinner is due."""
-        self._cool("wait_dinner", 3600)
+        self._cool("wait_dinner", COOL["wait_dinner"])
         spots = self.world.terrain.spots["bowl"]
         spot = min(spots, key=lambda s: abs(s.x - self.x) + abs(s.y - self.y))
         self.label = "heading to the bowl early"
@@ -1273,7 +1277,7 @@ class Cat(Entity):
 
     def act_chatter(self, bird):
         """That strange rapid jaw-chatter cats make at birds they can't reach."""
-        self._cool("chatter", 120)
+        self._cool("chatter", COOL["chatter"])
         self.focus = bird
         self.label = f"chattering at the {bird.kind}s"
         yield from self.face((bird.x, bird.y))
@@ -1332,7 +1336,7 @@ class Cat(Entity):
 
     def act_tail_chase(self):
         """Round and round after her own tail, then a dazed sit."""
-        self._cool("tail_chase", 300)
+        self._cool("tail_chase", COOL["tail_chase"])
         self.label = "chasing her tail!"
         if self.posture != "stand":
             yield from self.to_posture("stand")
@@ -1398,7 +1402,7 @@ class Cat(Entity):
         yield from self.act_shelter(until=lambda: not self.world.events.noisy)
 
     def act_meow(self):
-        self._cool("meow", 150)
+        self._cool("meow", COOL["meow"])
         self.label = "meowing"
         yield from self.face("down")
         yield from self.to_posture("sit")
@@ -1409,7 +1413,7 @@ class Cat(Entity):
             yield from self.wait(self.rng.uniform(0.8, 1.6))
 
     def act_zoomies(self):
-        self._cool("zoomies", 360)
+        self._cool("zoomies", COOL["zoomies"])
         self.label = "doing zoomies!"
         t = self.world.terrain
         for _ in range(self.rng.randint(3, 6)):
@@ -1447,7 +1451,7 @@ class Cat(Entity):
             until = lambda: env.rain < 0.15
         roof, bushes = t.spots["roof"], t.spots["shelter"]
         near = lambda s: abs(s.x - self.x) + abs(s.y - self.y)
-        if weather and roof and (self.rng.random() < 0.85 or not bushes):
+        if weather and roof and (self.rng.random() < RAIN["roof_preference"] or not bushes):
             spot = self.rng.choice(sorted(roof, key=near)[:2])
         elif bushes:
             spot = min(bushes, key=near)
@@ -1492,7 +1496,7 @@ class Cat(Entity):
     def act_drizzle(self):
         """A drizzle doesn't send her running, but now and then she ducks
         under the tree for a little while, then gets on with her day."""
-        self._cool("drizzle", 8 * 60)
+        self._cool("drizzle", COOL["drizzle"])
         env = self.world.env
         roof = self.world.terrain.spots["roof"]
         spot = min(roof, key=lambda s: abs(s.x - self.x) + abs(s.y - self.y))
@@ -1504,8 +1508,8 @@ class Cat(Entity):
         try:
             self.label = "waiting out the drizzle"
             yield from self.to_posture("sit")
-            end = self.world.time + self.rng.uniform(20.0, 60.0)
-            while self.world.time < end and 0.05 < env.rain <= 0.35:
+            end = self.world.time + self.rng.uniform(*RAIN["drizzle_stay"])
+            while self.world.time < end and 0.05 < env.rain <= RAIN["shelter_above"]:
                 yield
         finally:
             self.sheltered = False
@@ -1514,7 +1518,7 @@ class Cat(Entity):
         """How often (per second) she pops out into the rain."""
         p = self.p
         rain = self.world.env.rain
-        return 0.006 * p.lean("curious", 0.4, 1.6) * p.lean("bold", 0.5, 1.5) * max(0.2, 1.4 - rain)
+        return RAIN["venture_rate"] * p.lean("curious", 0.4, 1.6) * p.lean("bold", 0.5, 1.5) * max(0.2, 1.4 - rain)
 
     def act_rain_walk(self, home):
         """A look round in the wet: a few steps out, a sniff (or a drink from

@@ -202,6 +202,40 @@ full moon is only announced once a night however often the screensaver
 starts. Press `J` to read it, or pass `--no-journal` to keep nothing (a
 new cat and meadow every run).
 
+## Settings
+
+Everything that decides how the meadow *feels* lives in one commented
+file, [`habitat/defaults.toml`](habitat/defaults.toml):
+
+- how long each kind of weather lasts, what follows what, and the seasons'
+  pull on it
+- snow and frost speeds
+- meal times
+- how often wildlife turns up
+- Mochi's speeds, needs and cooldowns, and how she behaves in rain and
+  drizzle
+- how rare each tier of encounter is, every event's cooldown, the
+  legendary omens, and how long effects last
+- frame rates
+
+To change something, don't edit that file. Make your own `settings.toml`
+with just the values you want, in the same sections, for example:
+
+```toml
+[weather]
+hold = [600, 3600]        # weather lasts 10 minutes to an hour
+
+[events.tiers]
+rare = 60                 # rare things about once an hour
+```
+
+Put it at `~/Library/Application Support/Meadow/settings.toml` (next to the
+journal) or pass `--settings PATH`. Anything you leave out keeps its
+default. A typo or a wrong kind of value is reported and skipped, and never
+stops the meadow.
+
+Drawing numbers (poses, shapes, colours) stay next to the drawing code.
+
 ## How it fits together
 
 ```
@@ -218,6 +252,8 @@ habitat/
   seasons.py         the meadow's look through the year (grading, snow)
   events.py          encounters: rarity tiers, conditions, effects
   journal.py         what has been seen, kept between runs
+  settings.py        loads defaults.toml and your own settings on top
+  defaults.toml      every tuning value, commented
   personality.py     Mochi's traits, quirks, mood and friendships
   render.py          one integer pixel zoom for all art, depth sorting,
                      a single multiply pass for lighting
@@ -248,7 +284,8 @@ tests/               python -m unittest discover -s tests -t .
 legacy/              the original single-file version, kept for reference
 ```
 
-Tunables live in `habitat/config.py`.
+Tuning lives in `habitat/defaults.toml` (see Settings above); layout
+constants in `habitat/config.py`.
 
 ## The art
 

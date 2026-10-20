@@ -8,6 +8,7 @@ import numpy as np
 import pygame
 
 from .config import WEATHER_BLEND, WEATHER_MAX_HOLD, WEATHER_MIN_HOLD
+from .settings import SETTINGS
 from .sky import Sky, mean_temperature
 from .util import Noise1D, clamp, dither_mask, lerp_color, smoothstep, value_noise
 
@@ -136,34 +137,14 @@ class Clock:
         return h >= start or h < end
 
 
-WEATHER_STATES = {
-    "clear": {"cloud": 0.15, "wind": 0.18, "rain": 0.0},
-    "cloudy": {"cloud": 0.62, "wind": 0.32, "rain": 0.0},
-    "windy": {"cloud": 0.4, "wind": 0.9, "rain": 0.0},
-    "drizzle": {"cloud": 0.82, "wind": 0.3, "rain": 0.32},
-    "rain": {"cloud": 1.0, "wind": 0.5, "rain": 0.85},
-}
+# What each weather looks like, what tends to follow it, and how the
+# seasons tilt that: all from the settings.
+WEATHER_STATES = {name: dict(v) for name, v in SETTINGS["weather"]["states"].items()}
+WEATHER_NEXT = {name: list(v.items()) for name, v in SETTINGS["weather"]["next"].items()}
+SEASON_BIAS = {season: dict(v) for season, v in SETTINGS["weather"]["season_bias"].items()}
+COLD = SETTINGS["cold"]
 
-WEATHER_NEXT = {
-    "clear": [("clear", 5), ("cloudy", 3), ("windy", 2)],
-    "cloudy": [("clear", 4), ("cloudy", 2), ("drizzle", 2), ("windy", 1), ("rain", 1)],
-    "windy": [("clear", 4), ("cloudy", 4), ("windy", 1)],
-    "drizzle": [("cloudy", 4), ("rain", 3), ("drizzle", 2), ("clear", 1)],
-    "rain": [("drizzle", 5), ("cloudy", 4), ("rain", 1)],
-}
-
-
-# Some weather is likelier in some seasons: dry summers, wet and windy
-# autumns, grey winters.
-SEASON_BIAS = {
-    "summer": {"clear": 1.6, "cloudy": 0.8, "windy": 0.7, "drizzle": 0.6, "rain": 0.7},
-    "spring": {"clear": 1.0, "cloudy": 1.0, "windy": 1.0, "drizzle": 1.3, "rain": 1.0},
-    "autumn": {"clear": 0.8, "cloudy": 1.2, "windy": 1.5, "drizzle": 1.2, "rain": 1.2},
-    "winter": {"clear": 0.8, "cloudy": 1.4, "windy": 1.0, "drizzle": 1.0, "rain": 1.0},
-}
-
-
-QUICK_BLEND = 3.0          # seconds to ease into a weather chosen with W
+QUICK_BLEND = float(SETTINGS["weather"]["quick_blend"])   # seconds to ease into a weather chosen with W
 
 
 class Weather:
@@ -344,16 +325,16 @@ class Environment:
         sim = dt * self.clock.speed
         t = self.temperature
         if self.snowing:
-            self.snow_cover = min(1.0, self.snow_cover + sim * self.weather.rain / 900.0)
+            self.snow_cover = min(1.0, self.snow_cover + sim * self.weather.rain / COLD["snow_settles"])
         elif self.snow_cover > 0:
-            melt = max(0.0, t - 0.5) / 2400.0 + self.sun * 0.4 * max(0.0, t + 2.0) / 3600.0
+            melt = max(0.0, t - 0.5) / COLD["snow_melts"] + self.sun * COLD["sun_melt"] * max(0.0, t + 2.0) / 3600.0
             if self.weather.rain > 0.05:
-                melt *= 3.0
+                melt *= COLD["rain_melt"]
             self.snow_cover = max(0.0, self.snow_cover - sim * melt)
-        if t < 1.5 and self.weather.cloud < 0.55 and self.sun < 0.3 and not self.snowing:
-            self.frost = min(1.0, self.frost + sim / 1800.0)
+        if t < COLD["frost_below"] and self.weather.cloud < 0.55 and self.sun < 0.3 and not self.snowing:
+            self.frost = min(1.0, self.frost + sim / COLD["frost_forms"])
         elif self.frost > 0:
-            self.frost = max(0.0, self.frost - sim * (0.2 + self.sun) * max(0.2, t) / 1800.0)
+            self.frost = max(0.0, self.frost - sim * (0.2 + self.sun) * max(0.2, t) / COLD["frost_lifts"])
 
     @property
     def hour(self):
@@ -370,7 +351,7 @@ class Environment:
 
     @property
     def snowing(self):
-        return self.weather.rain > 0.03 and self.temperature < 1.0
+        return self.weather.rain > 0.03 and self.temperature < COLD["snow_below"]
 
     @property
     def is_night(self):

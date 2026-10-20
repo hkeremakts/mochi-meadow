@@ -18,6 +18,8 @@ every good visit.
 
 import random
 
+from .settings import SETTINGS
+
 TRAITS = ("playful", "lazy", "curious", "bold", "affectionate")
 QUIRKS = {
     "kneader": "kneads before every nap",
@@ -37,8 +39,8 @@ WORDS = {
     "bold": ("timid", "bold"),
     "affectionate": ("aloof", "affectionate"),
 }
-FAVOURITE_AFTER = 3        # naps in one spot before it is her favourite
-BEST_FRIENDS = 4           # good visits before the ginger cat naps beside her
+FAVOURITE_AFTER = SETTINGS["mochi"]["favourite_after"]   # naps in one spot before it is her favourite
+BEST_FRIENDS = SETTINGS["mochi"]["best_friends"]         # good visits before the ginger cat naps beside her
 
 
 def _date(text):

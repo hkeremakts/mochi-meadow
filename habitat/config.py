@@ -1,34 +1,47 @@
-"""Tunables.  Distances are in art pixels, times in seconds."""
+"""Layout constants, and the tuning values other modules import by name.
 
-FPS = 60
-DEFAULT_WINDOW = (1280, 800)
+The tuning values themselves (frame rates, Mochi's speeds and needs, meal
+times, weather lengths) come from the settings (habitat/defaults.toml, and
+a settings file of your own).  Distances are in art pixels, times in
+seconds.
+"""
+
+from .settings import SETTINGS
+
+_screen = SETTINGS["screen"]
+_mochi = SETTINGS["mochi"]
+_weather = SETTINGS["weather"]
+
+FPS = _screen["fps"]
+DEFAULT_WINDOW = tuple(_screen["window"])
 
 # Every sprite is drawn at one integer zoom so all pixel art shares a grid.
 # The zoom is picked from the window height; roughly this many art pixels
 # fit vertically.
-ART_ROWS_TARGET = 280
-MIN_ZOOM, MAX_ZOOM = 2, 8
+ART_ROWS_TARGET = _screen["art_rows"]
+MIN_ZOOM, MAX_ZOOM = _screen["min_zoom"], _screen["max_zoom"]
 
 # The cat ---------------------------------------------------------------
-CAT_WALK_SPEED = 26.0
-CAT_STALK_SPEED = 11.0
-CAT_TROT_SPEED = 48.0
-CAT_RUN_SPEED = 96.0
+CAT_WALK_SPEED = float(_mochi["walk_speed"])
+CAT_STALK_SPEED = float(_mochi["stalk_speed"])
+CAT_TROT_SPEED = float(_mochi["trot_speed"])
+CAT_RUN_SPEED = float(_mochi["run_speed"])
 # Stride lengths for gait playback come from the drawn cycles themselves
 # (habitat/cat_anims.py STRIDES).
 # Where the cat's feet touch the ground inside its 64x64 frame; every
 # animation is drawn on the same canvas.
 CAT_ANCHOR = (32, 48)
 
-# Needs drain/fill per real second (1.0 = full).
+# Needs drain (-) or fill (+) per real second (1.0 = full).
+_needs = _mochi["needs"]
 NEED_RATES = {
-    "energy_awake": -1 / 720,     # ~12 min from rested to sleepy
-    "energy_active": -1 / 300,    # running, hunting
-    "energy_sleep": 1 / 200,      # ~3.5 min nap restores fully
-    "hunger": 1 / 1500,
-    "thirst": 1 / 1100,
-    "groom": 1 / 420,
-    "play": 1 / 260,
+    "energy_awake": -1 / _needs["energy_awake"],
+    "energy_active": -1 / _needs["energy_active"],
+    "energy_sleep": 1 / _needs["energy_sleep"],
+    "hunger": 1 / _needs["hunger"],
+    "thirst": 1 / _needs["thirst"],
+    "groom": 1 / _needs["groom"],
+    "play": 1 / _needs["play"],
 }
 
 # World -------------------------------------------------------------------
@@ -37,9 +50,8 @@ EDGE_MARGIN_TOP = 34
 EDGE_MARGIN_BOTTOM = 10
 
 # The bowl is refilled at these hours (someone comes out with food).
-MEAL_TIMES = (7.5, 18.0)
+MEAL_TIMES = tuple(SETTINGS["meals"]["times"])
 
 # Time & weather ----------------------------------------------------------
-WEATHER_MIN_HOLD = 240.0   # real seconds a weather state lasts at least
-WEATHER_MAX_HOLD = 600.0
-WEATHER_BLEND = 45.0       # seconds to ease between weather states
+WEATHER_MIN_HOLD, WEATHER_MAX_HOLD = (float(v) for v in _weather["hold"])
+WEATHER_BLEND = float(_weather["blend"])
