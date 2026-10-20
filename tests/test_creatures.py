@@ -11,6 +11,9 @@ import pygame
 
 from habitat.entities.cat import cat_library
 from habitat.entities.wildlife import Bee, Frog, Hedgehog, Pigeon, Sparrow, art
+from habitat.entities.wildlife import Deer as DeerEntity
+from habitat.entities.wildlife import Duck as DuckEntity
+from habitat.entities.wildlife import Heron as HeronEntity
 from habitat.entities.wildlife import Fox as FoxEntity
 from tests.support import fixed_clock
 from habitat.world import World
@@ -69,6 +72,17 @@ class Sizes(unittest.TestCase):
         fox = width(art()["fox"]["stand_right"][0])
         self.assertTrue(1.3 < fox / cat < 1.6, fox / cat)
         for key, frames in art()["fox"].items():
+            for frame in frames:
+                box = frame.get_bounding_rect()
+                self.assertTrue(box.left > 0 and box.top > 0 and box.right < frame.get_width(), key)
+
+
+    def test_the_deer_towers_over_the_cat(self):
+        # Shoulder height: roe deer ~70 cm, cat ~25 cm; the deer's head is higher still.
+        cat = cat_library()["stand_right"][0].get_bounding_rect().height
+        deer = art()["deer"]["stand_right"][0].get_bounding_rect().height
+        self.assertTrue(1.8 < deer / cat < 3.2, deer / cat)
+        for key, frames in art()["deer"].items():
             for frame in frames:
                 box = frame.get_bounding_rect()
                 self.assertTrue(box.left > 0 and box.top > 0 and box.right < frame.get_width(), key)
@@ -138,6 +152,77 @@ class Fox(unittest.TestCase):
         """Stride-locked playback: the body covers one stride per cycle."""
         from habitat import fox_art
         self.assertAlmostEqual(fox_art.STRIDES["trot"], fox_art.TROT_STRIDE * fox_art.SCALE)
+
+
+class DeerVisit(unittest.TestCase):
+    def test_the_deer_grazes_and_walks_on(self):
+        w = world(hour=6.0)
+        park_cat(w, 30, 240)
+        deer = DeerEntity(w)
+        self.assertTrue(deer.ok)
+        w.entities.append(deer)
+        states = []
+        for _ in range(int(150 / DT)):
+            w.update(DT)
+            if not states or states[-1] != deer.state:
+                states.append(deer.state)
+            if not deer.alive:
+                break
+        self.assertIn("graze", states)
+        self.assertFalse(deer.alive)
+        self.assertFalse(deer.fleeing)
+
+    def test_a_cat_coming_close_makes_her_bound_away(self):
+        w = world(hour=6.0)
+        park_cat(w, 30, 240)
+        deer = DeerEntity(w)
+        w.entities.append(deer)
+        for _ in range(int(40 / DT)):
+            w.update(DT)
+            if deer.state == "graze":
+                break
+        self.assertFalse(deer.fleeing)
+        # An awake cat (the parked one stands still) comes within a few lengths.
+        w.cat.posture = "stand"
+        w.cat.x, w.cat.y = deer.x - 50, deer.y
+        for _ in range(int(2 / DT)):
+            w.update(DT)
+        self.assertTrue(deer.fleeing)
+
+
+class PondVisitors(unittest.TestCase):
+    def test_the_heron_fishes_and_flies_off(self):
+        w = world(hour=10.0)
+        park_cat(w, 30, 240)
+        heron = HeronEntity(w)
+        self.assertTrue(heron.ok)
+        w.entities.append(heron)
+        states = set()
+        for _ in range(int(240 / DT)):
+            w.update(DT)
+            states.add(heron.state)
+            if not heron.alive:
+                break
+        self.assertTrue({"hunt", "strike", "leave"} <= states, states)
+        self.assertFalse(heron.alive)
+
+    def test_ducklings_follow_their_mother_into_the_water_and_away(self):
+        w = world(hour=10.0)
+        park_cat(w, 30, 240)
+        hen = DuckEntity(w, brood=4)
+        self.assertTrue(hen.ok)
+        w.entities.append(hen)
+        w.entities.extend(hen.ducklings)
+        swam = False
+        for _ in range(int(420 / DT)):
+            w.update(DT)
+            if hen.state == "swim":
+                swam |= sum(w.terrain.is_water(d.x, d.y) for d in hen.ducklings) >= 3
+            if not hen.alive and w.count("duckling") == 0:
+                break
+        self.assertTrue(swam, "the ducklings never swam behind her")
+        self.assertEqual(w.count("duckling"), 0)
+        self.assertFalse(hen.alive)
 
 
 class SmallCreatures(unittest.TestCase):

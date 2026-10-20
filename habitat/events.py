@@ -28,8 +28,8 @@ import numpy as np
 import pygame
 
 from .entities.cat import Mark
-from .entities.wildlife import (Bat, Bird, BirdFlock, Butterfly, Crow, Fox, GoldenButterfly, Grasshopper, Moth,
-                                PeekingMouse, Pumpkin, Sparrow, art, halloween)
+from .entities.wildlife import (Bat, Bird, BirdFlock, Butterfly, Crow, Deer, Duck, Fox, GoldenButterfly, Grasshopper,
+                                Heron, Moth, PeekingMouse, Pumpkin, Sparrow, art, halloween)
 from .util import clamp, value_noise
 
 TIERS = ("common", "uncommon", "rare", "legendary")
@@ -967,6 +967,41 @@ class FoxVisit(Event):
         return True
 
 
+class HeronVisit(Event):
+    name, tier, title, cooldown = "a heron", "rare", "A heron comes fishing", 6 * 3600
+
+    def ready(self, world):
+        env = world.env
+        return (world.terrain.pond is not None and env.sun > 0.2 and env.rain < 0.3 and env.temperature > 1
+                and world.count("heron") == 0)
+
+    def start(self, world, events):
+        heron = Heron(world)
+        if not heron.ok:
+            return None
+        world.entities.append(heron)
+        return True
+
+
+class DuckFamily(Event):
+    name, tier, title, cooldown = "a duck and her ducklings", "rare", "A duck leads her ducklings to the pond", 8 * 3600
+
+    def ready(self, world):
+        env = world.env
+        p = env.sky.year_phase
+        nesting = 0.30 <= p <= 0.55          # May to mid-July: ducklings about
+        return (nesting and world.terrain.pond is not None and env.sun > 0.4 and env.rain < 0.2
+                and world.count("duck") == 0)
+
+    def start(self, world, events):
+        duck = Duck(world, brood=world.rng.randint(3, 6))
+        if not duck.ok:
+            return None
+        world.entities.append(duck)
+        world.entities.extend(duck.ducklings)
+        return True
+
+
 class GingerVisit(Event):
     name, tier, cooldown = "the ginger cat", "rare", 5 * 3600
 
@@ -1024,6 +1059,26 @@ class GoldenButterflyEvent(Event):
         world.entities.append(bf)
         cat = world.cat
         cat.attend("golden", cat.act_follow(bf), wake=True)
+        return True
+
+
+class DeerAtDawn(Event):
+    name, tier, title, cooldown = "a deer at dawn", "legendary", "A deer, at first light", 24 * 3600
+    omen = 30.0
+
+    def ready(self, world):
+        env = world.env
+        return (env.clock.between(4.6, 7.6) and env.rain < 0.1 and env.wind.strength < 0.6
+                and env.snow_cover < 0.7 and world.count("deer") == 0)
+
+    def start(self, world, events):
+        deer = Deer(world)
+        if not deer.ok:
+            return None
+        world.entities.append(deer)
+        env = world.env
+        if env.temperature < 18 and not any(isinstance(e, Mist) for e in world.effects):
+            world.effects.append(Mist(world))     # she steps out of the mist
         return True
 
 
@@ -1137,10 +1192,39 @@ class Halloween(Notice):
 ROLLED = [TailChase(), DandelionSeeds(), FallingFeather(), CrowVisit(), MousePeek(), ShadowPounce(), LeafChase(),
           GrasshopperVisit(), Moths(), AfterRain(), TwoButterflies(), DewyWeb(),
           MorningMist(), RainbowEvent(), LeafWhirl(), DuskBats(),
-          ShootingStarEvent(), FourthWall(), GingerVisit(), FoxVisit(),
-          GoldenButterflyEvent()]
+          ShootingStarEvent(), FourthWall(), GingerVisit(), FoxVisit(), HeronVisit(), DuckFamily(),
+          GoldenButterflyEvent(), DeerAtDawn()]
 NOTICES = [FullMoon(), MeteorShowerNotice(), FirstSnow(), NewYear(), Halloween()]
 ALL = {e.name: e for e in ROLLED + NOTICES}
+
+
+# How a recap says each event ("While you were away, Mochi saw ...").
+RECAP = {"Mochi noticed you": "came to the screen looking for you", "the ginger cat": "had a visit from the ginger cat",
+         "a carved pumpkin": None, "New Year fireworks": "hid from the New Year fireworks"}
+
+
+def recap(summary, name, now):
+    """One line about the last session, or None if there's nothing to say
+    (or it was too long ago to matter)."""
+    if not summary:
+        return None
+    try:
+        import datetime
+        ended = datetime.datetime.fromisoformat(summary["ended"])
+    except (KeyError, ValueError):
+        return None
+    if not datetime.timedelta(0) <= now - ended <= datetime.timedelta(days=3):
+        return None
+    rank = {t: i for i, t in enumerate(TIERS)}
+    events = [e for e in summary.get("events", []) if RECAP.get(e[1], "") is not None]
+    if events:
+        when, what, tier = max(events, key=lambda e: (rank.get(e[2], 0), e[0]))
+        verb = RECAP.get(what) or f"saw {what}"
+        return f"While you were away, {name} {verb} at {when}", tier
+    naps = summary.get("naps", 0)
+    if naps:
+        return f"While you were away, {name} napped {naps} time{'s' if naps != 1 else ''}", "uncommon"
+    return None
 
 
 class Caption:
@@ -1167,6 +1251,7 @@ class Events:
         self.last_shower = -1e9
         self.done = set(journal.notes.get("done", [])) if journal else set()   # notice keys already seen
         self.history = []         # (world.time, name) this session
+        self.log = []             # (clock moment, name, tier) of uncommon-or-rarer events this session
 
     # --- queries ----------------------------------------------------------
 
@@ -1289,6 +1374,8 @@ class Events:
             return True
         text = event.caption(world) if event.tier != "common" else ""
         self.history.append((now, event.name))
+        if event.tier != "common":
+            self.log.append((world.env.clock.moment, event.name, event.tier))
         if text:
             world.say(text, event.tier)
         if self.journal is not None:

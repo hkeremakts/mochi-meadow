@@ -49,6 +49,14 @@ def free_cat(w):
     return cat
 
 
+def out_of_the_way(w):
+    """Move Mochi to the open spot farthest from the pond."""
+    pond = w.terrain.pond
+    spots = [s.approach for s in w.terrain.spots["shelter"] + w.terrain.spots["nap"]]
+    x, y = max(spots, key=lambda p: (p[0] - pond.cx) ** 2 + (p[1] - pond.cy) ** 2)
+    w.cat.x, w.cat.y = float(x), float(y)
+
+
 def run(world, seconds, draw=None):
     for i in range(int(seconds / DT)):
         world.update(DT)
@@ -75,14 +83,21 @@ class EveryEvent(unittest.TestCase):
         "New Year fireworks": dict(hour=0.05, date=datetime.date(2027, 1, 1)),
         "a carved pumpkin": dict(hour=21.0, date=datetime.date(2026, 10, 30)),
         "moths": dict(hour=22.5),
+        "a deer at dawn": dict(hour=6.0),
         "a dewy spider web": dict(hour=6.5),
     }
+
+    # Visitors that can't come while Mochi blocks their way (in normal
+    # running they simply wait for another moment).
+    NEEDS_ROOM = {"a duck and her ducklings", "a heron", "a deer at dawn", "a fox"}
 
     def test_each_event_runs(self):
         for name in sorted(ev.ALL):
             with self.subTest(name):
                 w = meadow(**self.SETTINGS.get(name, {}))
                 free_cat(w)
+                if name in self.NEEDS_ROOM:
+                    out_of_the_way(w)
                 r = renderer(w)
                 if not w.events.force(name):
                     self.fail(f"{name} could not happen")
@@ -268,6 +283,50 @@ class Visitor(unittest.TestCase):
         w.entities = [e for e in w.entities if e.kind != "visitor"]
         w.events.force("the ginger cat")
         self.assertIn("back", w.captions[-1].text)
+
+
+class Recap(unittest.TestCase):
+    NOW = datetime.datetime(2026, 10, 20, 9, 0)
+
+    def test_the_rarest_thing_is_recapped(self):
+        summary = {"ended": "2026-10-20T07:30", "naps": 3,
+                   "events": [["06:10", "morning mist", "uncommon"], ["06:12", "a fox", "rare"]]}
+        text, tier = ev.recap(summary, "Mochi", self.NOW)
+        self.assertEqual(text, "While you were away, Mochi saw a fox at 06:12")
+        self.assertEqual(tier, "rare")
+
+    def test_a_quiet_session_mentions_the_naps(self):
+        text, _ = ev.recap({"ended": "2026-10-20T07:30", "naps": 2, "events": []}, "Mochi", self.NOW)
+        self.assertEqual(text, "While you were away, Mochi napped 2 times")
+
+    def test_nothing_after_a_long_break_or_without_a_journal(self):
+        self.assertIsNone(ev.recap({"ended": "2026-09-01T07:30", "naps": 2, "events": []}, "Mochi", self.NOW))
+        self.assertIsNone(ev.recap(None, "Mochi", self.NOW))
+        self.assertIsNone(ev.recap({"ended": "garbage"}, "Mochi", self.NOW))
+
+    def test_a_session_summary_lists_what_happened(self):
+        w = meadow(hour=23.5)
+        w.events.force("a shooting star")
+        before = w.summary()["naps"]
+        free_cat(w)
+        w.cat._start("nap", w.cat.act_nap())
+        summary = w.summary()
+        self.assertEqual(summary["events"][-1][1:], ["a shooting star", "rare"])
+        self.assertEqual(summary["naps"], before + 1)
+
+    def test_the_app_saves_the_session_and_recaps_it_next_time(self):
+        from habitat.app import App, parse_args
+        saved = os.environ.get("MEADOW_JOURNAL")
+        with tempfile.TemporaryDirectory() as d:
+            os.environ["MEADOW_JOURNAL"] = os.path.join(d, "journal.json")
+            try:
+                app = App(parse_args(["--size", "640x400", "--event", "a fox", "--time", "19:00"]))
+                app._save_session()
+                again = App(parse_args(["--size", "640x400", "--time", "19:05"]))
+                texts = [t for _, t, _ in again.world.later]
+                self.assertTrue(any("saw a fox" in t for t in texts), texts)
+            finally:
+                os.environ["MEADOW_JOURNAL"] = saved
 
 
 class Remembering(unittest.TestCase):

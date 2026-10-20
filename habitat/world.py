@@ -1,5 +1,6 @@
 """The meadow and everything in it."""
 
+import collections
 import math
 import random
 
@@ -38,6 +39,8 @@ class World:
         self.overhead = []
         self.effects = []
         self.captions = []
+        self.later = []           # [at world.time, text, tier]: captions still to come
+        self.stats = collections.Counter()   # what Mochi got up to this session
         self.bowl_fill = 1.0
         self._bowl_level = None
         self._bowl_sprites = [art.bowl(level, random.Random(self.seed + i)) for i, level in
@@ -80,6 +83,10 @@ class World:
         for fx in list(self.effects):
             fx.update(dt)
         self.effects = [fx for fx in self.effects if fx.alive]
+        for item in list(self.later):
+            if self.time >= item[0]:
+                self.later.remove(item)
+                self.say(item[1], item[2])
         for c in self.captions:
             c.age += dt
         self.captions = [c for c in self.captions if c.age < CAPTION_TIME]
@@ -87,6 +94,18 @@ class World:
     def say(self, text, tier):
         """A caption for something worth noticing."""
         self.captions.append(Caption(text, tier))
+
+    def say_later(self, delay, text, tier):
+        self.later.append([self.time + delay, text, tier])
+
+    def summary(self):
+        """This session in brief, for next time's recap."""
+        return {
+            "ended": self.env.clock.moment.isoformat(timespec="minutes"),
+            "events": [[m.strftime("%H:%M"), name, tier] for m, name, tier in self.events.log[-20:]],
+            "naps": self.stats["nap"],
+            "pounces": self.stats["pounce"],
+        }
 
     def glass_tap(self, x, y):
         self.effects.append(GlassTap(x, y))

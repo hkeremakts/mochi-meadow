@@ -12,7 +12,7 @@ import pygame
 
 from .config import ART_ROWS_TARGET, DEFAULT_WINDOW, FPS, MAX_ZOOM, MIN_ZOOM
 from .environment import WEATHER_STATES, Clock
-from .events import ALL, CAPTION_TIME
+from .events import ALL, CAPTION_TIME, recap
 from .journal import Journal, default_path
 from .personality import Personality
 from .hud import Hud
@@ -23,6 +23,7 @@ from .world import World
 TIME_SPEEDS = (1, 60, 600)
 SAVER_FPS = 30            # slow, ambient motion needs no more, and it halves the work
 CALM_FPS = 15             # ...and when nothing is moving fast, half that again
+SAVE_EVERY = 300.0        # seconds between journal saves of the session
 LITE_ZOOM = 2             # in lite mode the scene is drawn at this zoom, the GPU does the rest
 SCREENSAVER_GRACE = 1.5   # seconds before input ends a screensaver session
 RESIZE_SETTLE = 0.25      # rebuild once the window has stopped changing size
@@ -89,6 +90,7 @@ def parse_args(argv=None):
     p.add_argument("--no-journal", action="store_true",
                    help="don't remember anything between runs (a new cat and meadow each time)")
     p.add_argument("--name", help="what the cat is called (remembered)")
+    p.add_argument("--debug-events", action="store_true", help="show event odds and timers (toggle with D)")
     p.add_argument("--frames", type=int, help=argparse.SUPPRESS)        # run N frames then exit
     p.add_argument("--screenshot", help=argparse.SUPPRESS)              # save the last frame here
     return p.parse_args(argv)
@@ -124,11 +126,17 @@ class App:
         self.hud = Hud(self.screen.get_height())
         self.show_info = args.info
         self.show_journal = False
+        self.show_debug = args.debug_events
         if self.screensaver:
             self.hud.guide_time = 0.0
         self._build_world(args.weather, args.lock_weather)
         if args.event:
             self.world.events.force(args.event)
+        if self.journal.path:
+            line = recap(self.journal.notes.get("last_session"), self.world.cat.name, self.clock.moment)
+            if line:
+                self.world.say_later(10.0 if self.world.captions else 2.0, *line)
+        self._saved_at = 0.0
         self.running = True
         self.paused_render = False
         self.pending_resize = None
@@ -244,6 +252,8 @@ class App:
                 self.show_info = not self.show_info
             elif key == pygame.K_j:
                 self.show_journal = not self.show_journal
+            elif key == pygame.K_d:
+                self.show_debug = not self.show_debug
             elif key in (pygame.K_h, pygame.K_SLASH):
                 self.hud.show_guide()
             elif key == pygame.K_t:
@@ -298,12 +308,16 @@ class App:
                     self._build_world()
             self.world.update(dt)
             self.hud.update(dt)
+            if self.journal.path and self.elapsed - self._saved_at > SAVE_EVERY:
+                self._save_session()
             if not self.paused_render:
                 self.renderer.draw(self.world)
                 self.hud.draw_captions(self.screen, self.world.captions, CAPTION_TIME)
                 if self.show_info:
                     self.hud.draw_info(self.screen, self.world, self.clock.speed)
-                if self.show_journal:
+                if self.show_debug:
+                    self.hud.draw_debug(self.screen, self.world)
+                elif self.show_journal:
                     self.hud.draw_journal(self.screen, self.world.events)
                 self.hud.draw_guide(self.screen)
                 pygame.display.flip()
@@ -312,7 +326,16 @@ class App:
                 break
         if self.args.screenshot:
             self.save_screenshot(self.args.screenshot)
+        if self.journal.path:
+            self._save_session()
         pygame.quit()
+
+    def _save_session(self):
+        """Keep this session's story for the next run's recap (and the cat's
+        mood): now and then, in case the screensaver is simply killed."""
+        self._saved_at = self.elapsed
+        self.journal.notes["last_session"] = self.world.summary()
+        self.personality.save()
 
 
 def main(argv=None):

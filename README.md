@@ -38,6 +38,7 @@ python main.py --help            # every option
 |---|---|
 | `I` | info panel: the time, weather, temperature, season, sunrise and sunset, the moon, what Mochi is doing, who's around |
 | `J` | journal: every event seen so far, and the ones still to find (`???`) |
+| `D` | event odds: each tier's timer and chances, what could happen right now (for tuning) |
 | `F` / `F11` | fullscreen |
 | `T` | time-lapse: 1× → 60× → 600× → back to live time |
 | `W` | next weather |
@@ -154,8 +155,8 @@ date, the moon):
 |---|---|---|
 | Common | several an hour | Mochi chases her tail; pounces on a bird's shadow; chases a skittering leaf; stalks a grasshopper; bats at moths on summer nights; a mouse peeks out of a bush; a feather floats down and she sniffs it; a crow lands and she stares it out; two butterflies dance; dandelion seeds drift past; puddles after a downpour (sparrows bathe, Mochi drinks from them); a dewy spider web glints at dawn |
 | Uncommon | a few a day | morning mist at dawn; a rainbow mirrored in the pond after a shower; a gust that spins up a whirlwind of leaves; bats at dusk on summer evenings |
-| Rare | about one a day | a fox trotting through at dawn or dusk, pausing to sniff the air; a shooting star across the pond; the ginger cat from next door visits (they touch noses, then sit together, play chase, or fall out); Mochi walks up to the screen, looks at you and taps the glass |
-| Legendary | about one a week | the golden butterfly, which Mochi follows all over the meadow |
+| Rare | about one a day | a heron fishing at the pond (it stands, leans out, strikes, sometimes swallows a fish); in early summer, a duck leading her ducklings in a line to the pond for a swim; a fox trotting through at dawn or dusk, pausing to sniff the air; a shooting star across the pond; the ginger cat from next door visits (they touch noses, then sit together, play chase, or fall out); Mochi walks up to the screen, looks at you and taps the glass |
+| Legendary | about one a week | the golden butterfly, which Mochi follows all over the meadow; a roe deer stepping out of the dawn mist to graze by the pond (she bounds away if Mochi comes close) |
 
 Others happen when the world makes them true:
 
@@ -176,6 +177,10 @@ How the odds work:
 
 Uncommon and rarer events show a short caption that fades in and out:
 gold with a star for rare, violet with two for legendary.
+
+When the screensaver starts, a caption recaps the last session (which
+happened while you were away), for example "While you were away, Mochi saw
+a fox at 06:12".
 
 The meadow remembers. The journal lives in
 `~/Library/Application Support/Meadow/journal.json` (or wherever
@@ -212,6 +217,8 @@ habitat/
   cat_anims.py       every cat animation, as poses
   bird_art.py        bird puppet: pigeon, sparrow, crow
   fox_art.py         the fox's puppet (it borrows the cat's gaits)
+  deer_art.py        the roe deer's puppet (the same gaits, on long legs)
+  pond_art.py        the heron's and the ducks' puppets
   art.py             procedural props (rocks, flowers, reeds, bowl)
   critter_art.py     the smaller creatures' sprites
   particles.py       rain, splashes, dust, leaves, petals, pollen, feathers
@@ -221,7 +228,9 @@ habitat/
   entities/wildlife.py   birds (pigeons, sparrows, crows), butterflies,
                          mice, fireflies, ladybirds, dragonflies, frogs,
                          hedgehogs, snails, bees, bats, the golden
-                         butterfly, the fox, the Halloween pumpkin
+                         butterfly, the fox, the deer, the heron, the duck
+                         and her ducklings, moths, grasshoppers, the
+                         Halloween pumpkin
   entities/visitor.py    the ginger cat from next door
 tests/               python -m unittest discover -s tests -t .
 legacy/              the original single-file version, kept for reference

@@ -275,14 +275,17 @@ class Pose(dict):
     def blend(self, other, t):
         out = Pose(self)
         for k, b in other.items():
-            a = self.get(k, b)
-            if isinstance(b, (int, float)) and isinstance(a, (int, float)) and not isinstance(b, bool):
-                out[k] = lerp(a, b, t)
-            elif isinstance(b, tuple) and isinstance(a, tuple) and len(a) == len(b):
-                out[k] = tuple(lerp(x, y, t) for x, y in zip(a, b))
-            else:
-                out[k] = b if t >= 0.5 else a
+            out[k] = _mix(self.get(k, b), b, t)
         return out
+
+
+def _mix(a, b, t):
+    """Blend numbers, or tuples of them (nested, such as a list of points)."""
+    if isinstance(b, (int, float)) and isinstance(a, (int, float)) and not isinstance(b, bool):
+        return lerp(a, b, t)
+    if isinstance(b, tuple) and isinstance(a, tuple) and len(a) == len(b):
+        return tuple(_mix(x, y, t) for x, y in zip(a, b))
+    return b if t >= 0.5 else a
 
 
 def ease(t):

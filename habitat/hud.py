@@ -8,7 +8,9 @@ MOON_NAMES = ((0.03, "new moon"), (0.22, "waxing crescent"), (0.28, "first quart
 PLURALS = {"butterfly": "butterflies", "mouse": "mice", "firefly": "fireflies", "ladybug": "ladybirds",
            "dragonfly": "dragonflies", "pigeon": "pigeons", "sparrow": "sparrows", "frog": "frogs",
            "bee": "bees", "snail": "snails", "hedgehog": "hedgehogs", "crow": "crows", "bat": "bats",
-           "fox": "foxes", "golden_butterfly": "golden butterflies", "visitor": "visiting cats"}
+           "fox": "foxes", "golden_butterfly": "golden butterflies", "visitor": "visiting cats", "deer": "deer",
+           "heron": "herons", "duck": "ducks", "duckling": "ducklings", "moth": "moths",
+           "grasshopper": "grasshoppers"}
 SINGULAR = {"ladybug": "ladybird", "golden_butterfly": "golden butterfly", "visitor": "visiting cat"}
 KEYS = [
     ("I", "info panel"),
@@ -16,6 +18,7 @@ KEYS = [
     ("T", "time speed"),
     ("W", "next weather"),
     ("J", "journal"),
+    ("D", "event odds"),
     ("N", "new meadow"),
     ("S", "screenshot"),
     ("Esc", "quit"),
@@ -85,6 +88,8 @@ class Hud:
         margin = self.pad * 2
         if anchor == "bottomleft":
             pos = (margin, sh - h - margin)
+        elif anchor == "topleft":
+            pos = (margin, margin)
         else:
             pos = (sw - w - margin, margin)
         screen.blit(panel, pos)
@@ -99,8 +104,8 @@ class Hud:
         if speed != 1:
             time_line += f"   time x{speed:g}"
         counts = []
-        for kind in ("golden_butterfly", "visitor", "fox", "butterfly", "bee", "dragonfly", "ladybug", "frog", "snail",
-                     "mouse", "hedgehog", "pigeon", "sparrow", "crow", "bat", "firefly"):
+        for kind in ("golden_butterfly", "deer", "visitor", "fox", "heron", "duck", "duckling", "butterfly", "bee", "dragonfly", "ladybug", "frog", "snail",
+                     "mouse", "hedgehog", "pigeon", "sparrow", "crow", "bat", "grasshopper", "moth", "firefly"):
             n = world.count(kind)
             if n:
                 name = PLURALS[kind] if n > 1 else SINGULAR.get(kind, kind)
@@ -180,6 +185,33 @@ class Hud:
                 text = f"   {name}  \u00d7{n}" if n else "   ???"
                 lines.append((text, self.small, light if n else dim))
         self._panel(screen, lines, "topright")
+
+    def draw_debug(self, screen, world):
+        """Behind the scenes, for tuning: each tier's wait and odds, what
+        could happen right now, and what is running."""
+        from .events import MEAN, ROLLED, TIERS
+        ev = world.events
+        light, dim = (236, 238, 240), (150, 160, 172)
+        lines = [("Events", self.font, light)]
+        now = world.time
+        for tier in reversed(TIERS):
+            wait = ev.since[tier] / MEAN[tier]
+            per_hour = ev.chance(tier) * 3600 / 4.0
+            ready = [e.name for e in ROLLED if e.tier == tier and now >= ev.ready_at.get(e.name, 0.0)
+                     and e.ready(world)]
+            color = TIER_STYLE.get(tier, ((200, 206, 212), 0))[0]
+            lines.append((f"{tier}: {wait:.0%} of the usual wait, ~{per_hour:.1f}/h", self.small, color))
+            lines.append(("   " + (", ".join(ready) if ready else "nothing possible now"), self.small, dim))
+        running = [type(fx).__name__ for fx in world.effects]
+        if ev.pending:
+            running.append(f"omen for {ev.pending[0].name}")
+        lines.append(("running: " + (", ".join(running) if running else "-"), self.small, dim))
+        recent = [n for _, n in ev.history[-4:]]
+        lines.append(("recent: " + (", ".join(recent) if recent else "-"), self.small, dim))
+        p = world.cat.p
+        lines.append((f"{world.cat.name}: mood {p.mood:+.2f} ({p.mood_word}), activity {world.cat.activity_name}",
+                      self.small, dim))
+        self._panel(screen, lines, "topleft")
 
     def draw_guide(self, screen):
         if self.guide_time <= 0:

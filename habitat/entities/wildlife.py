@@ -13,7 +13,7 @@ import math
 import numpy as np
 import pygame
 
-from .. import bird_art, cat_anims, critter_art, fox_art, pixelrig
+from .. import bird_art, cat_anims, critter_art, deer_art, fox_art, pixelrig, pond_art
 from ..assets import generated_library
 from ..paths import find_path, widen
 from ..util import clamp
@@ -44,6 +44,15 @@ def art():
         for key in list(fox):
             fox[key.replace("_right", "_left")] = [pygame.transform.flip(f, True, False) for f in fox[key]]
         _ART["fox"] = fox
+        deer = generated_library("deer", [deer_art.__file__, cat_anims.__file__, pixelrig.__file__], deer_art.render)
+        for key in list(deer):
+            deer[key.replace("_right", "_left")] = [pygame.transform.flip(f, True, False) for f in deer[key]]
+        _ART["deer"] = deer
+        for name, build in (("heron", pond_art.render_heron), ("ducks", pond_art.render_ducks)):
+            lib = generated_library(name, [pond_art.__file__, pixelrig.__file__], build)
+            for key in list(lib):
+                lib[key.replace("_right", "_left")] = [pygame.transform.flip(f, True, False) for f in lib[key]]
+            _ART[name] = lib
         _ART["pumpkin"] = critter_art.pumpkin_frames()
     return _ART
 
@@ -1585,33 +1594,8 @@ class Fox(Entity):
         rng = world.rng
         self.rng = rng
         self.lib = art()["fox"]
-        t = world.terrain
         side = rng.choice((-1, 1))
-        self.route = None
-        # Plan around the cat as if she were a rock.
-        avoid = t.blocked.copy()
-        cx, cy = world.cat.x, world.cat.y
-        yy, xx = np.ogrid[:t.height, :t.width]
-        avoid |= ((xx - cx) / 55.0) ** 2 + ((yy - cy) / 40.0) ** 2 < 1.0
-        wide = widen(avoid, 2)
-        for _ in range(80):
-            y0 = rng.uniform(world.height * 0.25, world.height * 0.9)
-            y1 = clamp(y0 + rng.uniform(-60, 60), world.height * 0.2, world.height * 0.92)
-            a = _edge_point(t, side, y0)
-            b = _edge_point(t, -side, y1)
-            if a is None or b is None:
-                continue
-            mid = (rng.uniform(0.25, 0.75) * world.width, (y0 + y1) / 2 + rng.uniform(-30, 30))
-            if math.hypot(mid[0] - cx, mid[1] - cy) < min(85.0, world.width * 0.25):
-                continue   # it stops to sniff well away from the cat
-            if not t.walkable(*mid) or avoid[int(mid[1]), int(mid[0])]:
-                continue
-            first = find_path(avoid, a, mid, wide=wide)
-            second = find_path(avoid, mid, b, wide=wide) if first else None
-            if first and second:
-                self.route = [a] + [tuple(p) for p in first]
-                self.after_pause = [tuple(p) for p in second]
-                break
+        self.route, self.after_pause = plan_crossing(world, side)
         start = (-30.0 if side < 0 else world.width + 30.0, self.route[0][1] if self.route else 0.0)
         super().__init__(world, *start)
         self.exit_x = world.width + 30.0 if side < 0 else -30.0
@@ -1700,6 +1684,40 @@ class Fox(Entity):
 
     def shadow(self):
         return 17.0, 3.4, 70, -1
+
+
+def plan_crossing(world, side, mids=None, keep_off=85.0):
+    """A route in from one edge to a stopping point, and on out the other
+    edge, planned around the cat as if she were a rock.  ``mids`` are
+    preferred stopping points (a deer heads for the pond).  Returns
+    (route in, route out) or (None, None)."""
+    rng = world.rng
+    t = world.terrain
+    avoid = t.blocked.copy()
+    cx, cy = world.cat.x, world.cat.y
+    yy, xx = np.ogrid[:t.height, :t.width]
+    avoid |= ((xx - cx) / 55.0) ** 2 + ((yy - cy) / 40.0) ** 2 < 1.0
+    wide = widen(avoid, 2)
+    for _ in range(80):
+        y0 = rng.uniform(world.height * 0.25, world.height * 0.9)
+        y1 = clamp(y0 + rng.uniform(-60, 60), world.height * 0.2, world.height * 0.92)
+        a = _edge_point(t, side, y0)
+        b = _edge_point(t, -side, y1)
+        if a is None or b is None:
+            continue
+        if mids:
+            mid = rng.choice(mids)
+        else:
+            mid = (rng.uniform(0.25, 0.75) * world.width, (y0 + y1) / 2 + rng.uniform(-30, 30))
+        if math.hypot(mid[0] - cx, mid[1] - cy) < min(keep_off, world.width * 0.25):
+            continue   # it stops well away from the cat
+        if not t.walkable(*mid) or avoid[int(mid[1]), int(mid[0])]:
+            continue
+        first = find_path(avoid, a, mid, wide=wide)
+        second = find_path(avoid, mid, b, wide=wide) if first else None
+        if first and second:
+            return [a] + [tuple(p) for p in first], [tuple(p) for p in second]
+    return None, None
 
 
 def _edge_point(t, side, y):
@@ -1856,3 +1874,443 @@ class PeekingMouse(Mouse):
         elif self.timer <= 0:
             self.hidden = True
             self.alive = False
+
+
+class Deer(Entity):
+    """A roe deer, seen once in a long while at dawn: she steps out of the
+    mist, walks to the pond, drinks and grazes with an ear always turning,
+    and walks on.  If the cat comes close she bounds away, white rump
+    flashing."""
+
+    kind = "deer"
+    watch_only = True
+    watch_distance = 120.0
+    WALK = 13.0
+    BOUND = 90.0
+
+    def __init__(self, world):
+        rng = world.rng
+        self.rng = rng
+        self.lib = art()["deer"]
+        side = rng.choice((-1, 1))
+        t = world.terrain
+        mids = [tuple(s.approach) for s in t.spots["drink"]] or None
+        self.route, self.after = plan_crossing(world, side, mids=mids, keep_off=100.0)
+        if self.route is None:      # the pond is out of reach today: graze out in the meadow
+            self.route, self.after = plan_crossing(world, side, keep_off=100.0)
+        start = (-40.0 if side < 0 else world.width + 40.0, self.route[0][1] if self.route else 0.0)
+        super().__init__(world, *start)
+        self.exit_x = world.width + 40.0 if side < 0 else -40.0
+        self.facing = 1 if side < 0 else -1
+        self.state = "walk"
+        self.timer = 0.0
+        self.bouts = rng.randint(2, 4)
+        self.leaving = False
+        self.fleeing = False
+
+    @property
+    def ok(self):
+        return self.route is not None
+
+    def interest(self, cat):
+        return 0.0 if self.hidden else 1.0
+
+    @property
+    def hidden(self):
+        return self.x < -20 or self.x > self.world.width + 20
+
+    def _play(self, name, **kw):
+        key = f"{name}_{'right' if self.facing > 0 else 'left'}"
+        self.anim.play(key, self.lib[key], **kw)
+
+    def _bolt(self):
+        world = self.world
+        t = world.terrain
+        side = -1 if world.cat.x > self.x else 1
+        edge = _edge_point(t, side, self.y)
+        path = find_path(t.blocked, (self.x, self.y), edge, wide=t.blocked_wide) if edge else None
+        off = -40.0 if side < 0 else world.width + 40.0
+        self.route = ([tuple(p) for p in path] + [(off, edge[1])]) if path else [(off, self.y)]
+        self.fleeing = True
+        self.leaving = True
+        self.state = "walk"
+
+    def update(self, dt):
+        world = self.world
+        cat = world.cat
+        d = self.distance_to(cat)
+        asleep = getattr(cat, "posture", "") == "sleep"
+        close = d < (28 if asleep else 60) or (d < 110 and _cat_speed(cat) > 30)
+        if close and not self.fleeing and not self.hidden and self.state != "startled":
+            self.state, self.timer = "startled", 0.6      # a heartbeat of stillness, then away
+        if self.state in ("graze", "look", "startled"):
+            self.timer -= dt
+            key = self.anim.key or ""
+            moving_head = ("graze_start" in key or "graze_end" in key) and not self.anim.done
+            if not moving_head:
+                self._play("graze" if self.state == "graze" else "alert", fps=4 if self.state == "graze" else 6,
+                           loop=self.state == "graze")
+            if self.timer <= 0:
+                if self.state == "startled":
+                    self._bolt()
+                elif self.state == "graze":
+                    self.state, self.timer = "look", self.rng.uniform(2.0, 4.0)
+                    self._play("graze_end", fps=5, loop=False)
+                else:
+                    self._next()
+            self.anim.update(dt)
+            return
+        if not self.route:
+            if self.leaving:
+                self.alive = False
+                return
+            self.state, self.timer = "graze", self.rng.uniform(8, 16)
+            self._play("graze_start", fps=5, loop=False)
+            return
+        tx, ty = self.route[0]
+        dx, dy = tx - self.x, ty - self.y
+        dist = math.hypot(dx, dy)
+        speed = self.BOUND if self.fleeing else self.WALK
+        step = min(dist, speed * dt)
+        if dist > 0.01:
+            self.x += dx / dist * step
+            self.y += dy / dist * step
+            if abs(dx) > 1.0:
+                self.facing = 1 if dx > 0 else -1
+        if dist - step < 0.5:
+            self.route.pop(0)
+        gait = "bound" if self.fleeing else "walk"
+        self._play(gait, stride=deer_art.STRIDES[gait])
+        self.anim.update(dt, step)
+
+    def _next(self):
+        """After looking about: graze again, or move on."""
+        self.bouts -= 1
+        if self.bouts > 0:
+            self.state, self.timer = "graze", self.rng.uniform(8, 16)
+            self._play("graze_start", fps=5, loop=False)
+        else:
+            self.leaving = True
+            self.state = "walk"
+            self.route = list(self.after or []) + [(self.exit_x, (self.after or [(0, self.y)])[-1][1])]
+
+    def sprite(self):
+        return self.anim.frame, deer_art.ANCHOR, False
+
+    def shadow(self):
+        return 22.0, 4.2, 70, -1
+
+
+# ==========================================================================
+# Pond visitors
+
+class Heron(Entity):
+    """A grey heron: it glides in to the bank and stands like a post,
+    leans out over the water, strikes, now and then swallows a fish, and
+    flaps away slowly when it has had enough (or the cat comes close)."""
+
+    kind = "heron"
+    watch_only = True
+    watch_distance = 90.0
+
+    def __init__(self, world):
+        rng = world.rng
+        self.rng = rng
+        self.lib = art()["heron"]
+        spots = bank_points(world.terrain)
+        cat = world.cat
+        spots = [s for s in spots if math.hypot(s[0] - cat.x, s[1] - cat.y) > 90] or spots
+        self.spot = rng.choice(spots) if spots else None
+        side = rng.choice((-1, 1))
+        start_x = -40.0 if side < 0 else world.width + 40.0
+        super().__init__(world, start_x, self.spot[1] - 30 if self.spot else 0.0)
+        self.z = 70.0
+        self.state = "fly_in"
+        self.timer = 0.0
+        self.rounds = rng.randint(3, 5)
+        self.facing = self.spot[2] if self.spot else 1     # toward the water
+        self.flight_facing = 1 if side < 0 else -1
+
+    @property
+    def ok(self):
+        return self.spot is not None
+
+    @property
+    def airborne(self):
+        return self.z > 3.0
+
+    @property
+    def hidden(self):
+        return self.x < -30 or self.x > self.world.width + 30
+
+    def interest(self, cat):
+        return 0.0 if self.airborne else 0.9
+
+    def _play(self, name, facing, **kw):
+        key = f"{name}_{'right' if facing > 0 else 'left'}"
+        self.anim.play(key, self.lib[key], **kw)
+
+    def update(self, dt):
+        world = self.world
+        rng = self.rng
+        cat = world.cat
+        if self.state == "fly_in":
+            tx, ty = self.spot[0], self.spot[1]
+            dx, dy = tx - self.x, ty - self.y
+            d = math.hypot(dx, dy)
+            step = min(d, 42.0 * dt)
+            if d > 0.01:
+                self.x += dx / d * step
+                self.y += dy / d * step
+                self.flight_facing = 1 if dx > 0 else -1
+            self.z = max(0.0, min(self.z, d * 0.55))
+            self._play("glide" if d < 60 else "fly", self.flight_facing, fps=7)
+            if d < 0.6:
+                self.z = 0.0
+                self.state, self.timer = "stand", rng.uniform(5, 10)
+            self.anim.update(dt)
+            return
+        if self.state == "leave":
+            self.x += self.flight_facing * 46.0 * dt
+            self.z = min(80.0, self.z + 24.0 * dt)
+            self._play("fly", self.flight_facing, fps=6)
+            self.anim.update(dt)
+            if self.hidden:
+                self.alive = False
+            return
+        d = self.distance_to(cat)
+        if cat.posture != "sleep" and (d < 45 or (d < 80 and _cat_speed(cat) > 20)):
+            self._leave()
+            return
+        self.timer -= dt
+        if self.state == "stand":
+            self._play("stand", self.facing, fps=1.5)
+            if self.timer <= 0:
+                self.state, self.timer = "hunt", rng.uniform(8, 18)
+        elif self.state == "hunt":
+            self._play("hunt", self.facing, fps=5, loop=False)
+            if self.timer <= 0:
+                self.state, self.timer = "strike", 0.9
+                self._play("strike", self.facing, fps=8, loop=False, restart=True)
+        elif self.state == "strike":
+            if self.timer <= 0.5 and not getattr(self, "_splashed", False):
+                self._splashed = True
+                bx = self.x + self.facing * 18
+                world.water.ripple(bx, self.y + 1)
+                world.particles.splash(bx, self.y + 1)
+            if self.timer <= 0:
+                self._splashed = False
+                if rng.random() < 0.4:
+                    self.state, self.timer = "swallow", 1.6
+                    self._play("swallow", self.facing, fps=5, loop=False, restart=True)
+                else:
+                    self._next_round()
+        elif self.state == "swallow":
+            if self.timer <= 0:
+                self._next_round()
+        self.anim.update(dt)
+
+    def _next_round(self):
+        self.rounds -= 1
+        if self.rounds <= 0:
+            self._leave()
+        else:
+            self.state, self.timer = "stand", self.rng.uniform(4, 9)
+
+    def _leave(self):
+        self.state = "leave"
+        self.flight_facing = -1 if self.x < self.world.width / 2 else 1
+        self.z = max(self.z, 1.0)
+
+    def sprite(self):
+        return self.anim.frame, pond_art.HERON_ANCHOR, False
+
+    def shadow(self):
+        k = 1.0 / (1.0 + self.z * 0.012)
+        return 10.0 * k, 2.6 * k, int(70 * k)
+
+
+class Duck(Entity):
+    """A mallard hen leading her ducklings to the pond in a line: they
+    swim in her wake, she up-ends now and then to feed, and in the end she
+    leads them off again."""
+
+    kind = "duck"
+    watch_only = True
+    watch_distance = 70.0
+    WALK = 11.0
+    SWIM = 7.0
+
+    def __init__(self, world, brood=4):
+        rng = world.rng
+        self.rng = rng
+        self.lib = art()["ducks"]
+        t = world.terrain
+        side = rng.choice((-1, 1))
+        drinks = [tuple(s.approach) for s in t.spots["drink"]] or None
+        self.route, self.after = None, None
+        banks = [(x - 6 * w, y) for x, y, w in bank_points(t) if t.walkable(x - 6 * w, y)]
+        for mids, keep_off in ((drinks, 90.0), (drinks, 50.0), (banks, 50.0)):
+            if mids and self.route is None:
+                self.route, self.after = plan_crossing(world, side, mids=mids, keep_off=keep_off)
+        start = (-20.0 if side < 0 else world.width + 20.0, self.route[0][1] if self.route else 0.0)
+        super().__init__(world, *start)
+        self.exit_x = world.width + 20.0 if side < 0 else -20.0
+        self.facing = 1 if side < 0 else -1
+        self.state = "walk_in"
+        self.timer = 0.0
+        self.trail = [(self.x, self.y)]       # breadcrumbs the ducklings follow
+        self.swim_for = rng.uniform(120, 240)
+        self.target = None
+        self.ducklings = []
+        if self.route:
+            for i in range(brood):
+                d = Duckling(world, self, i)
+                self.ducklings.append(d)
+
+    @property
+    def ok(self):
+        return self.route is not None
+
+    @property
+    def on_water(self):
+        return self.world.terrain.is_water(self.x, self.y)
+
+    @property
+    def hidden(self):
+        return self.x < -15 or self.x > self.world.width + 15
+
+    def interest(self, cat):
+        return 0.0 if self.hidden else 0.8
+
+    def _play(self, name, **kw):
+        key = f"duck_{name}_{'right' if self.facing > 0 else 'left'}"
+        self.anim.play(key, self.lib[key], **kw)
+
+    def _move_to(self, tx, ty, speed, dt):
+        dx, dy = tx - self.x, ty - self.y
+        d = math.hypot(dx, dy)
+        step = min(d, speed * dt)
+        if d > 0.01:
+            self.x += dx / d * step
+            self.y += dy / d * step
+            if abs(dx) > 0.3:
+                self.facing = 1 if dx > 0 else -1
+        last = self.trail[-1]
+        if math.hypot(self.x - last[0], self.y - last[1]) > 1.0:
+            self.trail.append((self.x, self.y))
+            del self.trail[:-200]
+        return d - step < 0.4, step
+
+    def _water_point(self, near=None):
+        pond = self.world.terrain.pond
+        cells = pond.open_cells
+        for _ in range(20):
+            x, y = cells[self.rng.randrange(len(cells))]
+            if near is None or math.hypot(x - near[0], y - near[1]) < 40:
+                if all(self.world.terrain.is_water(x + dx, y + dy) for dx, dy in ((-6, 0), (6, 0), (0, -3), (0, 3))):
+                    return float(x), float(y)
+        return float(pond.cx), float(pond.cy)
+
+    def update(self, dt):
+        world = self.world
+        rng = self.rng
+        if self.state in ("walk_in", "walk_out"):
+            if not self.route:
+                if self.state == "walk_out":
+                    self.alive = False
+                    return
+                self.state = "enter"
+                self.target = self._water_point(near=(self.x, self.y))
+                return
+            arrived, step = self._move_to(*self.route[0], self.WALK, dt)
+            if arrived:
+                self.route.pop(0)
+            self._play("walk", stride=3.0)
+            self.anim.update(dt, step)
+            return
+        if self.state in ("enter", "swim"):
+            self.swim_for -= dt
+            if self.timer > 0:              # up-ended, feeding
+                self.timer -= dt
+                self._play("upend", fps=4, loop=False)
+                self.anim.update(dt)
+                return
+            arrived, step = self._move_to(*self.target, self.SWIM if self.on_water else self.WALK, dt)
+            self._play("swim" if self.on_water else "walk", fps=4)
+            self.anim.update(dt, step)
+            if self.on_water:
+                self.state = "swim"
+                if rng.random() < dt * 0.6:
+                    world.water.ripple(self.x - self.facing * 4, self.y, small=True)
+            if arrived:
+                if self.swim_for <= 0:
+                    self.state = "leave_water"
+                    spot = self.after[0] if self.after else (self.exit_x, self.y)
+                    self.target = spot
+                elif rng.random() < 0.3:
+                    self.timer = rng.uniform(2.0, 4.0)
+                else:
+                    self.target = self._water_point()
+            return
+        if self.state == "leave_water":
+            arrived, step = self._move_to(*self.target, self.SWIM if self.on_water else self.WALK, dt)
+            self._play("swim" if self.on_water else "walk", fps=4)
+            self.anim.update(dt, step)
+            if arrived:
+                self.state = "walk_out"
+                self.route = list(self.after or []) + [(self.exit_x, self.y)]
+
+    def sprite(self):
+        return self.anim.frame, pond_art.DUCK_ANCHOR, False
+
+    def shadow(self):
+        return None if self.on_water else (5.0, 1.4, 60)
+
+
+class Duckling(Entity):
+    kind = "duckling"
+
+    def __init__(self, world, hen, place):
+        super().__init__(world, hen.x, hen.y)
+        self.hen = hen
+        self.place = place            # 0 = right behind her
+        self.lib = hen.lib
+        self.facing = hen.facing
+        self.bob = world.rng.random() * 6
+
+    def update(self, dt):
+        hen = self.hen
+        if not hen.alive and (self.x < -10 or self.x > self.world.width + 10):
+            self.alive = False
+            return
+        # Follow the breadcrumbs a little way behind, in line.
+        gap = 9 + self.place * 7
+        trail = hen.trail
+        if hen.state == "walk_out" and hen.hidden:
+            gap = 0                       # she's through the hedge: hurry after her
+        idx = max(0, len(trail) - 1 - gap)
+        tx, ty = trail[idx]
+        dx, dy = tx - self.x, ty - self.y
+        d = math.hypot(dx, dy)
+        speed = max(4.0, d * 3.0)
+        step = min(d, speed * dt)
+        if d > 0.01:
+            self.x += dx / d * step
+            self.y += dy / d * step
+            if abs(dx) > 0.2:
+                self.facing = 1 if dx > 0 else -1
+        on_water = self.world.terrain.is_water(self.x, self.y)
+        name = "swim" if on_water else ("walk" if step > 0.01 else "stand")
+        key = f"duckling_{name}_{'right' if self.facing > 0 else 'left'}"
+        self.anim.play(key, self.lib[key], fps=6 if name != "walk" else None, stride=2.0 if name == "walk" else None)
+        self.anim.update(dt, step)
+        leaving = hen.state == "walk_out"
+        if leaving and (self.x < -10 or self.x > self.world.width + 10):
+            self.alive = False
+
+    def sprite(self):
+        return self.anim.frame, pond_art.DUCK_ANCHOR, False
+
+    def shadow(self):
+        return None if self.world.terrain.is_water(self.x, self.y) else (2.4, 0.8, 50)

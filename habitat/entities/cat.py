@@ -200,6 +200,8 @@ class Cat(Entity):
     def _start(self, name, generator, interruptible=True):
         if self.activity is not None:
             self.activity.close()
+        if type(self) is Cat:
+            self.world.stats[name] += 1
         self.z = 0.0
         self.wiggle = 0.0
         self.activity = generator
@@ -1437,6 +1439,8 @@ class Cat(Entity):
                 break  # prey bolted: launch now
             yield
         self.label = "pounce!"
+        if type(self) is Cat:
+            self.world.stats["pounce"] += 1
         hit = getattr(prey, "on_pounce", None)
         if hit is not None:
             hit(self)
