@@ -45,7 +45,7 @@ class Renderer:
         S = self.S
         w, h = world.width, world.height
         self._bake_ground(world)
-        self._prop_frames = {f for prop in world.terrain.props for f in prop.frames}
+        self._prop_frames = self._scenery_frames(world)
         self.light_small = pygame.Surface((w, h)).convert()
         self.light_big = pygame.Surface((w * S, h * S)).convert()
         self.vignette = self._vignette(w, h)
@@ -61,11 +61,16 @@ class Renderer:
         """The season moved on: new ground, new prop frames."""
         self._bake_ground(world)
         old = self._prop_frames
-        self._prop_frames = {f for prop in world.terrain.props for f in prop.frames}
+        self._prop_frames = self._scenery_frames(world)
         for key in [k for k in self._sprites if k[0] in old and k[0] not in self._prop_frames]:
             del self._sprites[key]
         for frame in self._prop_frames:
             self.sprite(frame)
+
+    @staticmethod
+    def _scenery_frames(world):
+        t = world.terrain
+        return {f for prop in t.props + t.canopies for f in prop.frames}
 
     def clear_caches(self):
         for cache in (self._sprites, self._dots, self._rings, self._shadows, self._streaks, self._glows):
@@ -249,6 +254,13 @@ class Renderer:
                 else:
                     frame = frames[0]
                 self.draw_sprite(frame, obj.x, obj.y, obj.anchor)
+        # Tree crowns over everything on the ground; see-through over the cat.
+        for canopy in world.terrain.canopies:
+            img, ox, oy = self.sprite(canopy.frames[0])
+            ax, ay = canopy.anchor
+            lean = wind.sway(canopy.x, canopy.y, canopy.phase) * canopy.sway
+            img.set_alpha(int(255 * canopy.fade))
+            self.screen.blit(img, (round((canopy.x - ax + ox + lean) * self.S), round((canopy.y - ay + oy) * self.S)))
         flying.sort(key=lambda e: e.y)
         for e in flying:
             self._draw_entity(e)

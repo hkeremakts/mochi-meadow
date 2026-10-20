@@ -172,7 +172,8 @@ class Cat(Entity):
         night (or in the rain) she is already asleep under a bush and stays
         that way until she's rested."""
         env = self.world.env
-        shelters = self.world.terrain.spots["shelter"]
+        spots = self.world.terrain.spots
+        shelters = spots["roof"] if (env.rain > 0.35 and spots["roof"]) else spots["shelter"] or spots["roof"]
         if (env.is_night or env.rain > 0.35) and shelters and type(self) is Cat:
             spot = self.rng.choice(shelters)
             self.x, self.y = float(spot.x), float(spot.y)
@@ -730,7 +731,7 @@ class Cat(Entity):
             return
         env = self.world.env
         if env.rain > 0.35 and not self.sheltered and self.activity_name != "shelter":
-            if self.world.terrain.spots["shelter"]:
+            if self.world.terrain.spots["shelter"] or self.world.terrain.spots["roof"]:
                 self._start("shelter", self.act_shelter())
                 return
         if self._afraid():
@@ -1426,16 +1427,27 @@ class Cat(Entity):
         yield from self.act_groom()
 
     def act_shelter(self, until=None):
-        """Under the nearest bush until ``until()`` (default: the rain or
-        snow eases off)."""
+        """Into cover until ``until()`` (default: the rain or snow eases off).
+
+        In the weather she makes for the tree, whose crown keeps the rain
+        off, or else a bush.  Sheltering isn't sitting still forever: now and
+        then (more often for a curious or bold cat, less in a downpour) she
+        goes out for a look round in the wet and comes back to groom it off."""
         env = self.world.env
+        t = self.world.terrain
         weather = until is None
         if weather:
             until = lambda: env.rain < 0.15
-        spots = self.world.terrain.spots["shelter"]
-        if not spots:
+        roof, bushes = t.spots["roof"], t.spots["shelter"]
+        near = lambda s: abs(s.x - self.x) + abs(s.y - self.y)
+        if weather and roof and (self.rng.random() < 0.85 or not bushes):
+            spot = self.rng.choice(sorted(roof, key=near)[:2])
+        elif bushes:
+            spot = min(bushes, key=near)
+        elif roof:
+            spot = min(roof, key=near)
+        else:
             return
-        spot = min(spots, key=lambda s: abs(s.x - self.x) + abs(s.y - self.y))
         if weather:
             self.label = "running for cover"
         if self.posture == "sleep":
@@ -1450,20 +1462,66 @@ class Cat(Entity):
             self.p.feel(-0.15)
         self.sheltered = True
         self.interruptible = False
+        cover = "the tree" if spot.owner is t.tree else "a bush"
         try:
-            if weather:
-                self.label = "sheltering from the snow" if env.snowing else "sheltering from the rain"
-            if self.needs.energy < 0.7:
+            if weather and self.needs.energy < 0.5:
                 yield from self.doze(until=until)
-            else:
+                return
+            while not until():
+                if weather:
+                    self.label = f"sheltering under {cover}"
                 yield from self.to_posture("lie" if self.rng.random() < 0.6 else "sit")
                 while not until():
+                    if weather and self.rng.random() < self.dt * self._venture_rate():
+                        yield from self.act_rain_walk(spot)
+                        break
                     yield
-                yield from self.to_posture("stand")
-                yield from self.wait(1.0)
+            yield from self.to_posture("stand")
+            yield from self.wait(1.0)
         finally:
             self.sheltered = False
         self.needs.groom += 0.5
+
+    def _venture_rate(self):
+        """How often (per second) she pops out into the rain."""
+        p = self.p
+        rain = self.world.env.rain
+        return 0.006 * p.lean("curious", 0.4, 1.6) * p.lean("bold", 0.5, 1.5) * max(0.2, 1.4 - rain)
+
+    def act_rain_walk(self, home):
+        """A look round in the wet: a few steps out, a sniff (or a drink from
+        a puddle), then back under cover to groom the rain off."""
+        world = self.world
+        t = world.terrain
+        self.label = "heading out into the rain"
+        puddles = [p for fx in world.effects for p in getattr(fx, "items", ()) if hasattr(p, "rx")]
+        if puddles and self.rng.random() < 0.5:
+            yield from self.act_drink_puddle(min(puddles, key=lambda p: self.distance_to(p)))
+        else:
+            for _ in range(20):
+                a = self.rng.uniform(0, TAU)
+                d = self.rng.uniform(40, 90)
+                gx, gy = self.x + math.cos(a) * d, self.y + math.sin(a) * d * 0.6
+                if t.walkable(gx, gy) and not t.under_roof(gx, gy) and t.regions.connected((self.x, self.y), (gx, gy)):
+                    break
+            else:
+                return
+            status = yield from self.go(gx, gy, gait="walk", max_time=12.0)
+            if status == UNREACHABLE:
+                return
+            self.label = "out in the rain"
+            yield from self.once("sniff_start", fps=8)
+            self.show("sniff", fps=5)
+            yield from self.wait(self.rng.uniform(2.0, 4.0))
+            self.idle_pose()
+            yield from self.wait(self.rng.uniform(1.0, 3.0))
+        self.label = "hurrying back under cover"
+        yield from self.go_to_spot(home, gait="trot")
+        self.label = "shaking off the rain"
+        yield from self.to_posture("sit")
+        yield from self.once("groom", fps=8)
+        self.idle_pose()
+        self.p.feel(0.05 if self.p["bold"] > 0.6 else -0.05)
 
     # --- hunting -------------------------------------------------------------
 

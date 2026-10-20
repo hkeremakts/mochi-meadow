@@ -140,7 +140,9 @@ class Particles:
             k = p.kind
             if k == "rain":
                 p.z += p.vz * dt
-                if p.z <= 0:
+                if p.z <= 0 or (p.z < 30 and world.terrain.under_roof(p.x, p.y)):
+                    if p.z > 0:
+                        continue          # caught by the leaves
                     if world.terrain.is_water(p.x, p.y):
                         world.water.ripple(p.x, p.y, small=True)
                     elif rng.random() < 0.5:
@@ -152,16 +154,8 @@ class Particles:
                     sway = math.sin(p.age * 1.7 + p.seed)
                     p.x += (drift * 0.6 + p.vx + sway * 4.0) * dt
                     p.z += p.vz * dt
-                    if p.z <= 0:
-                        p.z = 0.0
-                        if world.terrain.is_water(p.x, p.y):
-                            continue
-                        p.life = p.age + 1.2   # rests a moment, then melts into the white
-            elif k == "snow":
-                if p.z > 0:
-                    sway = math.sin(p.age * 1.7 + p.seed)
-                    p.x += (drift * 0.6 + p.vx + sway * 4.0) * dt
-                    p.z += p.vz * dt
+                    if p.z < 30 and world.terrain.under_roof(p.x, p.y):
+                        continue                      # settles on the crown instead
                     if p.z <= 0:
                         p.z = 0.0
                         if world.terrain.is_water(p.x, p.y):

@@ -235,3 +235,72 @@ def bowl(fill, rng):
     for (x, y) in cells[:int(round(len(cells) * clamp(fill, 0.0, 1.0)))]:
         surf.set_at((x, y), rng.choice(KIBBLE))
     return surf
+
+
+# --------------------------------------------------------------------------
+# The old tree: an evergreen crown, and the trunk that shows beneath it
+
+CANOPY = [(22, 46, 34), (32, 64, 44), (44, 86, 54), (60, 110, 62), (82, 136, 72), (110, 160, 84)]
+BARK = [(52, 38, 30), (78, 58, 42), (104, 80, 58)]
+
+
+def tree_canopy(rng, rx, ry):
+    """A broad, dense crown seen from above at an angle: clumps of leaves,
+    lit from the upper left, darker underneath, with a ragged edge."""
+    import numpy as np
+    w, h = int(rx * 2 + 6), int(ry * 2 + 8)
+    cx, cy = w / 2, h / 2 - 1
+    yy, xx = np.mgrid[0:h, 0:w].astype(np.float32)
+    inside = np.zeros((h, w), dtype=bool)
+    light = np.full((h, w), -9.0, dtype=np.float32)
+    clumps = [(cx, cy, rx * 0.62, ry * 0.62)]
+    for _ in range(int(rx * ry / 55)):
+        a = rng.uniform(0, 2 * math.pi)
+        d = rng.uniform(0.2, 0.78)
+        r = rng.uniform(0.22, 0.36) * rx
+        clumps.append((cx + math.cos(a) * rx * d, cy + math.sin(a) * ry * d, r, r * 0.8))
+    # Back clumps first, so the front ones (lower on screen) sit over them.
+    for x0, y0, a, b in sorted(clumps, key=lambda c: c[1]):
+        q = ((xx - x0) / a) ** 2 + ((yy - y0) / b) ** 2
+        disc = q < 1.0
+        # Each clump is a little dome: lit at its upper left.
+        shade = -((xx - x0) / a * 0.55 + (yy - y0) / b * 0.85) - q * 0.35
+        light = np.where(disc, shade + (y0 - cy) / ry * -0.25, light)
+        inside |= disc
+    # Ragged leafy edge.
+    noise = np.array([[rng.random() for _ in range(w)] for _ in range(h)], dtype=np.float32)
+    edge = inside & ~(np.roll(inside, 1, 0) & np.roll(inside, -1, 0) & np.roll(inside, 1, 1) & np.roll(inside, -1, 1))
+    inside &= ~(edge & (noise < 0.35))
+    tone = np.digitize(light + (noise - 0.5) * 0.25, [-0.75, -0.35, 0.0, 0.32, 0.62]).astype(np.int32)
+    surf = blank(w, h)
+    rgb = pygame.surfarray.pixels3d(surf)
+    alpha = pygame.surfarray.pixels_alpha(surf)
+    pal = np.array(CANOPY, dtype=np.uint8)
+    rgb[...] = pal[tone].swapaxes(0, 1)
+    alpha[...] = np.where(inside, 255, 0).astype(np.uint8).T
+    outline = np.zeros_like(inside)
+    for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+        outline |= np.roll(np.roll(inside, dy, 0), dx, 1)
+    outline &= ~inside
+    rgb[outline.T] = (14, 30, 22)
+    alpha[outline.T] = 255
+    del rgb, alpha
+    return surf
+
+
+def tree_trunk(rng, height=18):
+    """The part of the trunk that shows under the crown, with a root flare."""
+    w = 14
+    surf = blank(w, height)
+    for y in range(height):
+        f = y / (height - 1)
+        half = 3.6 + (3.0 * max(0.0, f - 0.65) / 0.35) ** 1.5      # flaring at the foot
+        for x in range(w):
+            d = (x - (w - 1) / 2) / half
+            if abs(d) <= 1.0:
+                tone = 2 if d < -0.35 else 1 if d < 0.4 else 0
+                if rng.random() < 0.18:
+                    tone = max(0, tone - 1)                      # bark furrows
+                edge = abs(d) > 0.82
+                surf.set_at((x, y), OUTLINE if edge else BARK[tone])
+    return surf

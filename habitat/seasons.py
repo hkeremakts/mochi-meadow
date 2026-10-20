@@ -125,6 +125,20 @@ def snow_caps(rgb, alpha, cover, seed):
     return out
 
 
+def snow_on_crown(rgb, alpha, cover, seed):
+    """Snow resting on the upper, sunlit side of each clump of leaves."""
+    lum = _lum(rgb)
+    solid = alpha > 0
+    if not solid.any():
+        return rgb
+    cut = np.quantile(lum[solid], 1.0 - min(0.55, cover * 0.6))
+    rng = np.random.default_rng(seed)
+    lying = solid & (lum >= cut) & (rng.random(lum.shape) < 0.35 + 0.6 * cover)
+    out = rgb.copy()
+    out[lying] = _gradient(lum[lying] + 60, SNOW)
+    return out
+
+
 class Scenery:
     """Seasonal versions of the ground and props for a terrain."""
 
@@ -146,6 +160,11 @@ class Scenery:
         self.frost_rank = nrng.random((h, w)).astype(np.float32)
         self.base = terrain.ground_base.astype(np.float32)
         self.litter = self._litter(nrng)
+        self.roof = np.zeros((h, w), dtype=bool)
+        tree = terrain.tree
+        if tree is not None:
+            yy, xx = np.mgrid[0:h, 0:w]
+            self.roof = ((xx - tree.roof_cx) / tree.roof_rx) ** 2 + ((yy - tree.roof_cy) / tree.roof_ry) ** 2 < 1.0
         self.key = None
 
     def _litter(self, nrng):
@@ -190,16 +209,17 @@ class Scenery:
         show = thresholds < w["litter"] * 0.8
         rgb[ys[show], xs[show]] = colors[show]
         if frost > 0:
-            # A pale bloom over the grass, with a sparkle of white blades.
-            green = np.clip(_greenness(self.base) + 0.4, 0.0, 1.0)[..., None]
+            # A pale bloom over the grass, with a sparkle of white blades
+            # (but not under the tree, where the frost doesn't form).
+            green = np.clip(_greenness(self.base) + 0.4, 0.0, 1.0)[..., None] * ~self.roof[..., None]
             rgb += (FROST - rgb) * (0.42 * frost * green)
-            rime = (self.frost_rank < 0.08 * frost) & (green[..., 0] > 0.5)
+            rime = (self.frost_rank < 0.08 * frost) & (green[..., 0] > 0.5) & ~self.roof
             rgb[rime] = FROST + 20
         if cover > 0:
             snowy = self.snow_rank < cover
             if cover >= 0.99:
                 snowy[:] = True
-            snowy &= ~t.water
+            snowy &= ~t.water & ~self.roof     # a dry ring under the tree
             snow = _gradient(_lum(self.base) + 30, SNOW)
             rgb[snowy] = snow[snowy]
         h, wd = rgb.shape[:2]
@@ -214,6 +234,9 @@ class Scenery:
         for i, prop in enumerate(t.props):
             if prop.kind != "bowl":       # the bowl's frames follow how full it is
                 self._grade_prop(prop, w, cover, i)
+        evergreen = dict(w, autumn=0.0, winter=w["winter"] * 0.3)
+        for i, canopy in enumerate(t.canopies):
+            self._grade_prop(canopy, evergreen, cover, 100 + i)
         return True
 
     def _grade_prop(self, prop, w, cover, index):
@@ -230,5 +253,7 @@ class Scenery:
                 patch = 0.7 + 0.6 * ((index * 0.618) % 1.0)
                 rgb = grade_plants(rgb, w, patch, leaves)
             rgb = snow_caps(rgb, alpha, cover, index * 7)  # same caps on every sway frame
+            if kind == "canopy" and cover > 0.15:
+                rgb = snow_on_crown(rgb, alpha, cover, index * 7)
             frames.append(_to_surface(rgb, alpha))
         prop.frames = frames

@@ -496,7 +496,8 @@ class Puddles(Effect):
             for _ in range(30):
                 x, y = rng.uniform(30, world.width - 30), rng.uniform(40, world.height - 20)
                 rx, ry = rng.uniform(4, 9), rng.uniform(2, 3.5)
-                clear = all(t.walkable(x + dx, y + dy) for dx, dy in ((-rx - 3, 0), (rx + 3, 0), (0, -ry - 2), (0, ry + 2)))
+                clear = all(t.walkable(x + dx, y + dy) and not t.under_roof(x + dx, y + dy)
+                            for dx, dy in ((-rx - 3, 0), (rx + 3, 0), (0, -ry - 2), (0, ry + 2)))
                 if clear and all(abs(x - p.x) > 30 for p in self.items):
                     self.items.append(Puddle(x, y, rx, ry, rng.uniform(8, 16) * 60))
                     break

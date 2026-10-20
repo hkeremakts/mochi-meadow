@@ -35,7 +35,7 @@ STONE = [(70, 70, 78), (122, 120, 120), (146, 144, 140), (170, 168, 160)]
 class Prop:
     """A static object drawn depth-sorted with the animals."""
 
-    __slots__ = ("kind", "frames", "x", "y", "anchor", "sway", "phase", "base_frames", "hidden", "bloom")
+    __slots__ = ("kind", "frames", "x", "y", "anchor", "sway", "phase", "base_frames", "hidden", "bloom", "fade")
 
     def __init__(self, kind, frames, x, y, anchor, sway=0.0, phase=0.0):
         self.kind = kind
@@ -43,6 +43,7 @@ class Prop:
         self.base_frames = frames     # as drawn; ``frames`` may be a seasonal version
         self.hidden = False
         self.bloom = 0.0              # flowers: how far into the season they open
+        self.fade = 1.0               # a tree crown turns see-through over the cat
         self.x = x
         self.y = y
         self.anchor = anchor
@@ -72,6 +73,23 @@ class Bush:
         self.x, self.y, self.rx, self.ry, self.prop = x, y, rx, ry, prop
 
 
+class Tree:
+    """The old tree.  Its crown is drawn over everything beneath it; under
+    it (the ``roof``, an ellipse on the ground) rain and snow don't reach."""
+
+    __slots__ = ("x", "y", "trunk", "canopy", "rx", "ry", "roof_cx", "roof_cy", "roof_rx", "roof_ry")
+
+    def __init__(self, x, y, trunk, canopy, rx, ry):
+        self.x, self.y, self.trunk, self.canopy, self.rx, self.ry = x, y, trunk, canopy, rx, ry
+        self.roof_cx, self.roof_cy = x, y - 8
+        self.roof_rx, self.roof_ry = rx * 0.88, ry * 0.62
+
+    def covers(self, x, y):
+        dx = (x - self.roof_cx) / self.roof_rx
+        dy = (y - self.roof_cy) / self.roof_ry
+        return dx * dx + dy * dy < 1.0
+
+
 class Pond:
     __slots__ = ("cx", "cy", "rx", "ry", "open_cells", "top", "bottom")
 
@@ -97,10 +115,16 @@ class Terrain:
         self.pond = None
         self.bowl = None       # (x, y) of the bowl's base
         self.bowl_prop = None
-        self.spots = {"bowl": [], "drink": [], "shelter": [], "nap": [], "watch": []}
+        self.spots = {"bowl": [], "drink": [], "shelter": [], "nap": [], "watch": [], "roof": []}
         self.spawn = (width / 2, height / 2)
         self.ground_base = None     # RGB array of the ground as generated (no seasons, no small flowers)
         self.flower_decals = []     # (sprite, x, y, bloom): small flowers, drawn while in season
+        self.tree = None
+        self.canopies = []          # crowns: drawn after everything on the ground
+
+    def under_roof(self, x, y):
+        """Under the tree's crown, where rain doesn't fall."""
+        return self.tree is not None and self.tree.covers(x, y)
 
     def is_water(self, x, y):
         xi, yi = int(x), int(y)
@@ -163,6 +187,9 @@ def generate_terrain(width, height, seed):
     _make_rocks(t, img, rng, features, footprints, decals)
     _make_flowers(t, rng, features)
     _make_tufts(t, rng, nrng, assets, features, decals)
+    # The tree comes last, from its own random numbers, so adding it left
+    # every other feature of an existing meadow where it was.
+    _make_tree(t, img, random.Random(seed * 31 + 7), features, footprints)
 
     t.solid = t.water | footprints
     _build_walk_grid(t, footprints)
@@ -470,6 +497,37 @@ def _make_bushes(t, img, rng, assets, features, footprints):
         _fill_ellipse(footprints, x, y - 3, rx * 0.8, max(3.0, ry * 0.45))
 
 
+# --- the old tree ---------------------------------------------------------
+
+def _make_tree(t, img, rng, features, footprints):
+    w, h = t.width, t.height
+    if w < 300 or h < 190:
+        return
+    rx = clamp(w * 0.1, 34.0, 52.0)
+    ry = rx * 0.62
+    for _ in range(80):
+        x = rng.uniform(EDGE_MARGIN_X + rx * 0.6, w - EDGE_MARGIN_X - rx * 0.6)
+        y = rng.uniform(EDGE_MARGIN_TOP + 46, h - EDGE_MARGIN_BOTTOM - 24)
+        if abs(x - w / 2) < 50 and abs(y - h * 0.55) < 40:
+            continue                     # leave the middle (where the cat starts) open
+        if not _claim_ok(features, x, y - 8, rx * 0.9, ry * 0.7):
+            continue
+        break
+    else:
+        return
+    canopy_img = art.tree_canopy(rng, rx, ry)
+    cw, ch = canopy_img.get_size()
+    trunk_img = art.tree_trunk(rng)
+    trunk = Prop("trunk", [trunk_img], x, y, (trunk_img.get_width() / 2, trunk_img.get_height() - 1))
+    canopy = Prop("canopy", [canopy_img], x, y - 30, (cw / 2, ch / 2), sway=0.5, phase=rng.random())
+    t.props.append(trunk)
+    t.canopies.append(canopy)
+    t.tree = Tree(x, y, trunk, canopy, rx, ry)
+    features.append((x, y - 8, rx * 0.9, ry * 0.7))
+    _bake_shadow(img, x + 3, y - 6, rx * 0.9, ry * 0.58, 0.7)      # the crown's shade on the grass
+    _fill_ellipse(footprints, x, y - 1, 4.0, 2.0)
+
+
 # --- rocks ------------------------------------------------------------------
 
 def _make_rocks(t, img, rng, features, footprints, decals):
@@ -698,6 +756,15 @@ def _find_spots(t, rng):
         reach = bush.rx * 0.82
         add("shelter", bush.x - reach, bush.y - 1, "left", (bush.x - reach - 16, bush.y - 1), bush)
         add("shelter", bush.x + reach, bush.y - 1, "right", (bush.x + reach + 16, bush.y - 1), bush)
+
+    tree = t.tree
+    if tree is not None:
+        # Around the trunk, under the crown.
+        for dx, dy, facing in ((-15, -4, "right"), (15, -4, "left"), (-9, -13, "right"), (9, -13, "left"),
+                               (-22, -9, "right"), (22, -9, "left")):
+            x, y = tree.x + dx, tree.y + dy
+            if tree.covers(x, y) and t.walkable(x, y):
+                add("roof", x, y, facing, (x, y), tree)
 
     t.spots["nap"].extend(t.spots["shelter"])
     for _ in range(40):

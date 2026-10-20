@@ -70,6 +70,7 @@ class World:
         self.env.update(dt)
         self._update_bowl(dt)
         self._update_scenery(dt)
+        self._update_canopy(dt)
         self.director.update(dt)
         self.events.update(dt)
         for e in list(self.entities):
@@ -124,6 +125,18 @@ class World:
         else:
             self._empty_for = 0.0
         self._sync_bowl()
+
+    def _update_canopy(self, dt):
+        """Fade the tree's crown when Mochi is under it, so she stays in sight."""
+        tree = self.terrain.tree
+        if tree is None:
+            return
+        cat = self.cat
+        c = tree.canopy
+        w, h = c.frames[0].get_size()
+        beneath = abs(cat.x - c.x) < w / 2 and c.y - h / 2 < cat.y - 12 < c.y + h / 2 + 4
+        target = 0.38 if beneath else 1.0
+        c.fade += (target - c.fade) * min(1.0, dt * 4.0)
 
     def _update_scenery(self, dt):
         """Regrade the ground when the week, the snow or the frost changes."""

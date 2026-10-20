@@ -93,6 +93,14 @@ native screensaver would do much better.
   - **Wildlife keeps the calendar:** no butterflies or bees in the cold,
     frogs and hedgehogs hibernate, and weather leans dry in summer and wet
     and windy in autumn.
+- **The old tree:** an evergreen whose crown is a roof. Rain and snow
+  don't reach the ground beneath it (in winter there's a dry ring in the
+  snow, and snow lies on the crown instead). When Mochi is under it the
+  crown turns see-through, so she stays in sight.
+- **Rain:** Mochi usually runs for the tree (or a bush). Now and then,
+  more often if she's curious or bold, she goes out for a look round in
+  the wet, or for a drink from a puddle, then hurries back under cover to
+  groom the rain off.
 - **Day and night:** dawn and dusk light, a golden hour, and a night where
   the cat's eyes catch the light and stars shimmer in the pond. At night,
   Mochi is already asleep under a bush when the meadow starts.
