@@ -39,6 +39,7 @@ POSTURES = ("stand", "sit", "lie", "sleep")
 SLEEP_IN = {"loaf": "doze", "curl": "curlup", "flat": "sprawl"}
 SLEEP_OUT = {"loaf": "undoze", "curl": "uncurl", "flat": "unsprawl"}
 ARRIVED, PARTIAL, UNREACHABLE = "arrived", "partial", "unreachable"
+DRIZZLE_CHANCE = 0.0012   # per look-round (every 0.35 s): about once in five minutes of drizzle
 
 _LIBRARY = {}
 _EYES = {}
@@ -734,6 +735,12 @@ class Cat(Entity):
             if self.world.terrain.spots["shelter"] or self.world.terrain.spots["roof"]:
                 self._start("shelter", self.act_shelter())
                 return
+        if (0.08 < env.rain <= 0.35 and not self.sheltered and self.world.terrain.spots["roof"]
+                and self.posture != "sleep" and self._cooldown_ok("drizzle")
+                and self.activity_name not in ("eat", "drink", "hunt", "zoomies", "drizzle", "shelter")
+                and self.rng.random() < DRIZZLE_CHANCE):
+            self._start("drizzle", self.act_drizzle())
+            return
         if self._afraid():
             return
         if self.posture == "sleep" or self.activity_name in ("eat", "drink", "nap", "shelter", "groom",
@@ -1481,6 +1488,27 @@ class Cat(Entity):
         finally:
             self.sheltered = False
         self.needs.groom += 0.5
+
+    def act_drizzle(self):
+        """A drizzle doesn't send her running, but now and then she ducks
+        under the tree for a little while, then gets on with her day."""
+        self._cool("drizzle", 8 * 60)
+        env = self.world.env
+        roof = self.world.terrain.spots["roof"]
+        spot = min(roof, key=lambda s: abs(s.x - self.x) + abs(s.y - self.y))
+        self.label = "ducking under the tree"
+        ok = yield from self.go_to_spot(spot)
+        if not ok:
+            return
+        self.sheltered = True
+        try:
+            self.label = "waiting out the drizzle"
+            yield from self.to_posture("sit")
+            end = self.world.time + self.rng.uniform(20.0, 60.0)
+            while self.world.time < end and 0.05 < env.rain <= 0.35:
+                yield
+        finally:
+            self.sheltered = False
 
     def _venture_rate(self):
         """How often (per second) she pops out into the rain."""

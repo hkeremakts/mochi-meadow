@@ -519,7 +519,7 @@ def _make_tree(t, img, rng, features, footprints):
     cw, ch = canopy_img.get_size()
     trunk_img = art.tree_trunk(rng)
     trunk = Prop("trunk", [trunk_img], x, y, (trunk_img.get_width() / 2, trunk_img.get_height() - 1))
-    canopy = Prop("canopy", [canopy_img], x, y - 30, (cw / 2, ch / 2), sway=0.5, phase=rng.random())
+    canopy = Prop("canopy", [canopy_img], x, y - 42, (cw / 2, ch / 2), sway=0.5, phase=rng.random())
     t.props.append(trunk)
     t.canopies.append(canopy)
     t.tree = Tree(x, y, trunk, canopy, rx, ry)

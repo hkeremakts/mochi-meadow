@@ -99,11 +99,15 @@ class Particles:
                                    z=rng.uniform(40, 90), vx=rng.uniform(-3, 3), vz=-rng.uniform(14, 22),
                                    life=9.0, size=rng.choice((1, 1, 1, 2)), seed=rng.random() * 6.28))
         elif rain > 0.02:
-            self._rain_debt += dt * rain * 780 * area
+            # Drops thin out much faster than the rain eases: a drizzle is a
+            # sprinkle of fine, slow drops, a downpour a curtain.
+            self._rain_debt += dt * rain ** 2.2 * 950 * area
+            fine = rain < 0.5
             while self._rain_debt >= 1.0:
                 self._rain_debt -= 1.0
+                speed = rng.uniform(160, 200) if fine else rng.uniform(260, 320)
                 self._add(Particle("rain", rng.uniform(-10, w + 10), rng.uniform(0, h + 30),
-                                   z=rng.uniform(70, 110), vz=-rng.uniform(260, 320), life=2.0))
+                                   z=rng.uniform(70, 110), vz=-speed, life=2.0, size=1 if fine else 2))
         # Wind carries leaves across the meadow.
         wind = env.wind
         if wind.strength > 0.35:
@@ -145,7 +149,7 @@ class Particles:
                         continue          # caught by the leaves
                     if world.terrain.is_water(p.x, p.y):
                         world.water.ripple(p.x, p.y, small=True)
-                    elif rng.random() < 0.5:
+                    elif rng.random() < (0.5 if p.size > 1 else 0.12):
                         self.splash(p.x, p.y)
                     continue
                 p.x += drift * 0.35 * dt
@@ -193,11 +197,15 @@ class Particles:
     def draw(self, r):
         wind_slant = clamp(self.world.env.wind.drift / 26.0, -1.0, 1.0)
         streak = r.rain_streak(wind_slant)
+        fine_streak = r.rain_streak(wind_slant, fine=True)
         for p in self.items:
             k = p.kind
             fade = 1.0 - p.age / p.life
             if k == "rain":
-                r.blit_px(streak, p.x, p.y - p.z - 7)
+                if p.size > 1:
+                    r.blit_px(streak, p.x, p.y - p.z - 7)
+                else:
+                    r.blit_px(fine_streak, p.x, p.y - p.z - 4)
             elif k == "splash":
                 r.blit_px(r.splash_sprite(p.age / p.life), p.x - 1.5, p.y - 1)
             elif k == "snow":

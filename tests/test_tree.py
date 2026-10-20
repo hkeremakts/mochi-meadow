@@ -34,6 +34,49 @@ def rain(w):
     w.env.weather.rain = 0.85
 
 
+class Drizzle(unittest.TestCase):
+    def test_a_drizzle_is_far_lighter_than_rain(self):
+        def drops(level):
+            w = meadow()
+            w.env.weather.force("rain", locked=True)
+            w.env.weather.cloud = 1.0
+            w.env.weather.rain = level
+            w.env.weather.update = lambda dt, season=None: None     # hold it exactly
+            for _ in range(int(5 / DT)):
+                w.update(DT)
+            return [p for p in w.particles.items if p.kind == "rain"]
+        drizzle, rain_ = drops(0.32), drops(0.85)
+        self.assertLess(len(drizzle) * 4, len(rain_))
+        self.assertTrue(all(p.size == 1 for p in drizzle), "drizzle falls as fine drops")
+
+    def test_in_a_drizzle_she_sometimes_ducks_under_the_tree_briefly(self):
+        import habitat.entities.cat as cat_module
+        w = meadow()
+        w.cat.needs.energy = 0.9
+        w.env.weather.force("drizzle", locked=True)
+        w.env.weather.cloud = 0.82
+        w.env.weather.rain = 0.32
+        saved = cat_module.DRIZZLE_CHANCE
+        cat_module.DRIZZLE_CHANCE = 0.2      # make the rare thing happen now
+        try:
+            stay = 0.0
+            started = False
+            sheltered = True
+            for _ in range(int(150 / DT)):
+                w.update(DT)
+                if w.cat.label == "waiting out the drizzle":
+                    started = True
+                    stay += DT
+                    sheltered &= w.terrain.under_roof(w.cat.x, w.cat.y)
+                elif started:
+                    break
+        finally:
+            cat_module.DRIZZLE_CHANCE = saved
+        self.assertTrue(started)
+        self.assertTrue(sheltered, "she waits under the crown")
+        self.assertLess(stay, 65, "she doesn't stay long")
+
+
 class Placement(unittest.TestCase):
     def test_a_meadow_has_its_tree_with_room_beneath(self):
         t = meadow().terrain

@@ -143,17 +143,21 @@ class Renderer:
             self._shadows[key] = hit
         return hit
 
-    def rain_streak(self, slant):
-        key = int(round(slant * 2))
+    def rain_streak(self, slant, fine=False):
+        """A falling drop: a long bright streak, or (``fine``, drizzle) a
+        short, faint one."""
+        key = (int(round(slant * 2)), fine)
         hit = self._streaks.get(key)
         if hit is None:
             S = self.S
-            length = 7 * S
-            dx = key * S
-            w = abs(dx) + max(1, S // 2) + 1
+            length = (4 if fine else 7) * S
+            dx = key[0] * S * (4 if fine else 7) // 7
+            thick = max(1, S // 3) if fine else max(1, S // 2)
+            w = abs(dx) + thick + 1
             hit = pygame.Surface((w, length), pygame.SRCALPHA)
             x0 = 0 if dx >= 0 else w - 1
-            pygame.draw.line(hit, (206, 218, 236, 175), (x0 + dx, 0), (x0, length - 1), max(1, S // 2))
+            color = (214, 224, 238, 150) if fine else (206, 218, 236, 175)
+            pygame.draw.line(hit, color, (x0 + dx, 0), (x0, length - 1), thick)
             self._streaks[key] = hit
         return hit
 

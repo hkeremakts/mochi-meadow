@@ -97,6 +97,9 @@ native screensaver would do much better.
   don't reach the ground beneath it (in winter there's a dry ring in the
   snow, and snow lies on the crown instead). When Mochi is under it the
   crown turns see-through, so she stays in sight.
+- **Drizzle** is a sprinkle of fine, slow drops, nothing like a
+  downpour. It doesn't send Mochi running, but now and then she ducks under
+  the tree for half a minute or so, then gets on with her day.
 - **Rain:** Mochi usually runs for the tree (or a bush). Now and then,
   more often if she's curious or bold, she goes out for a look round in
   the wet, or for a drink from a puddle, then hurries back under cover to

@@ -88,14 +88,14 @@ class Behaviours(unittest.TestCase):
         world.cat.activity = None
         self.assertIsNotNone(run(world, 90, until=lambda: world.cat.label == "drinking from the pond"))
 
-    def test_rain_sends_the_cat_under_a_bush(self):
+    def test_rain_sends_the_cat_under_cover(self):
         world = self.make()
         world.env.weather.force("rain", locked=True)
         world.env.weather.cloud = 1.0
         world.env.weather.rain = 0.85
         self.assertIsNotNone(run(world, 90, until=lambda: world.cat.sheltered), "never sheltered")
         bush_near = min(math.hypot(b.x - world.cat.x, b.y - world.cat.y) for b in world.terrain.bushes)
-        self.assertLess(bush_near, 30)
+        self.assertTrue(bush_near < 30 or world.terrain.under_roof(world.cat.x, world.cat.y))
 
     def test_an_exhausted_cat_falls_asleep_and_wakes_rested(self):
         world = self.make()

@@ -288,7 +288,7 @@ def tree_canopy(rng, rx, ry):
     return surf
 
 
-def tree_trunk(rng, height=18):
+def tree_trunk(rng, height=30):
     """The part of the trunk that shows under the crown, with a root flare."""
     w = 14
     surf = blank(w, height)
