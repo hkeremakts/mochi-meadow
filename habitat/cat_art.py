@@ -397,3 +397,25 @@ def draw_back(p):
 
 
 DRAW = {"side": draw_side, "front": draw_front, "back": draw_back}
+
+
+# =============================================================================
+# Where things are, for what she carries and wears
+
+def head_points(view, p):
+    """(mouth, crown) in art pixels for a pose: where something carried in
+    her mouth sits, and the top of her head between the ears.  ``mouth`` is
+    None when her face is turned away."""
+    c = canvas()
+    if view == "side" and p.get("turn", 0.0) < 0.5:
+        qx, qy = p.head
+        mouth = (qx + rot(5.0, 2.4, p.tilt)[0], qy + rot(5.0, 2.4, p.tilt)[1])
+        crown = (qx + rot(-0.8, -4.8, p.tilt)[0], qy + rot(-0.8, -4.8, p.tilt)[1])
+    elif view in ("side", "front"):
+        qx, qy = p.head
+        mouth = (qx, qy + 3.2)
+        crown = (qx, qy - 4.9)
+    else:
+        qx, qy = p.head
+        return None, c.to_art(qx, qy - 4.7)
+    return c.to_art(*mouth), c.to_art(*crown)

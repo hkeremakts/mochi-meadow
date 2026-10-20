@@ -144,6 +144,51 @@ class Character(unittest.TestCase):
         self.assertIn("waiting for dinner", labels)
 
 
+class Gifts(unittest.TestCase):
+    def test_she_carries_a_gift_to_the_bowl_and_leaves_it(self):
+        w = meadow(cat())
+        w.cat._start("gift", w.cat.act_gift("feather"))
+        carried = False
+        for _ in range(int(120 / DT)):
+            w.update(DT)
+            if w.cat.carrying:
+                carried = True
+                frame, _, _ = w.cat.sprite()
+                self.assertIsNot(frame, w.cat.anim.frame, "the gift is drawn in her mouth")
+            if w.count("gift"):
+                break
+        self.assertTrue(carried)
+        gift = w.of_kind("gift")[0]
+        bowl = w.terrain.bowl
+        self.assertLess(abs(gift.x - bowl[0]) + abs(gift.y - bowl[1]), 40)
+        self.assertIn("left you a feather", w.captions[-1].text)
+
+    def test_the_gift_is_taken_in_at_dinner(self):
+        w = meadow(cat())
+        from habitat.entities.wildlife import Gift
+        w.bowl_fill = 0.0
+        w.update(DT)
+        w.entities.append(Gift(w, *w.terrain.bowl, "leaf"))
+        w.bowl_fill = 1.0
+        w.update(DT)
+        self.assertEqual(w.count("gift"), 0)
+
+    def test_a_bow_on_her_birthday(self):
+        p = cat()
+        p.born = datetime.date(2025, 6, 20)
+        w = meadow(p, date=datetime.date(2026, 6, 20))
+        self.assertTrue(w.cat.birthday)
+        w.update(DT)
+        frame, _, _ = w.cat.sprite()
+        self.assertIsNot(frame, w.cat.anim.frame)
+        w.events.timer = 0.0
+        w.update(DT)
+        self.assertIn("birthday", " ".join(c.text for c in w.captions))
+        self.assertFalse(meadow(p, date=datetime.date(2026, 6, 21)).cat.birthday)
+        p.born = datetime.date(2026, 6, 20)
+        self.assertFalse(meadow(p, date=datetime.date(2026, 6, 20)).cat.birthday, "not on the day she was met")
+
+
 class Memory(unittest.TestCase):
     def test_a_favourite_nap_spot(self):
         p = cat()

@@ -42,6 +42,13 @@ ARRIVED, PARTIAL, UNREACHABLE = "arrived", "partial", "unreachable"
 
 _LIBRARY = {}
 _EYES = {}
+_POINTS = {}
+
+
+def _head_points():
+    if not _POINTS:
+        _POINTS.update(cat_anims.head_points())
+    return _POINTS
 EYE_HIGHLIGHT = cat_art.EYE_SHINE
 
 
@@ -154,6 +161,8 @@ class Cat(Entity):
         self._ignored = {}  # id(prey) -> time until which the cat ignores it
         self._blink = 0.0
         self._next_blink = self.rng.uniform(1.0, 4.0)
+        self.carrying = None      # the name of a gift in her mouth
+        self._dressed = {}
         self.pace = self.rng.uniform(0.92, 1.08)
         self.idle_pose()
         self._first_scene()
@@ -202,6 +211,7 @@ class Cat(Entity):
             self.activity.close()
         if type(self) is Cat:
             self.world.stats[name] += 1
+        self.carrying = None      # whatever she had, she drops
         self.z = 0.0
         self.wiggle = 0.0
         self.activity = generator
@@ -250,8 +260,47 @@ class Cat(Entity):
             twin = self.lib.get(self.anim.key + "__blink")
             if twin:
                 frame = twin[self.anim.index]
+        bow = self.birthday
+        if (self.carrying or bow) and self.anim.key:
+            frame = self._dress(frame, self.anim.key, self.anim.index, self.carrying, bow)
         ax, ay = CAT_ANCHOR
         return frame, (ax - self.wiggle, ay), False
+
+    @property
+    def birthday(self):
+        """On the day she was first met (in later years) she wears a bow."""
+        born = getattr(self.p, "born", None)
+        if not born or type(self) is not Cat:
+            return False
+        today = self.world.env.clock.date
+        return (today.month, today.day) == (born.month, born.day) and today.year > born.year
+
+    def _dress(self, frame, key, index, carrying, bow):
+        """The frame with a gift in her mouth and/or a bow on her head.
+        Made once per frame and kept, so the renderer's cache still works."""
+        k = (frame, carrying, bow)
+        hit = self._dressed.get(k)
+        if hit is None:
+            from .wildlife import art
+            base = key.split("__")[0]
+            pts = _head_points().get(base)
+            hit = frame
+            if pts and index < len(pts):
+                mouth, crown = pts[index]
+                hit = frame.copy()
+                if bow:
+                    b = art()["bow"]
+                    hit.blit(b, (round(crown[0] - 1.5), round(crown[1] - 1.5)))
+                if carrying and mouth is not None:
+                    g = art()["gifts"][carrying]
+                    flip = key.endswith("_left")
+                    g = pygame.transform.flip(g, True, False) if flip else g
+                    gx = mouth[0] - (g.get_width() - 1 if flip else 0)
+                    hit.blit(g, (round(gx), round(mouth[1] - g.get_height() / 2)))
+            if len(self._dressed) > 4000:
+                self._dressed.clear()
+            self._dressed[k] = hit
+        return hit
 
     def shadow(self):
         side = self.view in ("left", "right")
@@ -1234,6 +1283,44 @@ class Cat(Entity):
         self.label = f"hiding from the {creature.kind}"
         yield from self.act_shelter(until=lambda: not creature.alive or getattr(creature, "hidden", False)
                                     or self.distance_to(creature) > 200)
+
+    def act_gift(self, what):
+        """Find something, carry it to the bowl, and leave it there for you."""
+        world = self.world
+        t = world.terrain
+        bowls = t.spots["bowl"]
+        finds = t.spots["shelter"] or t.spots["nap"]
+        if not bowls or not finds:
+            return
+        self.label = "looking for something"
+        find = self.rng.choice(finds)
+        status = yield from self.go(*find.approach, gait="walk", max_time=25.0)
+        if status == UNREACHABLE:
+            return
+        yield from self.once("sniff_start", fps=8)
+        self.show("sniff", fps=5)
+        yield from self.wait(self.rng.uniform(1.2, 2.2))
+        self.idle_pose()
+        self.carrying = what
+        self.interruptible = False     # nothing distracts a cat with a present
+        self.label = f"carrying a {what}"
+        bowl = min(bowls, key=lambda s: abs(s.x - self.x) + abs(s.y - self.y))
+        ok = yield from self.go_to_spot(bowl)
+        self.interruptible = True
+        if not ok:
+            self.carrying = None
+            return
+        yield from self.face("down")
+        self.carrying = None
+        from .wildlife import Gift
+        world.entities.append(Gift(world, self.x + (8 if self.x < bowl.x else -8), self.y + 4, what))
+        world.say(f"{self.name} left you a {what} by the bowl", "uncommon")
+        self.p.feel(0.2)
+        yield from self.to_posture("sit")
+        yield from self.once("meow_sit", fps=5)
+        self.idle_pose()
+        self._blink = 0.45
+        yield from self.wait(2.0)
 
     def act_tail_chase(self):
         """Round and round after her own tail, then a dazed sit."""

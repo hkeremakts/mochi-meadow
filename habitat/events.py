@@ -983,6 +983,26 @@ class HeronVisit(Event):
         return True
 
 
+class AGift(Event):
+    name, tier, cooldown = "a gift", "uncommon", 5 * 3600
+
+    def affinity(self, p):
+        return p.lean("affectionate", 0.3, 2.0)
+
+    def ready(self, world):
+        env = world.env
+        return (_awake(world.cat) and env.rain < 0.1 and env.sun > 0.2 and world.terrain.spots["bowl"]
+                and world.count("gift") == 0)
+
+    def caption(self, world):
+        return ""      # she announces it herself when she drops it
+
+    def start(self, world, events):
+        cat = world.cat
+        what = world.rng.choice(["leaf", "feather", "toy mouse"])
+        return True if cat.attend("gift", cat.act_gift(what)) else None
+
+
 class DuckFamily(Event):
     name, tier, title, cooldown = "a duck and her ducklings", "rare", "A duck leads her ducklings to the pond", 8 * 3600
 
@@ -1101,6 +1121,19 @@ class Notice(Event):
         return False
 
 
+class Birthday(Notice):
+    name, tier = "Mochi's birthday", "legendary"
+
+    def triggered(self, world):
+        return world.cat.birthday
+
+    def key(self, world):
+        return str(world.env.clock.date.year)
+
+    def caption(self, world):
+        return f"It's {world.cat.name}'s birthday!"
+
+
 class FullMoon(Notice):
     name, tier, title = "a full moon", "rare", "A full moon over the meadow"
 
@@ -1191,10 +1224,10 @@ class Halloween(Notice):
 
 ROLLED = [TailChase(), DandelionSeeds(), FallingFeather(), CrowVisit(), MousePeek(), ShadowPounce(), LeafChase(),
           GrasshopperVisit(), Moths(), AfterRain(), TwoButterflies(), DewyWeb(),
-          MorningMist(), RainbowEvent(), LeafWhirl(), DuskBats(),
+          MorningMist(), RainbowEvent(), LeafWhirl(), DuskBats(), AGift(),
           ShootingStarEvent(), FourthWall(), GingerVisit(), FoxVisit(), HeronVisit(), DuckFamily(),
           GoldenButterflyEvent(), DeerAtDawn()]
-NOTICES = [FullMoon(), MeteorShowerNotice(), FirstSnow(), NewYear(), Halloween()]
+NOTICES = [Birthday(), FullMoon(), MeteorShowerNotice(), FirstSnow(), NewYear(), Halloween()]
 ALL = {e.name: e for e in ROLLED + NOTICES}
 
 

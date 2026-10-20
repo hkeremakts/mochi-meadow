@@ -462,3 +462,25 @@ GRASSHOPPER_COLORS = {"g": (92, 140, 48), "G": (126, 176, 64), "e": (40, 46, 24)
 
 def grasshopper_frames():
     return [from_ascii(rows, GRASSHOPPER_COLORS) for rows in GRASSHOPPER]
+
+
+
+# --------------------------------------------------------------------------
+# Things Mochi carries and wears
+
+GIFTS = {
+    "leaf": (["..O", ".oO", "o.."], {"O": (214, 146, 58), "o": (160, 88, 40)}),
+    "feather": (["wWWW"], {"W": (230, 230, 236), "w": (150, 150, 166)}),
+    "toy mouse": (["..gg", "tgGp"], {"g": (146, 146, 158), "G": (176, 176, 186), "p": (232, 150, 164),
+                                      "t": (120, 120, 130)}),
+}
+BOW = ["r.r", "rRr"]
+BOW_COLORS = {"r": (226, 62, 78), "R": (150, 30, 44)}
+
+
+def gift_frames():
+    return {name: from_ascii(rows, colors) for name, (rows, colors) in GIFTS.items()}
+
+
+def bow_frame():
+    return from_ascii(BOW, BOW_COLORS)

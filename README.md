@@ -140,6 +140,7 @@ meadow runs she gets a character, kept in the journal from then on:
 - **A favourite nap spot**, which she settles on after a few naps there.
 - **A friendship with the ginger cat** that grows with every good visit
   (and sours after a fight). Old friends nap side by side.
+- **A birthday:** once a year, on the day you first met, she wears a bow.
 
 She is introduced on the first run. The info panel (`I`) and the journal
 (`J`) describe her. The meadow itself also stays the same from run to run
@@ -154,7 +155,7 @@ date, the moon):
 | Tier | How often, roughly | Examples |
 |---|---|---|
 | Common | several an hour | Mochi chases her tail; pounces on a bird's shadow; chases a skittering leaf; stalks a grasshopper; bats at moths on summer nights; a mouse peeks out of a bush; a feather floats down and she sniffs it; a crow lands and she stares it out; two butterflies dance; dandelion seeds drift past; puddles after a downpour (sparrows bathe, Mochi drinks from them); a dewy spider web glints at dawn |
-| Uncommon | a few a day | morning mist at dawn; a rainbow mirrored in the pond after a shower; a gust that spins up a whirlwind of leaves; bats at dusk on summer evenings |
+| Uncommon | a few a day | Mochi brings you a gift (a leaf, a feather, a toy mouse) and leaves it by the bowl; morning mist at dawn; a rainbow mirrored in the pond after a shower; a gust that spins up a whirlwind of leaves; bats at dusk on summer evenings |
 | Rare | about one a day | a heron fishing at the pond (it stands, leans out, strikes, sometimes swallows a fish); in early summer, a duck leading her ducklings in a line to the pond for a swim; a fox trotting through at dawn or dusk, pausing to sniff the air; a shooting star across the pond; the ginger cat from next door visits (they touch noses, then sit together, play chase, or fall out); Mochi walks up to the screen, looks at you and taps the glass |
 | Legendary | about one a week | the golden butterfly, which Mochi follows all over the meadow; a roe deer stepping out of the dawn mist to graze by the pond (she bounds away if Mochi comes close) |
 

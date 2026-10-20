@@ -41,6 +41,14 @@ FAVOURITE_AFTER = 3        # naps in one spot before it is her favourite
 BEST_FRIENDS = 4           # good visits before the ginger cat naps beside her
 
 
+def _date(text):
+    import datetime
+    try:
+        return datetime.date.fromisoformat(text)
+    except (TypeError, ValueError):
+        return None
+
+
 class Personality:
     def __init__(self, traits, quirks, name="Mochi", journal=None):
         self.traits = dict(traits)
@@ -51,6 +59,7 @@ class Personality:
         self.naps = {}           # "seed:x,y" -> naps taken there
         self.friends = {}        # "ginger" -> good visits minus bad ones
         self.first_meeting = False
+        self.born = None          # the day she was first met (a date)
 
     # --- making one -----------------------------------------------------
 
@@ -89,10 +98,12 @@ class Personality:
                 p.name = name
                 p.save()
             p.first_meeting = False
+            p.born = _date(journal.since)
             return p
         p = cls.roll(random.Random(), name or "Mochi")
         p.journal = journal
         p.first_meeting = True
+        p.born = _date(journal.since)
         p.save()
         return p
 

@@ -39,6 +39,8 @@ def art():
         _ART["butterfly"]["golden"] = critter_art.golden_butterfly_frames()
         _ART["butterfly"]["moth"] = critter_art.moth_frames()
         _ART["grasshopper"] = critter_art.grasshopper_frames()
+        _ART["gifts"] = critter_art.gift_frames()
+        _ART["bow"] = critter_art.bow_frame()
         _ART["bat"] = critter_art.bat_frames()
         fox = generated_library("fox", [fox_art.__file__, cat_anims.__file__, pixelrig.__file__], fox_art.render)
         for key in list(fox):
@@ -2314,3 +2316,29 @@ class Duckling(Entity):
 
     def shadow(self):
         return None if self.world.terrain.is_water(self.x, self.y) else (2.4, 0.8, 50)
+
+
+class Gift(Entity):
+    """Something Mochi brought and left by the bowl for you.  It stays
+    until the bowl is next filled."""
+
+    kind = "gift"
+
+    def __init__(self, world, x, y, what):
+        super().__init__(world, x, y)
+        self.what = what
+        self.frame = art()["gifts"][what]
+        self.fill_seen = world.bowl_fill
+
+    def update(self, dt):
+        world = self.world
+        if world.bowl_fill > self.fill_seen + 0.3:
+            self.alive = False         # someone came out with dinner, and took it in
+        self.fill_seen = min(self.fill_seen, world.bowl_fill)
+
+    def sprite(self):
+        w, h = self.frame.get_size()
+        return self.frame, (w // 2, h - 1), False
+
+    def shadow(self):
+        return 2.0, 0.7, 50

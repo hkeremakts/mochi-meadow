@@ -409,6 +409,19 @@ def build():
     return out
 
 
+def head_points():
+    """{key: [(mouth, crown), ...]} for every animation, left views
+    mirrored from the right (art pixels on the 64 x 64 canvas)."""
+    out = {}
+    for key, (view, poses) in build().items():
+        pts = [ca.head_points(view, p) for p in poses]
+        out[key] = pts
+        if key.endswith("_right"):
+            out[key[:-len("_right")] + "_left"] = [(None if m is None else (ca.W - m[0], m[1]), (ca.W - c[0], c[1]))
+                                                   for m, c in pts]
+    return out
+
+
 def render_all(progress=None):
     """{key: [Surface, ...]} including the ``__blink`` twins."""
     lib = {}
