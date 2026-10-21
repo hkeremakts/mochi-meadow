@@ -95,6 +95,16 @@ frost_below = 1.5         # Celsius, on a clear, dark night
 frost_forms = 1800        # seconds to a full frost
 frost_lifts = 1800        # seconds to lift at 1 C in full sun (faster when warmer)
 
+# The tree's shadow follows the real sun; Mochi uses it.
+[shade]
+darkness = 1.0            # how deep the tree's shade is (0 = no shadow)
+moon_shadow = 0.6         # a bright moon casts a faint one too
+hot_above = 23.0          # Celsius: warmer than this, she rests in the shade
+cold_below = 13.0         # colder than this, she looks for a patch of sun
+seek_chance = 0.85        # how often she bothers when choosing where to rest
+# Seconds lying in the wrong light (the shade moved off her) before she gets up and moves.
+restless_after = { typical = 150, spread = 0.5, min = 40, max = 600 }
+
 [meals]
 times = [7.5, 18.0]       # the usual hours the bowl is filled...
 lateness = { mean = 0.0, sd = 0.25, min = -0.75, max = 0.75 }   # ...give or take this many hours, each day

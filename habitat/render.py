@@ -6,7 +6,7 @@ stays smooth.  Static ground is upscaled once; sprites are cropped to their
 visible pixels and upscaled once each, then cached.
 
 Lighting is a single multiply pass: an art-resolution light map holding the
-time-of-day colour, cloud shadows, the vignette and glows, upscaled and
+time-of-day colour, cloud and tree shadows, the vignette and glows, upscaled and
 multiplied over the frame.
 """
 
@@ -289,6 +289,7 @@ class Renderer:
         if sun > 0.55 and env.rain < 0.1:  # no direct sun, no distinct cloud shadows
             for x, y, shape, _ in env.clouds.clouds:
                 light.blit(shape, (round(x), round(y)), special_flags=pygame.BLEND_MULT)
+        world.shade.draw(light)
         for shade in world.overhead:
             shade.draw_shadow(light)
         light.blit(self.vignette, (0, 0), special_flags=pygame.BLEND_MULT)

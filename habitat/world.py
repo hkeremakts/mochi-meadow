@@ -15,6 +15,7 @@ from .entities.wildlife import (Bee, BirdFlock, Butterfly, Dragonfly, Firefly, F
                                 Pigeon, Snail, Sparrow, bank_points)
 from .particles import Particles
 from .seasons import Scenery
+from .shade import TreeShade
 from .sky import mean_temperature
 from .util import clamp
 from .terrain import generate_terrain
@@ -38,6 +39,8 @@ class World:
         self.terrain = generate_terrain(width, height, self.seed)
         self.env = Environment(self.rng, width, height, clock or Clock(), weather, weather_locked, seed=self.seed)
         self.day = self.env.day
+        self.shade = TreeShade(self)
+        self.shade.update(10.0)
         self.particles = Particles(self)
         self.water = WaterFX(self)
         self.entities = []
@@ -76,6 +79,7 @@ class World:
         self.time += dt
         self.dt_hint = dt
         self.env.update(dt)
+        self.shade.update(dt)
         self._update_bowl(dt)
         self._update_scenery(dt)
         self._update_canopy(dt)

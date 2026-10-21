@@ -524,7 +524,9 @@ def _make_tree(t, img, rng, features, footprints):
     t.canopies.append(canopy)
     t.tree = Tree(x, y, trunk, canopy, rx, ry)
     features.append((x, y - 8, rx * 0.9, ry * 0.7))
-    _bake_shadow(img, x + 3, y - 6, rx * 0.9, ry * 0.58, 0.7)      # the crown's shade on the grass
+    # Only the soft shade a crown gives in any light: the sun's shadow moves (shade.py).
+    _bake_shadow(img, x + 1, y - 6, rx * 0.8, ry * 0.5, 0.86)
+    _bake_shadow(img, x, y, 5.0, 2.0, 0.7)
     _fill_ellipse(footprints, x, y - 1, 4.0, 2.0)
 
 

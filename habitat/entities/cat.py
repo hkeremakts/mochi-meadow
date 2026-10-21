@@ -25,6 +25,8 @@ from ..paths import find_path
 from ..personality import Personality
 from ..chance import Drift, lognormal, sample
 from ..settings import SETTINGS
+from ..shade import SQUASH
+from ..terrain import Spot
 from ..util import approach, clamp
 from .base import Entity
 
@@ -44,6 +46,7 @@ ARRIVED, PARTIAL, UNREACHABLE = "arrived", "partial", "unreachable"
 MOCHI = SETTINGS["mochi"]
 COOL = MOCHI["cooldowns"]
 RAIN = SETTINGS["mochi"]["rain"]
+SHADE = SETTINGS["shade"]
 DRIZZLE_CHANCE = RAIN["drizzle_chance"]   # per look-round (every 0.35 s): about once in five minutes of drizzle
 
 _LIBRARY = {}
@@ -937,15 +940,23 @@ class Cat(Entity):
 
     def act_loaf(self):
         self._cool("loaf", COOL["loaf"])
-        env = self.world.env
-        sunny = env.sun > 0.6 and env.weather.cloud < 0.45
-        self.label = "sunbathing" if sunny else "loafing"
+        want = self._wants_light()
+        if want and not self._right_light(want) and self.rng.random() < SHADE["seek_chance"]:
+            spot = self._light_spot(want)
+            if spot is not None:
+                self.label = "looking for some shade" if want == "shade" else "finding a patch of sun"
+                yield from self.go_to_spot(spot)
+        self._rest_label()
         self.speed = 0.0
         yield from self.to_posture("lie")
+        self._settle_light()
         duration = self._enough("loaf_seconds")
         elapsed = 0.0
         while elapsed < duration:
             elapsed += self.dt
+            if self._restless():
+                yield from self._move_for_light(asleep=False)
+                self._rest_label()
             r = self.rng.random()
             if r < self.dt * 0.05:
                 self.show("lie_look", fps=3)
@@ -998,6 +1009,8 @@ class Cat(Entity):
         env = self.world.env
         if env.is_night or env.rain > 0.1 or env.weather.cloud > 0.7:
             return "curl"                     # keep warm
+        if self._wants_light() == "shade":
+            return "flat"                     # too hot to curl up
         if env.sun > 0.75 and env.weather.cloud < 0.4:
             if self.p.has("sunbather"):
                 return "flat"
@@ -1017,11 +1030,14 @@ class Cat(Entity):
             yield from self.wait(1.0)
         self.label = "napping"
         yield from self.to_posture("sleep", style=self._sleep_style())
+        self._settle_light()
         shift = self.rng.uniform(60, 140)
         slept = 0.0
         while not until() or slept < 20.0:
             slept += self.dt
             shift -= self.dt
+            if self._restless():
+                yield from self._move_for_light(asleep=True)
             if shift <= 0:
                 # Shift position now and then, as sleeping cats do.
                 shift = self.rng.uniform(70, 160)
@@ -1044,6 +1060,11 @@ class Cat(Entity):
     def _nap_spot(self):
         t = self.world.terrain
         env = self.world.env
+        want = self._wants_light()
+        if want and self.rng.random() < SHADE["seek_chance"]:
+            spot = self._light_spot(want)
+            if spot is not None:
+                return spot
         pool = list(t.spots["shelter"]) if (env.is_night or env.rain > 0.1) else list(t.spots["nap"])
         if not pool:
             pool = list(t.spots["nap"])
@@ -1055,6 +1076,109 @@ class Cat(Entity):
             return min(pool, key=lambda s: (s.x - fx) ** 2 + (s.y - fy) ** 2)
         pool.sort(key=lambda s: (s.x - self.x) ** 2 + (s.y - self.y) ** 2)
         return self.rng.choice(pool[:3])
+
+    # --- sun and shade ----------------------------------------------------
+
+    def _wants_light(self):
+        """On a hot sunny day she rests in the shade; on a cold one, in the sun."""
+        env = self.world.env
+        if env.rain > 0.1 or self.world.shade.strength < 0.35 or env.is_night:
+            return None
+        if env.temperature > SHADE["hot_above"]:
+            return "shade"
+        if env.temperature < SHADE["cold_below"]:
+            return "sun"
+        return None
+
+    def _right_light(self, want, x=None, y=None):
+        """Is (x, y) (where she is) the kind of place she wants?  Only the
+        tree's shade counts: a passing cloud isn't worth moving for."""
+        x = self.x if x is None else x
+        y = self.y if y is None else y
+        shade = self.world.shade
+        if want == "shade":
+            return shade.covers(x, y)
+        return not shade.covers(x, y, margin=-0.15) and not self.world.terrain.under_roof(x, y)
+
+    def _light_spot(self, want):
+        """The nearest good place to lie down in the shade, or in the sun."""
+        t = self.world.terrain
+        shade = self.world.shade
+        rng = self.rng
+        here = (self.x, self.y)
+        best = None
+        for _ in range(60):
+            if want == "shade":
+                if shade.ellipse is None:
+                    return None
+                cx, cy, ux, uy, major, minor = shade.ellipse
+                a, r = rng.uniform(0, TAU), math.sqrt(rng.random()) * 0.7
+                along, across = r * math.cos(a) * major, r * math.sin(a) * minor
+                x = cx + along * ux + across * uy
+                y = cy - (-along * uy + across * ux) * SQUASH
+                ok = self._right_light(want, x - 10, y) and self._right_light(want, x + 10, y)
+            else:
+                a, r = rng.uniform(0, TAU), rng.uniform(20, 120)
+                x, y = self.x + math.cos(a) * r, self.y + math.sin(a) * r * 0.7
+                ok = self._right_light(want, x - 14, y) and self._right_light(want, x + 14, y)
+            gx, gy = int(round(x)), int(round(y))
+            if not (ok and t.walkable(gx, gy) and t.walkable(gx - 16, gy) and t.walkable(gx + 16, gy)):
+                continue
+            if not t.regions.connected(here, (gx, gy)):
+                continue
+            d = math.hypot(gx - self.x, gy - self.y)
+            if best is None or d < best[0]:
+                best = (d, gx, gy)
+        if best is None:
+            return None
+        _, gx, gy = best
+        facing = "left" if gx > self.x else "right"
+        return Spot(gx, gy, rng.choice((facing, facing, "left", "right")), (gx, gy))
+
+    def _rest_label(self):
+        want = self._wants_light()
+        if want == "shade" and self._right_light("shade"):
+            self.label = "lying in the shade"
+        elif self.world.shade.sunlit(self.x, self.y) > 0.4:
+            self.label = "sunbathing"
+        else:
+            self.label = "loafing"
+
+    def _settle_light(self):
+        self._wrong_light = 0.0
+        self._light_patience = sample(self.rng, SHADE["restless_after"])
+
+    def _restless(self):
+        """The shade has moved off her (or onto her) and stayed that way."""
+        if not hasattr(self, "_wrong_light"):
+            self._settle_light()
+        want = self._wants_light()
+        if want is None or self._right_light(want):
+            self._wrong_light = max(0.0, self._wrong_light - 2.0 * self.dt)
+            return False
+        self._wrong_light += self.dt
+        return self._wrong_light > self._light_patience
+
+    def _move_for_light(self, asleep):
+        """Get up, move a little way into the shade (or the sun), lie down again."""
+        want = self._wants_light()
+        spot = self._light_spot(want)
+        self._settle_light()
+        if spot is None:
+            self._light_patience *= 3.0          # nowhere better: put up with it a while
+            return
+        if asleep:
+            yield from self.wake_up()
+        else:
+            yield from self.to_posture("stand")
+        self.label = "following the shade" if want == "shade" else "moving into the sun"
+        yield from self.go_to_spot(spot)
+        yield from self.to_posture("lie")
+        yield from self.wait(self.rng.uniform(1.0, 2.5))
+        if asleep:
+            self.label = "napping"
+            yield from self.to_posture("sleep", style=self._sleep_style())
+        self._settle_light()
 
     def act_eat(self):
         spots = self.world.terrain.spots["bowl"]
