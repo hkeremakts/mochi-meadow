@@ -54,8 +54,11 @@ class Renderer:
 
     def _bake_ground(self, world):
         S = self.S
-        self.ground = pygame.transform.scale(world.terrain.ground, (world.width * S, world.height * S)).convert()
+        ground = world.marks.paint(world.terrain.ground)
+        self.ground = pygame.transform.scale(ground, (world.width * S, world.height * S)).convert()
         self.scenery_version = world.scenery_version
+        self.marks_version = world.marks.version
+        self._marks_at = world.time
 
     def _refresh_scenery(self, world):
         """The season moved on: new ground, new prop frames."""
@@ -222,6 +225,8 @@ class Renderer:
     def draw(self, world):
         if world.scenery_version != self.scenery_version:
             self._refresh_scenery(world)
+        elif world.marks.version != self.marks_version and world.time - self._marks_at >= 0.5:
+            self._bake_ground(world)        # new prints, or old ones fading: at most twice a second
         screen = self.screen
         screen.blit(self.ground, (0, 0))
         world.water.draw(self)

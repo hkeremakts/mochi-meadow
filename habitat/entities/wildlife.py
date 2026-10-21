@@ -1591,6 +1591,7 @@ class Fox(Entity):
     other side.  It gives the cat a wide berth."""
 
     kind = "fox"
+    TRACK = "fox"
     watch_only = True
     watch_distance = 85.0     # Mochi keeps well back
     TROT = 34.0
@@ -1889,6 +1890,7 @@ class Deer(Entity):
     flashing."""
 
     kind = "deer"
+    TRACK = "deer"
     watch_only = True
     watch_distance = 120.0
     WALK = 13.0

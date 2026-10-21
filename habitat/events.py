@@ -495,6 +495,8 @@ class Puddles(Effect):
     """After a downpour, puddles on the path: they mirror the sky and dry
     up in the sun."""
 
+    PUDDLES = True      # muddy paws (marks.py)
+
     def __init__(self, world):
         self.world = world
         rng = world.rng

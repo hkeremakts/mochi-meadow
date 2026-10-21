@@ -342,6 +342,7 @@ class App:
         mood): now and then, in case the screensaver is simply killed."""
         self._saved_at = self.elapsed
         self.journal.notes["last_session"] = self.world.summary()
+        self.world.marks.save()
         self.personality.save()
 
 

@@ -141,6 +141,7 @@ class Needs:
 
 class Cat(Entity):
     kind = "cat"
+    TRACK = "cat"           # the prints she leaves (marks.py)
 
     def __init__(self, world, x, y, name="Mochi"):
         super().__init__(world, x, y)

@@ -95,6 +95,16 @@ frost_below = 1.5         # Celsius, on a clear, dark night
 frost_forms = 1800        # seconds to a full frost
 frost_lifts = 1800        # seconds to lift at 1 C in full sun (faster when warmer)
 
+# Paw prints and worn paths.
+[marks]
+muddy_steps = 12          # prints she leaves after stepping in a puddle
+mud_dries_seconds = 420   # a muddy print dries away (faster in sun, washed by rain)
+snow_fills_seconds = 150  # falling snow fills a print in (heavy snow; slower when light)
+snow_print_seconds = 10800   # prints in lying snow soften (faster as it thaws)
+wear_step = 0.05          # how much one footfall wears the grass
+wear_shows = 0.42         # wear shows as a path above this (her everyday routes, not every wander)
+grass_recovers_hours = 30 # worn grass grows back with this time constant
+
 # The tree's shadow follows the real sun; Mochi uses it.
 [shade]
 darkness = 1.0            # how deep the tree's shade is (0 = no shadow)
