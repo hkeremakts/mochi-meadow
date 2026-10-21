@@ -362,3 +362,7 @@ Row labels file (rows start at 0):
 2=walk_right
 3=walk_left
 ```
+
+## License
+
+MIT, see [LICENSE](LICENSE).
