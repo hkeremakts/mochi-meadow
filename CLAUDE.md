@@ -87,3 +87,5 @@ N new meadow, S screenshot, F fullscreen. In `--screensaver` any key quits.
 - Commit messages describe what you'd see in the meadow (look at `git log`).
 - Before pushing, ask unless the owner already said to push.
 - When something notable is decided, add a dated entry to `docs/LOGBOOK.md`.
+- Keep this file current. When you add a module, change a command, or the owner
+  gives a new standing rule, update it in the same commit.

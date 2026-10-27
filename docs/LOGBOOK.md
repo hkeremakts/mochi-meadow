@@ -302,6 +302,13 @@ account until lots of people want the Swift version.
 - **Cost:** nothing new is drawn. A check every 0.35 s looks through the
   creatures already on screen.
 
+- **"do you update claude.md on the go"**
+  - Not reliably: only the logbook had a rule.
+  - Added a convention to `CLAUDE.md`: update it in the same commit whenever
+    a module, a command or a standing rule changes.
+  - A hook was considered and judged unnecessary, because it could only
+    remind, not write.
+
 ---
 
 ## Open items
