@@ -23,6 +23,7 @@ from ..config import (CAT_ANCHOR, CAT_RUN_SPEED, CAT_STALK_SPEED, CAT_TROT_SPEED
                       NEED_RATES)
 from ..paths import find_path
 from ..personality import Personality
+from ..places import ago
 from ..chance import Drift, lognormal, sample
 from ..settings import SETTINGS
 from ..shade import SQUASH
@@ -48,6 +49,8 @@ COOL = MOCHI["cooldowns"]
 RAIN = SETTINGS["mochi"]["rain"]
 SHADE = SETTINGS["shade"]
 DRIZZLE_CHANCE = RAIN["drizzle_chance"]   # per look-round (every 0.35 s): about once in five minutes of drizzle
+PLACE = MOCHI["places"]
+WORTH_REMEMBERING = ("mouse", "fox", "deer", "hedgehog")   # creatures whose places she goes back to
 
 _LIBRARY = {}
 _EYES = {}
@@ -169,6 +172,7 @@ class Cat(Entity):
         self._perceive_timer = 0.0
         self._cooldowns = {}
         self._ignored = {}  # id(prey) -> time until which the cat ignores it
+        self._noticed = set()     # ids of creatures whose place she has already remembered
         self._blink = 0.0
         self._next_blink = self.rng.uniform(1.0, 4.0)
         self.carrying = None      # the name of a gift in her mouth
@@ -207,6 +211,8 @@ class Cat(Entity):
         self._perceive_timer -= dt
         if self._perceive_timer <= 0.0:
             self._perceive_timer = 0.35
+            if type(self) is Cat:
+                self._notice()
             self._perceive()
         if self.activity is None:
             self._start(*self._choose())
@@ -678,6 +684,9 @@ class Cat(Entity):
             options.append(("explore", 0.5))
         if self._cooldown_ok("meow"):
             options.append(("meow", 0.12))
+        calls = self._recall()
+        if calls:
+            options.append(("revisit", PLACE["weight"] * min(1.5, sum(pull for _, pull in calls))))
         options += self._quirk_options()
         options = [(name, w * self._leaning(name)) for name, w in options]
         total = sum(w for _, w in options)
@@ -721,6 +730,8 @@ class Cat(Entity):
                 k *= 1.6
         elif activity == "meow":
             k = p.lean("affectionate", 0.3, 2.0)
+        elif activity == "revisit":
+            k = p.lean("curious", 0.5, 1.8)
         elif activity == "groom":
             k = 1.4 if p.mood < -0.25 else 1.0
         return k
@@ -746,6 +757,49 @@ class Cat(Entity):
             if any(0 < meal - hour < 0.4 for meal in MEAL_TIMES):
                 out.append(("wait_dinner", 6.0))
         return out
+
+    def _notice(self):
+        """Remember where she saw something worth coming back for: for a
+        mouse, the bush it lives in; for anything else, the spot."""
+        world = self.world
+        self._noticed &= {id(e) for e in world.entities}
+        if self.posture == "sleep":
+            return
+        t = world.terrain
+        for e in world.entities:
+            if (e.kind not in WORTH_REMEMBERING or not e.alive or getattr(e, "hidden", False)
+                    or id(e) in self._noticed or self.distance_to(e) > PLACE["sight"]):
+                continue
+            home = getattr(e, "home", None) if e.kind == "mouse" else None
+            if home is not None:
+                spots = [s for s in t.spots["shelter"] if s.owner is home]
+                if not spots:
+                    continue
+                spot = min(spots, key=lambda s: math.hypot(s.x - self.x, s.y - self.y))
+                x, y = spot.approach
+                look = (home.x, home.y)
+            else:
+                x, y, look = e.x, e.y, None
+                if not (0 < x < world.width and 0 < y < world.height and t.walkable(x, y)):
+                    continue      # not yet in the meadow, or out of reach: maybe in a moment
+            self._noticed.add(id(e))
+            world.places.remember(e.kind, x, y, look=look)
+
+    def _recall(self):
+        """The places calling her back, and how strongly.  A timid cat
+        would rather not go where the fox was."""
+        if type(self) is not Cat or not self._cooldown_ok("revisit"):
+            return []
+        places = self.world.places
+        now = self.world.env.clock.moment
+        calls = []
+        for place in places.all:
+            pull = places.pull(place, now)
+            if place.kind == "fox":
+                pull *= self.p.lean("bold", 0.2, 1.4)
+            if pull > 0:
+                calls.append((place, pull))
+        return calls
 
     def _perceive(self):
         if not self.interruptible:
@@ -1291,6 +1345,58 @@ class Cat(Entity):
             self.idle_pose()
             yield from self.wait(self.rng.uniform(0.8, 1.6))
 
+    def act_revisit(self, place=None):
+        """Go back to where something happened (sometimes days ago) and see
+        whether it's still there."""
+        world = self.world
+        places = world.places
+        if place is None:
+            calls = self._recall()
+            if not calls:
+                return
+            r = self.rng.uniform(0, sum(pull for _, pull in calls))
+            for place, pull in calls:
+                r -= pull
+                if r <= 0:
+                    break
+        self._cool("revisit", COOL["revisit"])
+        now = world.env.clock.moment
+        old = (now - place.when).total_seconds() >= PLACE["caption_after_hours"] * 3600
+        when = ago(place.when, now) if old else None
+        self.label = f"going back to {place.phrase}"
+        status = yield from self.go(place.x, place.y, gait="walk", max_time=40.0)
+        if status == UNREACHABLE:
+            places.forget(place)
+            return
+        if status != ARRIVED:
+            return
+        lx, ly = place.look
+        yield from self.face("right" if lx >= self.x else "left")
+        self.label = f"checking {place.phrase}"
+        if when and self._cooldown_ok("revisit_caption"):
+            self._cool("revisit_caption", COOL["revisit_caption"])
+            world.say(f"{self.name} went back to {place.phrase} {when}", "uncommon")
+        yield from self.once("sniff_start", fps=8)
+        self.show("sniff", fps=5)
+        yield from self.wait(self.rng.uniform(1.5, 3.0))
+        self.idle_pose()
+        if place.kind == "mouse":
+            # Sit and watch the bush; then, perhaps, a paw in to see.
+            yield from self.to_posture("sit")
+            yield from self.wait(self._enough("watch_seconds"))
+            bush = min(world.terrain.bushes, key=lambda b: math.hypot(b.x - lx, b.y - ly), default=None)
+            if bush is not None and self.rng.random() < 0.5:
+                yield from self.to_posture("stand")
+                yield from self.once("swipe_stand", fps=12)
+                world.flush_bush(bush, self)
+                self.idle_pose()
+            found = any(getattr(m, "home", None) is bush for m in world.of_kind("mouse"))
+        else:
+            yield from self.look_around()
+            found = any(e.kind == place.kind and e.alive and math.hypot(e.x - place.x, e.y - place.y) < 60
+                        for e in world.entities)
+        places.visited(place, found)
+
     def act_gaze(self, x, y, seconds, label):
         """Stop and look at something for a while."""
         self.label = label
@@ -1456,6 +1562,7 @@ class Cat(Entity):
         self.show("sniff", fps=5)
         yield from self.wait(self.rng.uniform(1.2, 2.2))
         self.idle_pose()
+        world.places.remember("gift", *find.approach, look=(find.x, find.y), what=what)
         self.carrying = what
         self.interruptible = False     # nothing distracts a cat with a present
         self.label = f"carrying a {what}"

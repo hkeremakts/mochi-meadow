@@ -67,7 +67,8 @@ N new meadow, S screenshot, F fullscreen. In `--screensaver` any key quits.
 - Life: `entities/cat.py` (Mochi: needs and activities), `entities/visitor.py`
   (the ginger cat), `entities/wildlife.py`, `world.py` (Director spawns
   creatures), `events.py` (four rarity tiers, notices, recap), `personality.py`,
-  `journal.py` (atomic JSON persistence).
+  `places.py` (places she remembers and goes back to), `journal.py` (atomic
+  JSON persistence).
 - Art: procedural puppets drawn in code. `pixelrig.py` is the rig.
   `cat_art.py`/`cat_anims.py` draw Mochi, plus `bird_art.py`, `fox_art.py`,
   `deer_art.py`, `pond_art.py` and `critter_art.py`. Frames are cached in

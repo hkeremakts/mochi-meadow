@@ -188,6 +188,22 @@ tail_chase = 300
 meow = 150
 zoomies = 360
 drizzle = 480
+revisit = 1200
+revisit_caption = 10800
+
+# Places she remembers (a mouse, the fox, a deer, a hedgehog, a gift) and goes back to check.
+[mochi.places]
+sight = 150               # art pixels: how far off she notices something
+forget_hours = 60         # a memory fades to about a third in this long (gone in a fortnight)
+first = { mouse = 1.0, fox = 1.0, deer = 1.0, hedgehog = 0.7, gift = 0.8 }   # how strong a new memory is
+renew = 0.5               # added when the same thing turns up there again
+cap = 2.0
+nothing_there = 0.55      # a visit that finds nothing keeps this much of a memory
+floor = 0.12              # weaker than this and it's forgotten
+ripen_minutes = 40        # she doesn't go back straight away: the pull builds over about this long
+weight = 0.25             # how strongly a remembered place competes with wandering (2.0), sitting (1.6)...
+keep = 16                 # places remembered at most
+caption_after_hours = 12  # a caption when she goes back to something at least this old
 
 [mochi.rain]
 shelter_above = 0.35      # rain heavier than this sends her for cover

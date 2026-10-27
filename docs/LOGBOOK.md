@@ -254,6 +254,54 @@ account until lots of people want the Swift version.
   safety check in that session, so it was written in a fresh session as
   this file plus `CLAUDE.md`.
 
+## 2026-10-22 · Advice on the Apple Developer account
+
+- **"If I get the apple developer account how can people download this
+  screensaver"**
+  - With the account, the Swift `.saver` is signed with a Developer ID,
+    notarised by Apple, and shared as a zip or `.dmg` on GitHub Releases or
+    a website. People double-click it to install, with no warning.
+  - The Mac App Store doesn't carry screensavers.
+  - It needs the Swift version first.
+- **"What should I do for the apple developer account."**
+  - **Advice:** wait until the Swift version is ready to share, because it
+    costs $99 a year.
+  - **When it's time:** enrol as an individual (an organisation needs a
+    D-U-N-S number), through developer.apple.com or the Developer app.
+
+## 2026-10-27 · Mochi remembers places
+
+- **Asked:** "I think seasonal stories is a hard work for now, lets do Mochi
+  remembering places", then "just build it" (skipping the design questions).
+- **What she remembers:**
+  - the bush where she saw a mouse (its home bush, not where it ran)
+  - where the fox, the deer or the hedgehog passed
+  - where she found a gift
+- **How:**
+  - `habitat/places.py`, kept in the journal per meadow and screen size,
+    like the worn paths.
+  - **Strength:** each memory fades over a few days (`forget_hours` 60, gone
+    in about a fortnight). It grows when the same thing turns up again and
+    weakens after an empty visit.
+  - **No switches:** she doesn't go back straight away, because the pull
+    builds smoothly over about 40 minutes.
+  - **Character:** curious cats go back more. Timid ones avoid the fox's
+    spot.
+- **What you see:**
+  - "going back to…" and "checking…" in the info panel.
+  - At the mouse's bush she sits and watches, and may paw at it, which can
+    really flush a mouse.
+  - A caption ("…yesterday", "…last night", "…3 days ago") only when the
+    memory is at least 12 hours old, at most every 3 hours or so.
+- **Tuning:**
+  - **Problem:** in a three-evening simulation, her strong mouse memories
+    sent her back the moment her cooldown allowed, about twice an hour.
+  - **Fix:** lowering the pull (`weight` 0.6 → 0.25) and setting the
+    cooldown to 20 minutes made it about once every 40 minutes at dusk, and
+    less by day.
+- **Cost:** nothing new is drawn. A check every 0.35 s looks through the
+  creatures already on screen.
+
 ---
 
 ## Open items
@@ -265,7 +313,6 @@ account until lots of people want the Swift version.
   - #1 snapshots, deferred to later
   - #4 seasonal stories (a nest, frogspawn, storks over the Bosphorus,
     geese)
-  - #5 Mochi remembering places
   - the smaller touches, including the ginger cat's kitten
 - **npm cache fix**, which needs the owner's password.
 - **The Swift `.saver` rewrite:** last, and only when asked.

@@ -17,6 +17,7 @@ from .particles import Particles
 from .seasons import Scenery
 from .shade import TreeShade
 from .marks import Marks
+from .places import Places
 from .sky import mean_temperature
 from .util import clamp
 from .terrain import generate_terrain
@@ -42,6 +43,7 @@ class World:
         self.day = self.env.day
         self.shade = TreeShade(self)
         self.marks = Marks(self, journal)
+        self.places = Places(self, journal)
         self.shade.update(10.0)
         self.particles = Particles(self)
         self.water = WaterFX(self)

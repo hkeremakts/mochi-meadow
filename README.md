@@ -149,6 +149,15 @@ meadow runs she gets a character, kept in the journal from then on:
   fireworks make her grumpy. A happy cat kneads and slow-blinks; a grumpy
   one grooms more and plays less.
 - **A favourite nap spot**, which she settles on after a few naps there.
+- **Places she remembers:** the bush where she saw a mouse, where the fox
+  or the deer passed, where the hedgehog snuffled, where she found a gift.
+  Later, sometimes days later, she goes back to check: she sniffs about,
+  sits and watches the mouse's bush, and may paw at it to see. A memory
+  grows when the same thing turns up there again, fades over a few days,
+  and weakens each time she finds nothing. A timid cat would rather not
+  go where the fox was. When she goes back to something from a day or more
+  ago, a caption says so ("Mochi went back to where she saw the fox
+  yesterday").
 - **A friendship with the ginger cat** that grows with every good visit
   (and sours after a fight). Old friends nap side by side.
 - **A birthday:** once a year, on the day you first met, she wears a bow.

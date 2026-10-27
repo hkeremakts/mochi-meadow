@@ -198,6 +198,7 @@ class App:
         zoom = LITE_ZOOM if self.lite else pick_zoom(h, self.args.zoom)
         old = self.world
         if old is not None:
+            old.places.save()          # the new world reads them back if the screen size is the same
             weather = old.env.weather.state
             lock = old.env.weather.locked
         world = World(-(-w // zoom), -(-h // zoom), seed=self.seed, clock=self.clock,
@@ -343,6 +344,7 @@ class App:
         self._saved_at = self.elapsed
         self.journal.notes["last_session"] = self.world.summary()
         self.world.marks.save()
+        self.world.places.save()
         self.personality.save()
 
 
