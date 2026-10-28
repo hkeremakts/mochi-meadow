@@ -16,7 +16,7 @@ import pygame
 from .. import bird_art, cat_anims, critter_art, deer_art, fox_art, pixelrig, pond_art
 from ..assets import generated_library
 from ..chance import count, sample
-from ..paths import find_path, widen
+from ..paths import clear_line, find_path, widen
 from ..settings import SETTINGS
 from ..util import clamp
 from .base import Entity
@@ -319,8 +319,9 @@ class Bird(Entity):
                 tx = self.x + rng.uniform(-30, 30)
                 ty = self.y + rng.uniform(-14, 14)
                 crowded = any(abs(tx - o.x) < px and abs(ty - o.y) < py for o in others)
-                if not crowded and self.world.terrain.free_ground(tx, ty) and 10 < tx < self.world.width - 10 \
-                        and 24 < ty < self.world.height - 4:
+                t = self.world.terrain
+                if not crowded and t.free_ground(tx, ty) and 10 < tx < self.world.width - 10 \
+                        and 24 < ty < self.world.height - 4 and clear_line(t.blocked, (self.x, self.y), (tx, ty)):
                     self.walk_target = (tx, ty)
                     break
             else:
@@ -1129,7 +1130,8 @@ class Frog(Entity):
 
 class Hedgehog(Entity):
     """A night visitor: snuffles across the meadow, nose to the ground, and
-    rolls into a prickly ball if the cat comes close."""
+    rolls into a prickly ball if the cat comes close.  It goes round the
+    pond, the bushes and the rocks on a planned route, as the cat does."""
 
     kind = "hedgehog"
     watch_only = True
@@ -1138,25 +1140,60 @@ class Hedgehog(Entity):
         rng = world.rng
         self.rng = rng
         side = rng.choice((-1, 1))
-        y = rng.uniform(world.height * 0.35, world.height - 20)
+        self.entry = self._way_in(world, side)
+        y = self.entry[1] if self.entry else world.height / 2
         super().__init__(world, -12 if side < 0 else world.width + 12, y)
         self.frames = art()["hedgehog"]
         self.facing = -side
         self.state = "walk"
         self.timer = 0.0
-        self.target = self._pick()
+        self.route = [self.entry] if self.entry else []      # in from off the edge, then planned routes
         self.leaving = False
         self.life = rng.uniform(90, 220)
         self.speed = 0.0
+        if self.entry is None:
+            self.alive = False
+
+    @staticmethod
+    def _way_in(world, side):
+        """The first open ground in from an edge, on a row with nothing
+        solid between it and the edge."""
+        t = world.terrain
+        for _ in range(30):
+            y = int(world.rng.uniform(world.height * 0.35, world.height - 20))
+            xs = range(0, world.width // 3) if side < 0 else range(world.width - 1, world.width * 2 // 3, -1)
+            x = next((x for x in xs if t.walkable(x, y)), None)
+            if x is None:
+                continue
+            strip = t.solid[y, :x + 1] if side < 0 else t.solid[y, x:]
+            if not strip.any():
+                return float(x), float(y)
+        return None
+
+    def _plan(self, goal):
+        t = self.world.terrain
+        route = find_path(t.blocked, (self.x, self.y), goal, wide=t.blocked_wide)
+        return None if route is None else [(float(x), float(y)) for x, y in route]
 
     def _pick(self):
+        """Somewhere to snuffle next, that it can get to."""
         t = self.world.terrain
         for _ in range(12):
             x = self.rng.uniform(30, self.world.width - 30)
             y = self.rng.uniform(self.world.height * 0.3, self.world.height - 16)
             if t.free_ground(x, y) and abs(x - self.x) > 30:
-                return x, y
-        return self.world.width / 2, self.world.height * 0.6
+                route = self._plan((x, y))
+                if route:
+                    self.route = route
+                    return True
+        return False
+
+    def _go_home(self):
+        self.leaving = True
+        edge = self.entry or (self.x, self.y)
+        off = (-20.0 if edge[0] < self.world.width / 2 else self.world.width + 20.0, edge[1])
+        route = self._plan(edge) if self.world.terrain.walkable(self.x, self.y) else None
+        self.route = (route or [edge]) + [off]
 
     @property
     def hidden(self):
@@ -1190,8 +1227,7 @@ class Hedgehog(Entity):
         cat = world.cat
         self.life -= dt
         if self.life <= 0 and not self.leaving:
-            self.leaving = True
-            self.target = (-20 if self.x < world.width / 2 else world.width + 20, self.y)
+            self._go_home()
         d = self.distance_to(cat)
         if self.state == "ball":
             self.speed = 0.0
@@ -1213,17 +1249,20 @@ class Hedgehog(Entity):
             if self.timer <= 0:
                 self.state = "walk"
         else:
-            tx, ty = self.target
-            dx, dy = tx - self.x, ty - self.y
-            dist = math.hypot(dx, dy)
-            if dist < 2:
+            while self.route and math.hypot(self.route[0][0] - self.x, self.route[0][1] - self.y) < 2:
+                self.route.pop(0)
+            if not self.route:
                 if self.leaving:
                     self.alive = False
                     return
                 self.state = "sniff"
                 self.timer = rng.uniform(1.5, 4.0)
-                self.target = self._pick()
+                if not self._pick():
+                    self.timer += 3.0          # nowhere to go just now: sniff a while longer
             else:
+                tx, ty = self.route[0]
+                dx, dy = tx - self.x, ty - self.y
+                dist = math.hypot(dx, dy)
                 self.speed = min(7.0, self.speed + 10 * dt)
                 step = min(dist, self.speed * dt)
                 self.x += dx / dist * step

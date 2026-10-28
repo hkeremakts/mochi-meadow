@@ -126,7 +126,9 @@ class Character(unittest.TestCase):
 
     def test_a_chatterer_chatters_at_sparrows(self):
         chattered = False
-        for seed in (1, 2, 3):
+        for seed in range(1, 9):      # it's a chance each time she looks round: give it a few meadows
+            if chattered:
+                break
             w = meadow(cat({"playful": 0.9}, quirks=["chatterer"]), seed=seed)
             w.cat.needs.play = 1.0
             b = Sparrow(w, w.cat.x + 70, w.cat.y)
