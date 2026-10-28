@@ -398,6 +398,15 @@ account until lots of people want the Swift version.
   - **Checked in simulation:** over a 14-hour day, two cats were happy 4–19%
     of the time, and their moods shifted 20–50 times a day. Cross and wary
     only show after bad moments, which is right for a calm meadow.
+- **"can we make Mochis waist a little bit bigger, I think this way it will
+  look less like a puppet"**
+  - Her waist (the body between chest and haunch) was a thinner tube than
+    either, which read as a puppet's joint.
+  - Three options were compared. Chosen: waist ×1.2 (`WAIST`) plus a belly
+    that hangs 0.8 below the chest-to-haunch line (`BELLY`), so her back
+    stays straight and the fullness sits underneath.
+  - Both fade as she lies down, where her body rests on the ground
+    (otherwise a curled-up cat sank into it).
 - **Known, not fixed:** two meadows starting at the same moment right after
   an art change can collide while redrawing the sprite cache. This was seen
   when six preview renders ran at once. It's rare in real use.

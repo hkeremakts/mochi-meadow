@@ -64,6 +64,8 @@ MUZZLE = 0.8       # muzzle length
 LEGS = 0.9         # leg bones
 LOWER = 1.4        # how much lower a standing body sits on them
 FULL = 1.06        # a little more chest and haunch
+WAIST = 1.2        # the body between chest and haunch: fuller, not a puppet's pinched joint
+BELLY = 0.8        # how far her belly hangs below the line from chest to haunch, standing
 
 
 def _lowered(y, top=33.0, bottom=40.0):
@@ -299,11 +301,16 @@ def draw_side(p):
     _limb(c, _hindleg(c, (hx + 1.0, hy + 0.8), p.hf, p.hf_lift), near=False)
     _limb(c, _foreleg(c, (sx - 0.6, sy + 2.0), p.ff, p.ff_rot, p.fore_bend), near=False)
 
+    mx, my = (hx + sx) / 2, (hy + sy) / 2
+    up = clamp((44.0 - my) / 6.0, 0.0, 1.0)                 # lying down, her body rests on the ground
+    waist = p.torso * puff * (1.0 + (WAIST - 1.0) * up)
     body = c.ellipse(hx, hy, p.haunch[0] * puff, p.haunch[1] * puff, ang)
-    body |= c.capsule(hx, hy, sx, sy, p.torso * puff)
+    body |= c.capsule(hx, hy, sx, sy, waist)
+    if up:
+        # a cat's back stays straight; the fullness hangs underneath
+        body |= c.ellipse(mx, my + BELLY * up, (sx - hx) / 2 + 0.6, waist, ang)
     body |= c.ellipse(sx, sy, p.chest[0] * puff, p.chest[1] * puff, ang)
     if p.arch:
-        mx, my = (hx + sx) / 2, (hy + sy) / 2
         body |= c.ellipse(mx, my - p.arch, (sx - hx) / 2 + 1.0, p.torso * puff + 0.4, ang)
     c.paint(body, BASE)
     c.paint(c.ellipse(sx + 3.4 * ca - 0.6 * sa, sy - 0.6 - 3.4 * sa, 2.6, 4.4, ang + 20), CREAM, within=body)
