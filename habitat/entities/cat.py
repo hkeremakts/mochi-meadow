@@ -14,6 +14,7 @@ script: walk to the bush, sit, lie down, doze off, wake, yawn, stretch.
 """
 
 import math
+import random
 
 import pygame
 
@@ -21,7 +22,7 @@ from .. import cat_anims, cat_art, pixelrig
 from ..assets import generated_library
 from ..config import (CAT_ANCHOR, CAT_RUN_SPEED, CAT_STALK_SPEED, CAT_TROT_SPEED, CAT_WALK_SPEED, MEAL_TIMES,
                       NEED_RATES)
-from ..paths import find_path
+from ..paths import clear_line, find_path
 from ..personality import Personality
 from ..places import ago
 from ..chance import Drift, lognormal, sample
@@ -35,12 +36,27 @@ TAU = 2 * math.pi
 HEADING = {"right": 0.0, "down": math.pi / 2, "left": math.pi, "up": -math.pi / 2}
 VIEW_OF = {"right": "right", "left": "left", "down": "front", "up": "back"}
 FACING_OF = {v: k for k, v in VIEW_OF.items()}
-GAIT_SPEED = {"stalk": CAT_STALK_SPEED, "walk": CAT_WALK_SPEED, "trot": CAT_TROT_SPEED, "run": CAT_RUN_SPEED}
+WALKING = SETTINGS["mochi"]["walking"]
+GAIT_SPEED = {"stalk": CAT_STALK_SPEED, "amble": WALKING["amble_speed"], "walk": CAT_WALK_SPEED,
+              "brisk": WALKING["brisk_speed"], "trot": CAT_TROT_SPEED, "run": CAT_RUN_SPEED}
 # Acceleration and braking as multiples of the gait's cruising speed.
 GAIT_ACCEL = 2.6
 GAIT_DECEL = 3.2
 PIVOT_RATE = 4.2          # rad/s when turning on the spot
 ARRIVE_RADIUS = 12.0      # art pixels from the goal where she lines up for the last steps
+# Steering like a walking animal: she aims at a point a little way along her
+# route (so she curves into bends before she reaches them), and the faster
+# she goes the wider she has to turn.
+LOOKAHEAD = 12.0          # art pixels ahead along the route
+TURN_RADIUS = 12.0        # art pixels: her tightest curve at a walk
+TURN_MIN, TURN_MAX = 1.4, 3.2    # rad/s, slowest (just setting off) and fastest (at a trot) she swings round
+SHARP = math.radians(125)        # sharper than this at a slow walk: she turns on the spot first
+FROM_REST = math.radians(70)     # ...and from a standstill, more than this: a few steps round, then off on a gentle curve
+# Turning on the spot is a few deliberate steps, not a spin.
+TURN_STEP = 0.18          # seconds a step takes...
+TURN_REST = 0.08          # ...and the pause before the next
+TURN_STEP_ANGLE = math.radians(34)
+LEISURELY = ("amble", "walk", "brisk")
 POSTURES = ("stand", "sit", "lie", "sleep")
 SLEEP_IN = {"loaf": "doze", "curl": "curlup", "flat": "sprawl"}
 SLEEP_OUT = {"loaf": "undoze", "curl": "uncurl", "flat": "unsprawl"}
@@ -181,6 +197,11 @@ class Cat(Entity):
         self._noticed = set()     # ids of creatures whose place she has already remembered
         self.air = None           # how she carries her tail and ears: happy, cross, wary, or calm (None)
         self.strides = cat_anims.STRIDES                      # art pixels a gait cycle covers (a kitten's are shorter)
+        self._step_clock = 0.0                                # where she is in a step, turning on the spot
+        # How she walks varies by its own random numbers, so the walking
+        # doesn't change what she decides to do in a seeded meadow.
+        self.gait_rng = random.Random(getattr(world, "seed", 0) * 7 + 3)
+        self._stroll = Drift(self.gait_rng, 0.0, WALKING["pace_drift"], 3.0)     # a walk's pace wanders a little
         self.strides_vertical = cat_anims.STRIDES_VERTICAL
         self.wet = 0.0            # seconds of rain her coat has taken
         self._blink = 0.0
@@ -501,12 +522,17 @@ class Cat(Entity):
             yield
 
     def _gait_anim(self, gait):
+        """The clip for how fast she is really going: a walk that's only
+        getting going (or winding down) is an amble."""
+        ambling = (self.anim.key or "").startswith("amble")
         if gait == "stalk":
             name = "stalk"
         elif self.speed > 66:
             name = "run"
         elif self.speed > 36:
             name = "trot"
+        elif gait == "amble" or self.speed < (20.0 if ambling else 17.0):
+            name = "amble"
         else:
             name = "walk"
         strides = self.strides if self.side_view else self.strides_vertical
@@ -569,15 +595,64 @@ class Cat(Entity):
                 self.heading = heading
                 self.view = view_for(heading, self.view)
                 break
-            turn = math.copysign(min(abs(diff), PIVOT_RATE * self.dt), diff)
-            self.heading = wrap(self.heading + turn)
-            self.view = view_for(self.heading, self.view)
             self.speed = approach(self.speed, 0.0, 120.0 * self.dt)
-            self.moved = abs(turn) * 7.0
-            self._gait_anim("stalk" if not stand else "walk")
+            self._turn_in_steps(diff, "stalk" if not stand else "walk")
             yield
         if stand:
             self.idle_pose()
+
+    def _turn_in_steps(self, diff, gait="walk"):
+        """One frame of turning on the spot, a step at a time: the paws
+        step round about a third of a right angle, a short pause, the next
+        step.  The legs only move while a step is being taken."""
+        period = TURN_STEP + TURN_REST
+        self._step_clock = (self._step_clock + self.dt) % period
+        if self._step_clock < TURN_STEP:
+            turn = math.copysign(min(abs(diff), TURN_STEP_ANGLE / TURN_STEP * self.dt), diff)
+            self.heading = wrap(self.heading + turn)
+            stride = (self.strides if self.side_view else self.strides_vertical)["walk"]
+            self.moved = stride / 4 / TURN_STEP * self.dt       # a quarter of a walk cycle a step
+        else:
+            self.moved = 0.0
+        self.view = view_for(self.heading, self.view)
+        self._gait_anim(gait)
+
+    def _ready(self, gx, gy):
+        """A moment before setting off, as a cat takes; heading toward you,
+        she glances your way first."""
+        rng = self.gait_rng
+        yield from self.wait(lognormal(rng, 0.22, 0.5))
+        heading = self.heading_to(gx, gy)
+        if self.side_view and math.sin(heading) > 0.6 and rng.random() < WALKING["glance"]:
+            self.show("stand_look", fps=4)
+            yield from self.wait(rng.uniform(0.3, 0.7))
+            self.idle_pose()
+
+    def _aim(self, points, i):
+        """The point LOOKAHEAD along the route from her: aiming there curves
+        her into each bend before she reaches it."""
+        left = LOOKAHEAD
+        x, y = self.x, self.y
+        for k in range(i, len(points)):
+            px, py = points[k]
+            seg = math.hypot(px - x, py - y)
+            if seg >= left:
+                return x + (px - x) * left / seg, y + (py - y) * left / seg
+            left -= seg
+            x, y = px, py
+        return points[-1]
+
+    def _bend_ahead(self, points, i):
+        """How sharply the route turns at the next corner, if it's close."""
+        if i + 1 >= len(points):
+            return 0.0
+        ax, ay = points[i]
+        if math.hypot(ax - self.x, ay - self.y) > LOOKAHEAD * 2:
+            return 0.0
+        bx, by = points[i + 1]
+        into = math.atan2(ay - self.y, ax - self.x)
+        out = math.atan2(by - ay, bx - ax)
+        return abs(wrap(out - into))
 
     def face(self, target, stand=True):
         """Pivot toward a facing name, a heading, or an (x, y) point."""
@@ -591,8 +666,16 @@ class Cat(Entity):
             return  # already looking that way; no need to get up
         yield from self.pivot(heading, stand=stand)
 
-    def go(self, gx, gy, gait="walk", max_time=None, stop=True, stand=True):
+    def go(self, gx, gy, gait="walk", max_time=None, stop=True, stand=True, dawdle=False):
         """Steer along a route to (gx, gy).
+
+        She aims a little way along the route, so bends become curves; how
+        sharply she can turn depends on how fast she's going; she eases off
+        before a sharp corner, and her pace drifts a little as she goes.
+        From a standstill she sets off on a curve, unless the way is nearly
+        behind her: then she turns on the spot first, in steps.  With
+        ``dawdle`` (a leisurely walk) she now and then stops to sniff or
+        look about before going on.
 
         Returns ARRIVED, PARTIAL (ran out of ``max_time``) or UNREACHABLE.
         UNREACHABLE comes back without consuming a frame, so loops that
@@ -604,9 +687,11 @@ class Cat(Entity):
             return UNREACHABLE
         if self.posture != "stand":
             yield from self.to_posture("stand")
-        cruise = GAIT_SPEED[gait] * self.pace
-        accel, decel = cruise * GAIT_ACCEL, cruise * GAIT_DECEL
+        base = GAIT_SPEED[gait] * self.pace
+        accel, decel = base * GAIT_ACCEL, base * GAIT_DECEL
         points = [(float(x), float(y)) for x, y in route]
+        if points and self.speed < 1.0 and gait in LEISURELY and math.dist(points[-1], (self.x, self.y)) > 20:
+            yield from self._ready(*points[0])
         i = 0
         elapsed = 0.0
         closing = 0.0          # seconds spent on the final approach
@@ -617,40 +702,49 @@ class Cat(Entity):
             dx, dy = tx - self.x, ty - self.y
             d = math.hypot(dx, dy)
             last = i == len(points) - 1
-            if not last and d < 7.0:
+            if not last and d < LOOKAHEAD * 0.6:
                 i += 1
                 continue
             if last and d < 0.6:
                 self.x, self.y = tx, ty
                 break
             remaining = d + sum(math.dist(points[k], points[k + 1]) for k in range(i, len(points) - 1))
-            diff = wrap(math.atan2(dy, dx) - self.heading)
             final = last and remaining < ARRIVE_RADIUS
+            ax, ay = (tx, ty) if final else self._aim(points, i)
+            if (ax, ay) != (tx, ty) and not clear_line(terrain.blocked, (self.x, self.y), (ax, ay)):
+                ax, ay = tx, ty          # no cutting the corner where it would clip a bush or the bank
+            diff = wrap(math.atan2(ay - self.y, ax - self.x) - self.heading)
             if final:
                 closing += self.dt
                 if closing > 3.0:
                     # Something keeps her from curving in: just step the last bit.
                     yield from self.step_to(tx, ty)
                     break
+            step = 0.0
             if final and abs(diff) > math.radians(40):
                 # Close, but not facing it: a curve that tight can't be walked
                 # (she'd circle the spot), so brake and turn to it first.
-                turn = math.copysign(min(abs(diff), PIVOT_RATE * self.dt), diff)
-                self.heading = wrap(self.heading + turn)
                 self.speed = approach(self.speed, 0.0, decel * 2.0 * self.dt)
-                step = min(self.speed * self.dt, d * 0.5)
-                self.moved = abs(turn) * 7.0 + step
-            elif abs(diff) > math.radians(100) and self.speed < cruise * 0.5:
-                # Too sharp to curve into: brake and turn on the spot.
-                turn = math.copysign(min(abs(diff), PIVOT_RATE * self.dt), diff)
-                self.heading = wrap(self.heading + turn)
+                if self.speed > 2.0:
+                    turn = math.copysign(min(abs(diff), PIVOT_RATE * self.dt), diff)
+                    self.heading = wrap(self.heading + turn)
+                    step = min(self.speed * self.dt, d * 0.5)
+                    self.moved = step
+                else:
+                    self._turn_in_steps(diff)
+            elif abs(diff) > (FROM_REST if self.speed < 3.0 else SHARP) and self.speed < base * 0.5:
+                # Well round from where she's facing: turn on the spot, a step
+                # at a time (a wide swing would take her off her route).
                 self.speed = approach(self.speed, 0.0, decel * self.dt)
-                step = self.speed * self.dt
-                self.moved = abs(turn) * 7.0 + step
+                self._turn_in_steps(diff)
             else:
-                rate = clamp(self.speed / 9.0, 3.0, 6.5)
+                rate = clamp(self.speed / TURN_RADIUS, TURN_MIN, TURN_MAX)
                 self.heading = wrap(self.heading + clamp(diff, -rate * self.dt, rate * self.dt))
-                target = min(cruise * max(0.3, math.cos(diff)), math.sqrt(2.0 * decel * remaining) + 0.5)
+                cruise = base * (1.0 + self._stroll.step(self.dt))
+                bend = self._bend_ahead(points, i)
+                ease = 1.0 - 0.45 * clamp((bend - 0.6) / 1.6, 0.0, 1.0)       # slow into a sharp corner
+                floor = 0.0 if final else 0.3
+                target = min(cruise * ease * max(floor, math.cos(diff)), math.sqrt(2.0 * decel * remaining) + 0.5)
                 self.speed = approach(self.speed, target, (accel if target > self.speed else decel) * self.dt)
                 step = min(self.speed * self.dt, remaining)
                 self.moved = step
@@ -667,6 +761,13 @@ class Cat(Entity):
                             break
                     if not terrain.walkable(nx, ny):
                         self.speed = 0.0
+                        off = wrap(straight - self.heading)
+                        if abs(off) > 0.5:
+                            # Up against an edge, facing the wrong way: turn
+                            # to the way out first (replanning won't help).
+                            self._turn_in_steps(off)
+                            yield
+                            continue
                         route = find_path(terrain.blocked, (self.x, self.y), (gx, gy), wide=terrain.blocked_wide) if replans < 3 else None
                         replans += 1
                         if not route:
@@ -686,10 +787,30 @@ class Cat(Entity):
             if max_time is not None and elapsed >= max_time:
                 status = PARTIAL
                 break
+            if dawdle and not final and remaining > 50 and self.gait_rng.random() < self.dt * WALKING["dawdle_rate"]:
+                yield from self._dawdle()
             yield
         if status == ARRIVED or stop:
             yield from self.settle(stand=stand, gait=gait)
         return status
+
+    def _dawdle(self):
+        """A pause on the way: a sniff at something, or a look about."""
+        label = self.label
+        rng = self.gait_rng
+        yield from self.settle()
+        if self.side_view and rng.random() < 0.6:
+            self.label = "sniffing the grass"
+            yield from self.once("sniff_start", fps=8)
+            self.show("sniff", fps=5)
+            yield from self.wait(rng.uniform(0.8, 2.0))
+        else:
+            self.label = "looking around"
+            if self.side_view and rng.random() < 0.5:
+                self.show("stand_look", fps=4)
+            yield from self.wait(rng.uniform(0.6, 1.6))
+        self.idle_pose()
+        self.label = label
 
     def settle(self, stand=True, gait="walk"):
         """Come to a stop.  With ``stand`` False the gait frame freezes
@@ -711,8 +832,8 @@ class Cat(Entity):
         if stand:
             self.idle_pose()
 
-    def go_to_spot(self, spot, gait="walk"):
-        status = yield from self.go(*spot.approach, gait=gait)
+    def go_to_spot(self, spot, gait="walk", dawdle=False):
+        status = yield from self.go(*spot.approach, gait=gait, dawdle=dawdle)
         if status != ARRIVED:
             return False
         if (spot.x, spot.y) != tuple(spot.approach):
@@ -1022,8 +1143,8 @@ class Cat(Entity):
         if goal is None:
             yield from self.look_around()
             return
-        gait = "walk" if self.rng.random() < 0.85 else "trot"
-        yield from self.go(*goal, gait=gait)
+        gait = self._wander_pace()
+        yield from self.go(*goal, gait=gait, dawdle=gait in ("amble", "walk"))
         yield from self.look_around()
 
     def look_around(self):
@@ -1045,6 +1166,20 @@ class Cat(Entity):
         elif roll < 0.8:
             yield from self.pivot(wrap(self.heading + self.rng.choice((-1, 1)) * self.rng.uniform(0.8, 2.2)))
             yield from self.wait(self.rng.uniform(0.5, 1.5))
+
+    def _wander_pace(self):
+        """How she sets off on a wander: an amble more often when she's
+        tired or lazy, now and then brisk, or a trot."""
+        tired = clamp(0.55 - self.needs.energy, -0.3, 0.4)
+        amble = clamp(WALKING["amble_share"] + tired + 0.25 * (self.p["lazy"] - 0.5), 0.05, 0.85)
+        r = self.gait_rng.random()
+        if r < amble:
+            return "amble"
+        r -= amble
+        if r < WALKING["brisk_share"]:
+            return "brisk"
+        r -= WALKING["brisk_share"]
+        return "trot" if r < WALKING["trot_share"] else "walk"
 
     def _wander_goal(self):
         t = self.world.terrain
@@ -1151,7 +1286,7 @@ class Cat(Entity):
         if spot is None:
             spot = self._nap_spot()
         if spot is not None:
-            arrived = yield from self.go_to_spot(spot)
+            arrived = yield from self.go_to_spot(spot, gait="amble")
             if arrived and type(self) is Cat:
                 world = self.world
                 if self.p.napped(world.terrain.seed, spot.x, spot.y):
@@ -1355,7 +1490,7 @@ class Cat(Entity):
             return
         spot = min(spots, key=lambda s: abs(s.x - self.x) + abs(s.y - self.y))
         self.label = "heading to the food bowl"
-        ok = yield from self.go_to_spot(spot)
+        ok = yield from self.go_to_spot(spot, gait="brisk" if self.needs.hunger > 0.75 else "walk")
         if not ok:
             return
         world = self.world
@@ -1481,7 +1616,7 @@ class Cat(Entity):
             return
         spot = self.rng.choice(spots)
         self.label = "exploring"
-        status = yield from self.go(*spot.approach)
+        status = yield from self.go(*spot.approach, gait="amble", dawdle=True)
         if status != ARRIVED:
             return
         bush = spot.owner
@@ -1517,7 +1652,7 @@ class Cat(Entity):
         old = (now - place.when).total_seconds() >= PLACE["caption_after_hours"] * 3600
         when = ago(place.when, now) if old else None
         self.label = f"going back to {place.phrase}"
-        status = yield from self.go(place.x, place.y, gait="walk", max_time=40.0)
+        status = yield from self.go(place.x, place.y, gait="walk", max_time=40.0, dawdle=True)
         if status == UNREACHABLE:
             places.forget(place)
             return

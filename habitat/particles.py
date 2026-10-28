@@ -144,9 +144,9 @@ class Particles:
             k = p.kind
             if k == "rain":
                 p.z += p.vz * dt
-                if p.z <= 0 or (p.z < 30 and world.terrain.under_roof(p.x, p.y)):
-                    if p.z > 0:
-                        continue          # caught by the leaves
+                if p.z < 30 and world.terrain.under_roof(p.x, p.y):
+                    continue              # caught by the leaves (a fast drop may pass 30 and the ground in one frame)
+                if p.z <= 0:
                     if world.terrain.is_water(p.x, p.y):
                         world.water.ripple(p.x, p.y, small=True)
                     elif rng.random() < (0.5 if p.size > 1 else 0.12):

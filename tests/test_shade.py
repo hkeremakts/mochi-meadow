@@ -121,11 +121,21 @@ class Mochi(unittest.TestCase):
         self.assertGreaterEqual(sunny, 2)
 
     def test_when_the_shade_moves_off_her_she_follows_it(self):
+        import random
         cat_module.SHADE.update(hot_above=-50.0, seek_chance=0.0, restless_after=5)
-        w = meadow(hour=15.0)
-        self.assertTrue(self.nap(w))
-        if w.shade.covers(w.cat.x, w.cat.y):
-            self.skipTest("she happened to choose the shade anyway")
+        # A meadow and hour where she naps out of the shade, and the shade
+        # falls on open ground she could move to (not over the pond).
+        for seed, hour in ((3, 15.0), (4, 15.0), (5, 15.0), (3, 11.0), (4, 11.0), (5, 11.0), (6, 13.0), (7, 13.0)):
+            w = meadow(hour=hour, seed=seed)
+            self.assertTrue(self.nap(w))
+            cat = w.cat
+            probe, cat.rng = cat.rng, random.Random(1)
+            room = cat._light_spot("shade") is not None
+            cat.rng = probe
+            if room and not w.shade.covers(cat.x, cat.y):
+                break
+        else:
+            self.skipTest("no meadow here with shade to move into")
         labels = set()
         for _ in range(int(60 / DT)):
             w.update(DT)

@@ -159,6 +159,7 @@ def side_gait(base, phi, stride, duty, lift, offsets, bob=0.35, tail_sway=4.0):
     return p
 
 
+AMBLE_STRIDE = 11.0     # an unhurried saunter: short steps, paws down longer
 WALK_STRIDE = 16.0      # body travel per cycle, pose units
 TROT_STRIDE = 22.0
 RUN_STRIDE = 44.0
@@ -166,6 +167,16 @@ STALK_STRIDE = 9.0
 WALK_LATERAL = {"hn": 0.0, "fn": 0.25, "hf": 0.5, "ff": 0.75}
 TROT_DIAGONAL = {"hn": 0.0, "ff": 0.0, "fn": 0.5, "hf": 0.5}
 GALLOP = {"hn": 0.0, "hf": 0.1, "fn": 0.5, "ff": 0.6}
+
+
+# A slow amble: head carried a little lower, tail easy, short steps with each
+# paw down for longer.
+AMBLING = STAND.with_(head=_shift(STAND.head, 0.3, 0.9), tilt=-4.0, tail=236.0)
+
+
+def amble_side(n=8, base=AMBLING, tail_sway=3.0):
+    return [side_gait(base, i / n, AMBLE_STRIDE, 0.72, 1.3, WALK_LATERAL, bob=0.22, tail_sway=tail_sway)
+            for i in range(n)]
 
 
 def walk_side(n=8, base=STAND, tail_sway=4.0):
@@ -274,6 +285,7 @@ def idle(base, n, tail_amp=6.0, tip_amp=0.0, breath=0.22, twitch_at=None):
 def side_anims():
     a = {}
     a["walk"] = walk_side()
+    a["amble"] = amble_side()
     a["trot"] = trot_side()
     a["run"] = run_side()
     a["stalk"] = stalk_side()
@@ -378,6 +390,7 @@ def front_anims(view):
     stand, sit = (FRONT, FRONT_SIT) if view == "front" else (BACK, BACK_SIT)
     a = {}
     a["walk"] = walk_front() if view == "front" else walk_back()
+    a["amble"] = [front_gait(stand, i / 8, lift=1.0, sway=0.2, back=view == "back") for i in range(8)]
     a["run"] = run_front() if view == "front" else run_back()
     a["trot"] = a["walk"]
     a["stalk"] = stalk_front() if view == "front" else stalk_back()
@@ -429,7 +442,7 @@ AIRS = {
              "front": dict(tail_len=0.6, ear=0.9),                  # held low, out of sight behind her
              "back": dict(tail=262.0, curl=0.0, curl2=2.0, ear=0.9)},
 }
-AIRED = ("stand", "walk", "trot", "sit", "lie")    # the animations that come in every mood
+AIRED = ("stand", "walk", "amble", "trot", "sit", "lie")    # the animations that come in every mood
 
 
 def in_air(p, air, view, settled=False):
@@ -448,6 +461,7 @@ def air_anims():
         lash = air == "cross"
         side[f"stand~{air}"] = idle(in_air(STAND, air, "side"), 12, tail_amp=16.0 if lash else 7.0, twitch_at=8)
         side[f"walk~{air}"] = walk_side(base=in_air(STAND, air, "side"), tail_sway=11.0 if lash else 4.0)
+        side[f"amble~{air}"] = amble_side(base=in_air(AMBLING, air, "side"), tail_sway=9.0 if lash else 3.0)
         side[f"trot~{air}"] = trot_side(base=in_air(TROT, air, "side"), tail_sway=11.0 if lash else 4.0)
         if air != "happy":
             side[f"sit~{air}"] = idle(in_air(SIT, air, "side", True), 12, tail_amp=0.0,
@@ -459,6 +473,7 @@ def air_anims():
             a = views[view]
             a[f"stand~{air}"] = idle(base, 12, tail_amp=15.0 if lash else 8.0, twitch_at=8)
             a[f"walk~{air}"] = [front_gait(base, i / 8, back=view == "back") for i in range(8)]
+            a[f"amble~{air}"] = [front_gait(base, i / 8, lift=1.0, sway=0.2, back=view == "back") for i in range(8)]
             a[f"trot~{air}"] = a[f"walk~{air}"]
             if air != "happy":
                 a[f"sit~{air}"] = idle(in_air(sit, air, view, True), 12, tail_amp=0.0, twitch_at=5)
@@ -517,6 +532,7 @@ def render_all(progress=None, keep=None):
 
 # Art pixels the body covers per gait cycle (for distance-locked playback).
 STRIDES = {
+    "amble": AMBLE_STRIDE * SCALE,
     "walk": WALK_STRIDE * SCALE,
     "trot": TROT_STRIDE * SCALE,
     "run": RUN_STRIDE * SCALE,
@@ -524,11 +540,11 @@ STRIDES = {
 }
 # Front/back views have no planted-paw geometry to honour; these give a
 # cadence that matches the side view at the same speed.
-STRIDES_VERTICAL = {"walk": 11.0, "trot": 15.0, "run": 26.0, "stalk": 7.0}
+STRIDES_VERTICAL = {"amble": 8.0, "walk": 11.0, "trot": 15.0, "run": 26.0, "stalk": 7.0}
 
 # The ginger cat's kitten: the same animations (the ones it needs), drawn
 # in kitten proportions; its strides are shorter in step with its size.
-KITTEN = ("stand", "walk", "trot", "run", "sit", "lie", "sleep_curl", "sitdown", "standup", "liedown", "situp",
+KITTEN = ("stand", "walk", "amble", "trot", "run", "sit", "lie", "sleep_curl", "sitdown", "standup", "liedown", "situp",
           "curlup", "uncurl", "crouch", "pounce", "sniff_start", "sniff", "meow_sit", "stand_look", "sit_look")
 KITTEN_STRIDES = {k: v * ca.KITTEN_SCALE / SCALE for k, v in STRIDES.items()}
 KITTEN_STRIDES_VERTICAL = {k: v * ca.KITTEN_SCALE / SCALE for k, v in STRIDES_VERTICAL.items()}

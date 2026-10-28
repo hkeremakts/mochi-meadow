@@ -200,6 +200,17 @@ drizzle = 480
 revisit = 1200
 revisit_caption = 10800
 
+# How she walks: three paces, and a walk that isn't machine-steady.
+[mochi.walking]
+amble_speed = 15.0        # art pixels a second: an unhurried saunter
+brisk_speed = 34.0        # purposeful: dinner, say
+amble_share = 0.35        # of her wanders, at middling energy (more when tired or lazy)
+brisk_share = 0.12
+trot_share = 0.1
+pace_drift = 0.07         # a walk's pace wanders this much (Ornstein-Uhlenbeck sd)
+dawdle_rate = 0.05        # per second on a leisurely walk: a stop to sniff or look about
+glance = 0.6              # odds she glances your way before setting off toward you
+
 # Body language: her tail and ears show her mood (moods run from -1 to 1).
 [mochi.body_language]
 happy_above = 0.5         # tail up, hooked at the tip, ears pricked

@@ -102,5 +102,65 @@ class Arriving(unittest.TestCase):
         self.assertLess(spinning, 30.0, f"{spinning:.0f} s spent turning hard while on the move")
 
 
+def an_hour(seed=11):
+    """Turn speeds (deg/s) while walking, speeds (px/s), and seconds per clip."""
+    import collections
+    w = World(427, 266, seed=seed, clock=fixed_clock(9.0, date=datetime.date(2026, 6, 20)), weather="clear",
+              weather_locked=True, personality=Personality.neutral())
+    cat = w.cat
+    turns, speeds, clips = [], [], collections.Counter()
+    last, px, py = cat.heading, cat.x, cat.y
+    for _ in range(int(1800 / DT)):
+        w.update(DT)
+        key = (cat.anim.key or "").split("~")[0].rsplit("_", 1)[0]
+        moved = math.hypot(cat.x - px, cat.y - py)
+        px, py = cat.x, cat.y
+        rate = math.degrees(abs((cat.heading - last + math.pi) % (2 * math.pi) - math.pi)) / DT
+        last = cat.heading
+        if key in ("amble", "walk", "trot") and moved > 0.25 * DT * 10:
+            turns.append(rate)
+            speeds.append(moved / DT)
+            clips[key] += DT
+    return sorted(turns), sorted(speeds), clips
+
+
+class Walking(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.turns, cls.speeds, cls.clips = an_hour()
+
+    def test_turns_are_curves_not_snaps(self):
+        worst = self.turns[int(0.99 * (len(self.turns) - 1))]
+        self.assertLess(worst, 160, f"the sharpest 1% of walking turns ran at {worst:.0f} deg/s")
+
+    def test_she_ambles_as_well_as_walks(self):
+        self.assertGreater(self.clips["amble"], 20)
+        self.assertGreater(self.clips["walk"], 20)
+        slow, quick = self.speeds[int(0.1 * len(self.speeds))], self.speeds[int(0.9 * len(self.speeds))]
+        self.assertGreater(quick, slow * 1.6, "her pace varies")
+
+    def test_turning_on_the_spot_is_in_steps(self):
+        w = meadow()
+        cat = w.cat
+        cat.x, cat.y = open_ground(w)
+        cat.heading = 0.0
+        gen = cat.pivot(math.pi)
+        legs, turning = [], []
+        try:
+            while True:
+                cat.dt = DT
+                before = cat.heading
+                next(gen)
+                legs.append(cat.moved)
+                turning.append(abs((cat.heading - before + math.pi) % (2 * math.pi) - math.pi) > 1e-6)
+        except StopIteration:
+            pass
+        self.assertIn(False, turning[1:-1], "short pauses between the steps")
+        self.assertTrue(all(m == 0.0 for m, t in zip(legs, turning) if not t), "the legs rest while she pauses")
+        seconds = len(turning) * DT
+        self.assertGreater(seconds, 0.9, "a half turn takes a few steps, not a spin")
+        self.assertLess(seconds, 2.5)
+
+
 if __name__ == "__main__":
     unittest.main()
