@@ -92,8 +92,10 @@ N new meadow, S screenshot, F fullscreen. In `--screensaver` any key quits.
   bands, ice cracks, the tree) draws its own `random.Random(seed + k)`, so
   existing seeded meadows and behaviour tests play out exactly as before.
 - Movement: measure before changing it (time treading in place, turn speeds,
-  view changes over a simulated hour); `tests/test_locomotion.py` guards
-  arriving without circling.
+  view changes, pace spread over a simulated hour); `tests/test_locomotion.py`
+  guards arriving without circling, turn speeds, paces and stepped turns.
+  Walking variety (pace drift, pauses, glances, pace choice) uses the cat's
+  own `gait_rng`, not `self.rng`.
 - Art changes: look at the frames (render a contact sheet). One style for the
   whole meadow: dark eyes with a glint (`pixelrig.glint_eye`), shadows cool and
   highlights warm, dark plum-tinted outlines, `despeckle` in every finish.

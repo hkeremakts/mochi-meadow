@@ -520,6 +520,51 @@ commits are now made only when the full suite reports OK.
     tries more meadows, since chatter is a chance and the bird change
     shifted the random draws.
 
+## 2026-10-29 · Movement step 1: curves, deliberate turns, three paces
+
+**Asked:** "start with movement step 1".
+- **Steering:**
+  - She aims `LOOKAHEAD` (12 px) along the route, but only where the
+    line there is clear, so she never cuts a corner through a bush.
+  - Her turn rate is her speed ÷ `TURN_RADIUS` (12 px), between
+    `TURN_MIN` and `TURN_MAX`.
+  - She eases off before sharp corners, and her pace drifts (`pace_drift`).
+- **Setting off:**
+  - a short pause first, and a glance toward you if she's heading your way
+  - if the way is more than `FROM_REST` (70°) off, she steps round first,
+    then walks off on a curve
+  - **Why 70°:** a 124° swing from rest carried her into a bush and
+    stranded her
+- **Turning on the spot:** `_turn_in_steps`, steps of 34° with 0.08 s
+  pauses, the legs resting between steps.
+- **Up against an edge facing the wrong way:** she turns to the way out
+  rather than burning her replans. This had stranded her by the bowl after
+  a pounce.
+- **Paces:**
+  - a new `amble` animation in every view and mood (stride 11, head lower)
+  - `brisk` (34 px/s) when she's hungry
+  - `_wander_pace()` chooses an amble more often when she's tired or
+    lazy, now and then brisk or a trot
+  - leisurely walks pause now and then (`dawdle_rate`) to sniff or look
+    about
+  - settings: `[mochi.walking]`
+- **Random numbers:** walking variety uses its own `gait_rng`, so seeded
+  meadows decide as before.
+- **Measured over an hour:**
+  - sharpest 1% of turns: 172°/s before, 117°/s now
+  - most turning is now gentle (90% under 80°/s), instead of straight
+    lines and snaps
+  - pace now ranges 9–27 px/s, where before it sat at 10–25 with a
+    median of 24
+  - turning on the spot: 43 s of fast treading before, 66 s of deliberate
+    steps now
+  - CPU unchanged (0.047 ms a world update)
+- **Found on the way:**
+  - A fast raindrop could pass the crown's catch height and the ground in
+    one frame, splashing under the tree. Fixed.
+  - The shade-following test only ever passed by skipping itself. It now
+    picks a meadow where the shade falls on open ground.
+
 - **Known, not fixed:** two meadows starting at the same moment right after
   an art change can collide while redrawing the sprite cache. This was seen
   when six preview renders ran at once. It's rare in real use.
@@ -536,14 +581,8 @@ commits are now made only when the full suite reports OK.
     tree in spring (eggs, chirping, fledglings, parents scolding Mochi),
     frogspawn becoming tadpoles and tiny frogs, storks circling over the
     Bosphorus in late August, geese heading south in autumn.
-  - **Movement, step 1: smoother movement with the existing art.**
-    - curved routes, with turns slowed to a cat-like 90–150°/s
-    - setting off on a curve instead of spinning first, and the head
-      turning toward where she's going just before the body
-    - turns on the spot as a few deliberate steps (no treading)
-    - more paces: a slow amble, a walk and a brisk walk, with her speed
-      drifting within a walk and the odd pause to sniff or glance
-    - nearly free on CPU; about 1–2 MB per new pace
+  - **Movement, step 1:** done on 2026-10-29 (see above). Waiting on the
+    owner's verdict from watching it.
   - **Movement, step 2: three-quarter views**, giving her 8 directions, so
     turns stop snapping between side-on and face-on.
     - It needs a new view for her rig, then her walks and idles drawn in
