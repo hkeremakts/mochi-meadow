@@ -85,7 +85,9 @@ native screensaver would do much better.
   Location Services); `--place` sets it exactly. Days are long in June and
   short in December, dusk falls when it really does, and the moon has its
   real phase: a full moon lights the meadow silver and shows in the pond
-  as a disc, a quarter moon as a half.
+  as a disc, a quarter moon as a half. Venus, worked out from its orbit,
+  shows in the pond as the evening or morning star when it really is one,
+  steady where the stars twinkle.
 - **Seasons** follow the date (flipped in the southern hemisphere):
   - **Spring:** fresh green grass, flowers opening one by one.
   - **Summer:** a dry tint by August, fireflies on warm nights.
@@ -93,7 +95,10 @@ native screensaver would do much better.
     let go of the bushes and gather under them.
   - **Winter:** dun grass, frost on cold clear mornings, and snow when it is
     cold enough. Snow dusts the grass, then settles over it and on top of
-    bushes and rocks, and melts in the sun.
+    bushes and rocks, and melts in the sun. In a hard frost (below about
+    -2 °C) the pond freezes over: grey-blue ice, cracks spreading as it
+    thickens, the fish out of sight. Going for a drink, Mochi tests it with
+    a careful paw and licks at the ice instead.
   - **Wildlife keeps the calendar:** no butterflies or bees in the cold,
     frogs and hedgehogs hibernate, and weather leans dry in summer and wet
     and windy in autumn.
@@ -113,7 +118,11 @@ native screensaver would do much better.
   Mochi is already asleep under a bush when the meadow starts.
 - **Weather** drifts between clear, cloudy, windy, drizzle and rain. Cloud
   shadows cross the grass, grass and reeds sway in gusts, leaves and petals
-  blow past, and rain ripples the pond.
+  blow past, and rain ripples the pond. On a windy day pale bands race over
+  the grass where the gusts flatten it and the blades catch the light. A
+  warm downpour can turn into a thunderstorm: silent lightning, sometimes
+  a double flicker, lighting the whole meadow for a moment (its brightness
+  is a setting, `lightning_brightness`, and 0 turns it off).
 - **Wildlife:**
   - **Pond:** a frog sits on the bank, croaks at dusk and in the rain, and
     plops into the water when Mochi comes near. Dragonflies dart over the
@@ -132,7 +141,11 @@ native screensaver would do much better.
   she covers, so planted paws never slide. Posture changes have real
   in-between frames (sitting down, lying down, curling up, getting up). She
   blinks, glances about, breathes while she sleeps and stretches when she
-  wakes. Her pounces are real hops with a shadow underneath.
+  wakes. Her pounces are real hops with a shadow underneath. Deep in a long
+  sleep she dreams: her paws paddle and an ear twitches. Wet through from
+  the rain, she gives herself a good shake, droplets flying, and grooms
+  for longer. Fed at dusk, she sometimes goes mad for a minute: evening
+  zoomies.
 
 ## Mochi
 
@@ -161,8 +174,9 @@ meadow runs she gets a character, kept in the journal from then on:
 - **Body language:** her tail and ears show how she feels. Happy, she
   walks with her tail straight up and the tip hooked over, like a question
   mark, ears pricked. Cross, her ears turn back and her tail lashes (or,
-  sitting, its tip thumps). When the fox is about, or rain is on her fur,
-  her ears go flat and her tail drops, however she was feeling.
+  sitting, its tip thumps). When the fox is about, rain is on her fur or a
+  thunderstorm is rolling over, her ears go flat and her tail drops,
+  however she was feeling.
 - **A favourite nap spot**, which she settles on after a few naps there.
 - **Places she remembers:** the bush where she saw a mouse, where the fox
   or the deer passed, where the hedgehog snuffled, where she found a gift.
@@ -190,13 +204,16 @@ date, the moon):
 | Tier | How often, roughly | Examples |
 |---|---|---|
 | Common | several an hour | Mochi chases her tail; pounces on a bird's shadow; chases a skittering leaf; stalks a grasshopper; bats at moths on summer nights; a mouse peeks out of a bush; a feather floats down and she sniffs it; a crow lands and she stares it out; two butterflies dance; dandelion seeds drift past; puddles after a downpour (sparrows bathe, Mochi drinks from them); a dewy spider web glints at dawn |
-| Uncommon | a few a day | Mochi brings you a gift (a leaf, a feather, a toy mouse) and leaves it by the bowl; morning mist at dawn; a rainbow mirrored in the pond after a shower; a gust that spins up a whirlwind of leaves; bats at dusk on summer evenings |
+| Uncommon | a few a day | Mochi brings you a gift (a leaf, a feather, a toy mouse) and leaves it by the bowl; morning mist at dawn; a rainbow mirrored in the pond after a shower; a thunderstorm in a warm downpour; a gust that spins up a whirlwind of leaves; bats at dusk on summer evenings |
 | Rare | about one a day | a heron fishing at the pond (it stands, leans out, strikes, sometimes swallows a fish); in early summer, a duck leading her ducklings in a line to the pond for a swim; a fox trotting through at dawn or dusk, pausing to sniff the air; a shooting star across the pond; the ginger cat from next door visits (they touch noses, then sit together, play chase, or fall out); Mochi walks up to the screen, looks at you and taps the glass |
-| Legendary | about one a week | the golden butterfly, which Mochi follows all over the meadow; a roe deer stepping out of the dawn mist to graze by the pond (she bounds away if Mochi comes close) |
+| Legendary | about one a week | the golden butterfly, which Mochi follows all over the meadow; a roe deer stepping out of the dawn mist to graze by the pond (she bounds away if Mochi comes close); once she and the ginger cat are old friends, in spring or summer, he brings his kitten, which touches noses with her, pounces at her tail and scampers about |
 
 Others happen when the world makes them true:
 
 - **Full moon:** a clear full-moon night.
+- **Lunar eclipses:** on the nights of real eclipses (NASA's dates, to
+  2040), the moon's reflection dims and turns copper, and the meadow
+  darkens.
 - **Meteor showers:** on their real peak nights (the Perseids in August,
   the Geminids in December, and five more).
 - **First snow:** the first snow of winter.

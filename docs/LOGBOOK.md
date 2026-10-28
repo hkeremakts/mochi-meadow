@@ -422,6 +422,59 @@ account until lots of people want the Swift version.
     because the tree is planted last from its own random numbers.
   - **A bigger crown is see-through over Mochi more often** (that keeps her
     in sight when she's behind it).
+## 2026-10-28 · The smaller touches
+
+**Asked:** "do smaller touches, and we will start seasonal stories but wait
+for it for now". All eight from the 2026-10-21 brainstorm were built, each
+committed on its own:
+1. **Dreams:** after `dream_after` (90 s) of sleep, at exponential gaps,
+   her paws paddle, an ear twitches and the tail tip flicks.
+2. **Shaking off the rain:** her coat soaks while she's out in it
+   (`Cat.wet`; drizzle only dampens it) and dries slowly. Past
+   `wet_shake`, she shakes with droplets flying, then grooms twice.
+3. **Evening zoomies:** after the dusk meal, with a chance scaled by how
+   playful she is.
+4. **Wind you can see:** the plants' sway was already a travelling wave.
+   New are pale sheen bands (`GustSheen`) racing over the grass in gusts
+   above 0.5, added to the ground under everything on it. They cost
+   nothing measurable. They draw their own random numbers, because sharing
+   the world's had changed seeded meadows and broken four behaviour tests.
+5. **Thunderstorms:** an uncommon event in a warm downpour.
+   - Silent flashes come in Hawkes bursts, some a double flicker.
+   - Mochi stays wary throughout, her mood dips a little at each flash,
+     and a flash sends her for cover if she's out in it.
+   - Because flashing light can bother some people, `lightning_brightness`
+     can soften it, and 0 turns it off.
+6. **A frozen pond:** `env.ice` forms below `ice_below` (-2 °C) and thaws
+   above freezing.
+   - It's baked into the ground: grey-blue, the water showing through, and
+     a few jagged crack lines (their own random numbers) that spread as it
+     thickens. A first try with scattered pixels read as speckle.
+   - Nothing ripples on ice, the fish are hidden, and glints drop to a fifth.
+   - Mochi tests it with a paw and licks at it instead of drinking.
+7. **The sky in the pond:**
+   - **Venus:** worked out from JPL mean orbital elements. Checked against
+     the published dates to within a degree: greatest elongation +46° on
+     2026-08-15, between us and the sun on 2026-10-24, -47° on 2027-01-03.
+   - **Lunar eclipses:** NASA's table of total and partial eclipses to
+     2040 (penumbral ones and very shallow partials left out). The moon's
+     reflection dims and turns copper, moonlight fades, and a legendary
+     notice fires.
+   - **A fix found on the way:** pond reflections were drawn over the
+     (now bigger) tree crown. They are now hidden behind it.
+8. **The ginger cat's kitten:** a legendary visit for best friends, in spring
+   or summer.
+   - It's drawn by Mochi's rig in kitten proportions
+     (`cat_art.kitten()`): smaller, mostly head, short in the leg, with blue
+     eyes and a cream-ginger coat.
+   - It follows him, greets Mochi from her other side (at first all three
+     overlapped), pounces at her tail, scampers about and goes home after
+     him.
+
+**A slip, fixed:** one commit went in with four tests failing, because the
+command chain used `;` instead of `&&`. The fix came straight after, and
+commits are now made only when the full suite reports OK.
+
 - **Known, not fixed:** two meadows starting at the same moment right after
   an art change can collide while redrawing the sprite cache. This was seen
   when six preview renders ran at once. It's rare in real use.
