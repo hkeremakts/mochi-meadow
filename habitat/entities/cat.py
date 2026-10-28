@@ -1363,8 +1363,22 @@ class Cat(Entity):
         yield from self.once("eat_end", fps=7)
         self.idle_pose()
         yield from self.wait(self.rng.uniform(0.5, 1.2))
-        if self.rng.random() < 0.6:
+        if self._after_dinner_dash():
+            self.label = "evening zoomies!"
+            yield from self.wait(self.rng.uniform(1.0, 4.0))
+            yield from self.act_zoomies()
+        elif self.rng.random() < 0.6:
             yield from self.act_groom()
+
+    def _after_dinner_dash(self):
+        """Fed at dusk, many cats go mad for a minute: a playful one more
+        often, a tired or grumpy one less."""
+        clock = self.world.env.clock
+        if not clock.between(*MOCHI["evening_zoomies_hours"]) or self.needs.energy < 0.45:
+            return False
+        if not self._cooldown_ok("zoomies") or self.p.mood < -0.25:
+            return False
+        return self.rng.random() < MOCHI["evening_zoomies_chance"] * self.p.lean("playful", 0.4, 1.6)
 
     def act_drink(self):
         spots = self.world.terrain.spots["drink"]

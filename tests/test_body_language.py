@@ -211,5 +211,49 @@ class Rain(unittest.TestCase):
         self.assertIn("groom", keys)
 
 
+class EveningZoomies(unittest.TestCase):
+    def dinner(self, hour, chance):
+        import random as _r
+        from habitat.entities import cat as catmod
+        w = World(427, 266, seed=7, clock=fixed_clock(hour, date=datetime.date(2026, 6, 20)), weather="clear",
+                  weather_locked=True, personality=Personality.neutral())
+        cat = w.cat
+        cat.rng = _r.Random(3)
+        cat.needs.energy = 0.9
+        old = catmod.MOCHI["evening_zoomies_chance"]
+        catmod.MOCHI["evening_zoomies_chance"] = chance
+        try:
+            return cat._after_dinner_dash()
+        finally:
+            catmod.MOCHI["evening_zoomies_chance"] = old
+
+    def test_a_dash_after_dinner_at_dusk(self):
+        self.assertTrue(self.dinner(18.2, 10.0))
+
+    def test_not_after_breakfast(self):
+        self.assertFalse(self.dinner(7.6, 10.0))
+
+    def test_she_eats_then_runs(self):
+        from habitat.entities import cat as catmod
+        w = World(427, 266, seed=7, clock=fixed_clock(18.1, date=datetime.date(2026, 6, 20)), weather="clear",
+                  weather_locked=True, personality=Personality.neutral())
+        w.entities = [w.cat]
+        cat = w.cat
+        cat.posture = "stand"
+        cat.idle_pose()
+        cat.needs.energy = 0.9
+        w.bowl_fill = 1.0
+        old = catmod.MOCHI["evening_zoomies_chance"]
+        catmod.MOCHI["evening_zoomies_chance"] = 10.0
+        try:
+            cat._start("eat", cat.act_eat())
+            labels = [cat.label for _ in range(int(90 / DT)) if not w.update(DT)]
+        finally:
+            catmod.MOCHI["evening_zoomies_chance"] = old
+        self.assertIn("eating", labels)
+        self.assertIn("doing zoomies!", labels)
+        self.assertLess(labels.index("eating"), labels.index("doing zoomies!"))
+
+
 if __name__ == "__main__":
     unittest.main()
