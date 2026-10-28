@@ -386,8 +386,11 @@ class Environment:
         self.temperature = self._temperature()
         self.snow_cover = 0.0    # 0..1 of the ground under snow
         self.frost = 0.0         # 0..1 hoar frost on the grass
+        self.ice = 0.0           # 0..1 the pond freezing over
         if self.temperature < 0.5 and self.clock.sky.season == "winter" and rng.random() < 0.3:
             self.snow_cover = rng.uniform(0.4, 1.0)  # it snowed while nobody was watching
+        if self.temperature < COLD["ice_below"] and rng.random() < 0.6:
+            self.ice = 1.0                           # a hard frost overnight: frozen already
 
     @property
     def sky(self):
@@ -429,6 +432,10 @@ class Environment:
             if self.weather.rain > 0.05:
                 melt *= COLD["rain_melt"]
             self.snow_cover = max(0.0, self.snow_cover - sim * melt)
+        if t < COLD["ice_below"]:
+            self.ice = min(1.0, self.ice + sim * (COLD["ice_below"] - t) / 3.0 / COLD["ice_forms"])
+        elif self.ice > 0 and t > 0.0:
+            self.ice = max(0.0, self.ice - sim * (t + self.sun * 2.0) / COLD["ice_melts"])
         if t < COLD["frost_below"] and self.weather.cloud < 0.55 and self.sun < 0.3 and not self.snowing:
             self.frost = min(1.0, self.frost + sim / COLD["frost_forms"])
         elif self.frost > 0:
@@ -441,6 +448,11 @@ class Environment:
     @property
     def sun(self):
         return self.clock.sun
+
+    @property
+    def frozen(self):
+        """The pond is frozen over: ice you could stand a cat on."""
+        return self.ice > 0.6
 
     @property
     def rain(self):

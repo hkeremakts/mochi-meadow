@@ -26,7 +26,7 @@ class WaterFX:
                 self.stars.append([int(x), int(y), rng.random() * 6.28])
 
     def ripple(self, x, y, small=False):
-        if len(self.ripples) > 60:
+        if len(self.ripples) > 60 or self.world.env.frozen:      # nothing ripples on ice
             return
         rng = self.world.rng
         if small:
@@ -40,7 +40,7 @@ class WaterFX:
             return
         env = self.world.env
         rng = self.world.rng
-        glint = env.sun * (1.0 - 0.8 * env.weather.cloud) * (1.0 - env.rain)
+        glint = env.sun * (1.0 - 0.8 * env.weather.cloud) * (1.0 - env.rain) * (0.2 if env.frozen else 1.0)
         self._sparkle_debt += dt * glint * len(pond.open_cells) / 260.0
         while self._sparkle_debt >= 1.0:
             self._sparkle_debt -= 1.0
@@ -58,7 +58,7 @@ class WaterFX:
 
         # Now and then something rises in the pond; sometimes a fish leaps.
         self._plop_timer -= dt
-        if self._plop_timer <= 0:
+        if self._plop_timer <= 0 and not env.frozen:
             self._plop_timer = rng.uniform(14, 45)
             if env.rain < 0.3:
                 if self.fish and env.sun > 0.15 and rng.random() < 0.35:
@@ -90,8 +90,9 @@ class WaterFX:
         pond = self.world.terrain.pond
         if pond is None:
             return
-        for f in self.fish:
-            f.draw(r)
+        if not self.world.env.frozen:       # under the ice, the fish are out of sight
+            for f in self.fish:
+                f.draw(r)
         for x, y, dx, age, *_ in self.jumps:
             f = min(1.0, age / JUMP_TIME)
             z = 7.0 * 4 * f * (1 - f)

@@ -1390,6 +1390,9 @@ class Cat(Entity):
         ok = yield from self.go_to_spot(spot)
         if not ok:
             return
+        if self.world.env.frozen:
+            yield from self.test_the_ice()
+            return
         self.label = "drinking from the pond"
         self.state = "eating"
         yield from self.once("drink_start", fps=8)
@@ -1411,6 +1414,28 @@ class Cat(Entity):
         yield from self.once("drink_end", fps=8)
         self.idle_pose()
         yield from self.wait(self.rng.uniform(0.6, 1.2))
+
+    def test_the_ice(self):
+        """The pond is hard: a careful paw to see, another tap, a sniff, and
+        then a lick at the ice, which is something."""
+        self.label = "testing the ice"
+        yield from self.to_posture("stand")
+        if self.side_view:
+            yield from self.once("crouch", fps=6)
+            for _ in range(2):
+                yield from self.once("swipe_stand", fps=10)
+                self.idle_pose()
+                yield from self.wait(self.rng.uniform(0.6, 1.4))
+            yield from self.once("sniff_start", fps=8)
+            self.show("sniff", fps=5)
+            yield from self.wait(self.rng.uniform(1.0, 2.0))
+        self.label = "licking the ice"
+        yield from self.once("drink_start", fps=8)
+        self.show("drink", fps=5)
+        yield from self.wait(self.rng.uniform(3.0, 5.0))
+        self.needs.thirst = max(0.0, self.needs.thirst - 0.4)    # ice is slow going
+        yield from self.once("drink_end", fps=8)
+        self.idle_pose()
 
     def act_watch_pond(self):
         spots = self.world.terrain.spots["watch"]

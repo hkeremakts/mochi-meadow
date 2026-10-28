@@ -96,6 +96,9 @@ rain_melt = 3.0           # rain melts snow this many times faster
 frost_below = 1.5         # Celsius, on a clear, dark night
 frost_forms = 1800        # seconds to a full frost
 frost_lifts = 1800        # seconds to lift at 1 C in full sun (faster when warmer)
+ice_below = -2.0          # Celsius: a hard frost, and the pond starts to freeze over
+ice_forms = 10800         # seconds to freeze right over at 3 degrees below that (faster when colder)
+ice_melts = 7200          # seconds to thaw at 1 C above freezing (faster when warmer, and in sun)
 
 # Paw prints and worn paths.
 [marks]

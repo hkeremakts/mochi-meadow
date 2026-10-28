@@ -7,6 +7,9 @@ a graded copy for the current week, snow depth and frost, and only redoes
 it when one of those changes, so seasons cost nothing frame to frame.
 """
 
+import math
+import random
+
 import numpy as np
 import pygame
 
@@ -44,6 +47,8 @@ AUTUMN_LEAVES = [  # three kinds of shrub: rust, amber, gold
 WINTER_GRASS = [(40, (56, 60, 54)), (90, (104, 104, 86)), (140, (146, 140, 112))]
 SNOW = [(40, (168, 180, 206)), (80, (204, 212, 230)), (125, (230, 236, 246)), (170, (242, 245, 250))]
 FROST = np.array([196, 210, 222], dtype=np.float32)
+ICE = np.array([150, 176, 196], dtype=np.float32)        # grey-blue: water seen through ice
+ICE_CRACK = np.array([226, 236, 244], dtype=np.float32)
 LITTER = np.array([(176, 82, 40), (200, 132, 52), (150, 58, 36), (214, 170, 70), (120, 84, 44)], dtype=np.float32)
 
 
@@ -165,7 +170,35 @@ class Scenery:
         if tree is not None:
             yy, xx = np.mgrid[0:h, 0:w]
             self.roof = ((xx - tree.roof_cx) / tree.roof_rx) ** 2 + ((yy - tree.roof_cy) / tree.roof_ry) ** 2 < 1.0
+        self.cracks = self._ice_cracks()
         self.key = None
+
+    def _ice_cracks(self):
+        """Where the ice will crack: a few thin, jagged lines wandering
+        across the pond, numbered so more of them show as the ice
+        thickens (a rank per pixel; 2.0 where there's no crack).  Their
+        own random numbers, so the meadow's other seasonal patterns stay as
+        they were."""
+        t = self.terrain
+        h, w = t.water.shape
+        rank = np.full((h, w), 2.0, dtype=np.float32)
+        cells = np.argwhere(t.water)
+        if not len(cells):
+            return rank
+        rng = random.Random(t.seed + 505)
+        lines = 7
+        for i in range(lines):
+            y, x = (float(v) for v in cells[rng.randrange(len(cells))])
+            angle = rng.uniform(0, 2 * math.pi)
+            for _ in range(rng.randint(14, 40)):
+                angle += rng.uniform(-0.7, 0.7)
+                x += math.cos(angle)
+                y += math.sin(angle) * 0.6
+                xi, yi = int(x), int(y)
+                if not (0 <= xi < w and 0 <= yi < h and t.water[yi, xi]):
+                    break
+                rank[yi, xi] = min(rank[yi, xi], i / lines)
+        return rank
 
     def _litter(self, nrng):
         """Fallen-leaf pixels, thicker under the shrubs: (ys, xs, colours,
@@ -191,14 +224,15 @@ class Scenery:
         p = env.sky.year_phase
         snow = int(round(env.snow_cover * 6)) if env.snow_cover > 0.04 else 0
         frost = int(round(env.frost * 3))
-        return (int(p * 52) % 52, snow, frost)
+        ice = int(round(env.ice * 3))
+        return (int(p * 52) % 52, snow, frost, ice)
 
     def apply(self, key):
         """Build the ground surface and prop frames for ``key``."""
         if key == self.key:
             return False
         self.key = key
-        week, snow_level, frost_level = key
+        week, snow_level, frost_level, ice_level = key
         p = (week + 0.5) / 52
         w = season_weights(p)
         cover = snow_level / 6
@@ -215,6 +249,17 @@ class Scenery:
             rgb += (FROST - rgb) * (0.42 * frost * green)
             rime = (self.frost_rank < 0.08 * frost) & (green[..., 0] > 0.5) & ~self.roof
             rgb[rime] = FROST + 20
+        if ice_level:
+            # Ice from the edges in, the water still showing through it, with
+            # a few pale cracks (and, frozen right over, a dusting of snow).
+            water = t.water
+            k = 0.3 + 0.1 * ice_level
+            rgb[water] += (ICE - rgb[water]) * k
+            cracks = self.cracks < (ice_level - 1) / 2.0
+            rgb[cracks] = ICE_CRACK
+            if cover > 0 and ice_level == 3:
+                dusted = water & (self.snow_rank < cover * 0.6)
+                rgb[dusted] = _gradient(_lum(self.base) + 60, SNOW)[dusted]
         if cover > 0:
             snowy = self.snow_rank < cover
             if cover >= 0.99:
