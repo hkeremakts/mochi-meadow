@@ -507,6 +507,19 @@ commits are now made only when the full suite reports OK.
   (turning by uneven stride and duty factor; cats keep their rhythm when
   curving round obstacles).
 
+- **"the hedgehog walked through the pond"**
+  - **Cause:** it walked straight lines to its sniffing spots, never
+    checking what was in between.
+  - **Fix:** it now enters from an edge with nothing solid on the way in,
+    and follows `find_path` routes in and out, like the fox.
+  - **Same flaw in the birds:** pigeons' and sparrows' little walks could
+    also cut across the water, and now need a clear line.
+  - **The mouse** already stops at water. Ladybirds, snails and
+    grasshoppers check every step.
+  - **Tests:** `tests/test_ground_walkers.py`. The chatterer test now
+    tries more meadows, since chatter is a chance and the bird change
+    shifted the random draws.
+
 - **Known, not fixed:** two meadows starting at the same moment right after
   an art change can collide while redrawing the sprite cache. This was seen
   when six preview renders ran at once. It's rare in real use.
