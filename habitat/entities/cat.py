@@ -175,6 +175,7 @@ class Cat(Entity):
         self._ignored = {}  # id(prey) -> time until which the cat ignores it
         self._noticed = set()     # ids of creatures whose place she has already remembered
         self.air = None           # how she carries her tail and ears: happy, cross, wary, or calm (None)
+        self.wet = 0.0            # seconds of rain her coat has taken
         self._blink = 0.0
         self._next_blink = self.rng.uniform(1.0, 4.0)
         self.carrying = None      # the name of a gift in her mouth
@@ -216,6 +217,7 @@ class Cat(Entity):
             if type(self) is Cat:
                 self._notice()
             self._carry(self._read_air())
+            self._soak(0.35)
             self._perceive()
         if self.activity is None:
             self._start(*self._choose())
@@ -419,9 +421,7 @@ class Cat(Entity):
         if self.posture == "sleep":
             return None
         world = self.world
-        env = world.env
-        wet = (env.rain > RAIN["drizzle_above"] and not self.sheltered
-               and not world.terrain.under_roof(self.x, self.y))
+        wet = self._exposed()
         fox = any(e.kind == "fox" and e.alive and not getattr(e, "hidden", False)
                   and self.distance_to(e) < MOCHI["fox_fear_distance"] for e in world.entities)
         if wet or fox or self.activity_name == "hide":
@@ -432,6 +432,42 @@ class Cat(Entity):
         if mood > AIR["happy_above"] - (give if self.air == "happy" else 0.0):
             return "happy"
         return None
+
+    def _exposed(self):
+        """Out in the rain, away from cover."""
+        env = self.world.env
+        return (env.rain > RAIN["drizzle_above"] and not self.sheltered
+                and not self.world.terrain.under_roof(self.x, self.y))
+
+    def _soak(self, dt):
+        """Rain soaks her coat (drizzle only a little); it dries slowly."""
+        if self._exposed():
+            self.wet += dt * min(1.0, self.world.env.rain / RAIN["shelter_above"])
+        else:
+            self.wet = max(0.0, self.wet - dt * 0.007)
+
+    def shake_off(self):
+        """Wet through: a good shake with the droplets flying, then a long
+        groom.  Only a little damp, and the groom is enough."""
+        if self.wet < RAIN["wet_shake"]:
+            yield from self.to_posture("sit")
+            yield from self.once("groom", fps=8)
+            self.idle_pose()
+            return
+        if self.posture != "stand":
+            yield from self.to_posture("stand")
+        if not self.side_view:
+            yield from self.pivot(HEADING["right" if math.cos(self.heading) >= 0 else "left"])
+        self.label = "shaking off the rain"
+        self.world.particles.dust(self.x, self.y - 7, count=10, spread=7.0, color=(196, 212, 232))
+        yield from self.once("shake", fps=14)
+        self.idle_pose()
+        self.wet = 0.0
+        yield from self.to_posture("sit")
+        self.label = "grooming the rain off"
+        for _ in range(2):
+            yield from self.once("groom", fps=8)
+        self.idle_pose()
 
     def _carry(self, air):
         """Change how she carries herself: the clip playing now is swapped
@@ -1134,11 +1170,20 @@ class Cat(Entity):
         self._settle_light()
         shift = self.rng.uniform(60, 140)
         slept = 0.0
+        dream = sample(self.rng, MOCHI["dream_wait"])
         while not until() or slept < 20.0:
             slept += self.dt
             shift -= self.dt
+            dream -= self.dt
             if self._restless():
                 yield from self._move_for_light(asleep=True)
+            if dream <= 0 and slept > MOCHI["dream_after"] and self.posture == "sleep":
+                # deep sleep: her paws paddle and an ear twitches
+                self.label = "dreaming"
+                yield from self.once(f"dream_{self.sleep_style}", fps=7)
+                self.idle_pose()
+                self.label = "napping"
+                dream = sample(self.rng, MOCHI["dream_wait"])
             if shift <= 0:
                 # Shift position now and then, as sleeping cats do.
                 shift = self.rng.uniform(70, 160)
@@ -1771,6 +1816,8 @@ class Cat(Entity):
         self.interruptible = False
         cover = "the tree" if spot.owner is t.tree else "a bush"
         try:
+            if self.wet >= RAIN["wet_shake"]:
+                yield from self.shake_off()
             if weather and self.needs.energy < 0.5:
                 yield from self.doze(until=until)
                 return
@@ -1845,10 +1892,8 @@ class Cat(Entity):
             yield from self.wait(self.rng.uniform(1.0, 3.0))
         self.label = "hurrying back under cover"
         yield from self.go_to_spot(home, gait="trot")
-        self.label = "shaking off the rain"
-        yield from self.to_posture("sit")
-        yield from self.once("groom", fps=8)
-        self.idle_pose()
+        self.label = "grooming the rain off"
+        yield from self.shake_off()
         self.p.feel(0.05 if self.p["bold"] > 0.6 else -0.05)
 
     # --- hunting -------------------------------------------------------------

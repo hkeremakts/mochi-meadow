@@ -286,6 +286,12 @@ def side_anims():
     a["sleep_loaf"] = idle(LOAF_SLEEP, 4, tail_amp=0.0, breath=0.3)
     a["sleep_curl"] = idle(CURL, 4, tail_amp=0.0, breath=0.3)
     a["sleep_flat"] = idle(FLAT, 4, tail_amp=0.0, breath=0.35)
+    # dreams: deep in sleep the paws paddle, an ear and the tail tip twitch
+    for style, base in (("loaf", LOAF_SLEEP), ("curl", CURL), ("flat", FLAT)):
+        paddle = base.with_(fn=_shift(base.fn, 0.9, -0.6), fn_rot=base.get("fn_rot", 0.0) - 20.0)
+        twitch = base.with_(ear=base.get("ear", 0.0) + 0.35)
+        flick = base.with_(curl2=base.curl2 + 16.0)
+        a[f"dream_{style}"] = [base, paddle, base, paddle, base, twitch, base, flick, base]
     a["crouch"] = [CROUCH.with_(hip=_shift(CROUCH.hip, dx), hn=_shift(CROUCH.hn, 0, -lift), hn_lift=40 + lift * 10)
                    for dx, lift in ((0.0, 0.0), (0.7, 0.8), (0.0, 0.0), (-0.7, 0.0))]
     # transitions
@@ -357,6 +363,11 @@ def side_anims():
                     tween(REAR, SIT, 3))
     a["hiss"] = [HISS, HISS.with_(mouth=0.7, puff=1.17)]
     a["hiss_start"] = tween(STAND, HISS, 3)
+    # a wet cat's shake: head first, then the whole coat, ears flicking
+    wet = STAND.with_(eye=0.5, ear=0.5, puff=1.06)
+    left = wet.with_(tilt=16.0, head=_shift(STAND.head, -0.4, 0.3), sho=_shift(STAND.sho, -0.5, 0))
+    right = wet.with_(tilt=-16.0, head=_shift(STAND.head, 0.4, 0.5), sho=_shift(STAND.sho, 0.5, 0))
+    a["shake"] = seq(tween(STAND, wet, 2), [left, right] * 3, tween(wet, STAND, 2))
     a["sniff"] = [SNIFF, SNIFF.with_(head=_shift(SNIFF.head, 0.4, -0.2)), SNIFF,
                   SNIFF.with_(head=_shift(SNIFF.head, 0.3, 0.2))]
     a["sniff_start"] = tween(STAND, SNIFF, 3)

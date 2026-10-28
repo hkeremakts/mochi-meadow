@@ -165,6 +165,8 @@ pond_watch_seconds = { scale = 20, shape = 2.0, min = 6, max = 80 }
 watch_seconds = { scale = 11, shape = 2.0, min = 4, max = 40 }
 eat_seconds = { typical = 9, spread = 0.25, min = 5, max = 18 }
 mood_wander = 0.08        # her mood drifts a little on its own (Ornstein-Uhlenbeck sd)
+dream_after = 90          # seconds asleep before she sleeps deeply enough to dream
+dream_wait = { mean_wait = 70, min = 15, max = 400 }   # seconds between dreams (paws paddling, an ear twitching)
 
 
 # Needs: seconds for each to go from empty to full (or full to empty).
@@ -218,6 +220,7 @@ roof_preference = 0.85    # odds she picks the tree over a bush
 drizzle_chance = 0.0012   # odds per look-round (every 0.35 s) of a drizzle break
 drizzle_stay = { typical = 35, spread = 0.4, min = 15, max = 90 }   # seconds she waits out a drizzle under the tree
 venture_rate = 0.006      # per second: popping out into the rain (scaled by her character)
+wet_shake = 6             # seconds of real rain on her fur before she needs a good shake
 
 [events]
 check = 4                 # seconds between rolls of the dice

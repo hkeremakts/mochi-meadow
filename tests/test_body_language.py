@@ -34,6 +34,16 @@ def meadow(mood=0.2, weather="clear"):
     return w
 
 
+def out_in_the_open(w):
+    t = w.terrain
+    for y in range(40, 240, 8):
+        for x in range(30, 400, 8):
+            if t.walkable(x, y) and not t.under_roof(x, y) and not t.under_roof(x, y + 6):
+                w.cat.x, w.cat.y = float(x), float(y)
+                return
+    raise AssertionError("no open ground")
+
+
 def airs(w, seconds):
     seen = set()
     for _ in range(int(seconds / DT)):
@@ -102,7 +112,8 @@ class Mood(unittest.TestCase):
 
     def test_wary_with_rain_on_her_fur_but_not_under_cover(self):
         w = meadow(weather="rain")
-        w.cat.activity = None
+        out_in_the_open(w)
+        w.cat.activity = iter(lambda: None, 1)
         w.cat._perceive = lambda: None      # stay put: no running for cover in this test
         airs(w, 2)
         self.assertEqual(w.cat.air, "wary")
@@ -128,6 +139,76 @@ class Mood(unittest.TestCase):
         airs(w, 1)
         w.cat.p.mood = 0.46                  # just below where happy begins, but not far enough to stop
         self.assertEqual(airs(w, 2), {"happy"})
+
+
+class Dreams(unittest.TestCase):
+    def test_deep_in_a_long_sleep_she_dreams(self):
+        w = meadow()
+        cat = w.cat
+        cat.needs.energy = 0.0
+        cat._start("nap", cat.doze(until=lambda: False))
+        seen = set()
+        for _ in range(int(8 * 60 / DT)):
+            w.update(DT)
+            seen.add((cat.label, (cat.anim.key or "").split("_")[0]))
+        self.assertIn(("dreaming", "dream"), seen)
+
+    def test_not_in_the_first_light_doze(self):
+        w = meadow()
+        cat = w.cat
+        cat._start("nap", cat.doze(until=lambda: False))
+        labels = {cat.label for _ in range(int(60 / DT)) if not w.update(DT)}
+        self.assertNotIn("dreaming", labels)
+
+    def test_every_sleep_style_has_a_dream(self):
+        lib = cat_library()
+        for style in ("loaf", "curl", "flat"):
+            self.assertIn(f"dream_{style}_right", lib)
+            self.assertIn(f"dream_{style}_left", lib)
+
+
+class Rain(unittest.TestCase):
+    def test_rain_soaks_her_and_cover_keeps_her_dry(self):
+        w = meadow(weather="rain")
+        cat = w.cat
+        out_in_the_open(w)
+        cat._perceive = lambda: None          # stay out in it
+        cat.activity = iter(lambda: None, 1)
+        for _ in range(int(10 / DT)):
+            w.update(DT)
+        self.assertGreater(cat.wet, 6.0)
+        cat.sheltered = True
+        before = cat.wet
+        for _ in range(int(10 / DT)):
+            w.update(DT)
+        self.assertLess(cat.wet, before, "drying, slowly")
+        self.assertGreater(cat.wet, before - 1.0)
+
+    def test_wet_through_she_shakes_then_grooms_for_longer(self):
+        w = meadow()
+        cat = w.cat
+        cat.wet = 12.0
+        cat._start("shake", cat.shake_off())
+        labels, keys = [], set()
+        for _ in range(int(30 / DT)):
+            w.update(DT)
+            labels.append(cat.label)
+            keys.add((cat.anim.key or "").split("_")[0])
+        self.assertIn("shaking off the rain", labels)
+        self.assertIn("shake", keys)
+        self.assertEqual(cat.wet, 0.0)
+
+    def test_only_damp_and_a_groom_is_enough(self):
+        w = meadow()
+        cat = w.cat
+        cat.wet = 2.0
+        cat._start("shake", cat.shake_off())
+        keys = set()
+        for _ in range(int(20 / DT)):
+            w.update(DT)
+            keys.add((cat.anim.key or "").split("_")[0])
+        self.assertNotIn("shake", keys)
+        self.assertIn("groom", keys)
 
 
 if __name__ == "__main__":
