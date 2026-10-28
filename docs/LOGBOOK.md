@@ -475,6 +475,38 @@ committed on its own:
 command chain used `;` instead of `&&`. The fix came straight after, and
 commits are now made only when the full suite reports OK.
 
+## 2026-10-28 · Movement: a circling bug fixed, and a plan for the rest
+
+- **Asked:** "Mochi's movement is still too robotic. His turns are too
+  sudden and sometimes it walks in the same place … analyse its movement,
+  and research how to create more realistic animation algorithm."
+- **Measured, over a simulated hour:**
+  - Her legs were moving for 30 minutes, about 20 of them spent circling a
+    goal 2–4 px out.
+  - Her sprite changed view 2,860 times.
+  - Her turns ran at 172°/s and up 10% of the time.
+- **The bug:**
+  - **Cause:** on a final approach with the goal behind or beside her,
+    the speed floor (30% of cruise) and the minimum turn rate (3 rad/s)
+    gave a turning circle wider than the 0.6 px arrival zone, so she
+    orbited the spot.
+  - **Fix:** within `ARRIVE_RADIUS` (12 px), if she isn't facing the
+    goal she brakes and turns first. After 3 s of final approach she
+    steps the last bit.
+  - **After:** 10 minutes of leg movement an hour, no circling, 232 view
+    changes. Tests are in `tests/test_locomotion.py`.
+- **Still robotic, and planned** (owner: "add these 2 steps to to-do list,
+  beside seasonal stories"):
+  - turning on the spot treads (about 8% of walking time)
+  - turns are too fast, on routes with hard corners
+  - only three views, so turns snap
+  - one pace, with dead stops
+- **Research:** Reynolds' arrival steering; The Occupation's layered
+  locomotion (turn before setting off, walk starts, lean into turns);
+  Orange Duck's spring-smoothed movement; quadruped turning studies
+  (turning by uneven stride and duty factor; cats keep their rhythm when
+  curving round obstacles).
+
 - **Known, not fixed:** two meadows starting at the same moment right after
   an art change can collide while redrawing the sprite cache. This was seen
   when six preview renders ran at once. It's rare in real use.
@@ -483,16 +515,33 @@ commits are now made only when the full suite reports OK.
 
 ## Open items
 
-- **Watch it for a few days**, then tune from real viewing (the owner's
-  notes). After that, Swift, when the owner says go.
-- **Watch it for a day or two** and tune from real viewing: event rates,
-  captions, season colours, and whether 15 fps calm mode shows.
-- **Ideas parked from the 2026-10-21 brainstorm:**
-  - #1 snapshots, deferred to later
-  - #4 seasonal stories (a nest, frogspawn, storks over the Bosphorus,
-    geese)
-  - the smaller touches, including the ginger cat's kitten
-- **npm cache fix**, which needs the owner's password.
+- **Watch it for a few days** and tune from real viewing (the owner's
+  notes): event rates, captions, how often she goes back to places, the new
+  look in every light, and whether the 15 fps calm mode shows.
+- **Next projects, waiting for the owner's go:**
+  - **Seasonal stories** (from the 2026-10-21 brainstorm, #4): a nest in the
+    tree in spring (eggs, chirping, fledglings, parents scolding Mochi),
+    frogspawn becoming tadpoles and tiny frogs, storks circling over the
+    Bosphorus in late August, geese heading south in autumn.
+  - **Movement, step 1: smoother movement with the existing art.**
+    - curved routes, with turns slowed to a cat-like 90–150°/s
+    - setting off on a curve instead of spinning first, and the head
+      turning toward where she's going just before the body
+    - turns on the spot as a few deliberate steps (no treading)
+    - more paces: a slow amble, a walk and a brisk walk, with her speed
+      drifting within a walk and the odd pause to sniff or glance
+    - nearly free on CPU; about 1–2 MB per new pace
+  - **Movement, step 2: three-quarter views**, giving her 8 directions, so
+    turns stop snapping between side-on and face-on.
+    - It needs a new view for her rig, then her walks and idles drawn in
+      it: about 500 frames (around 8 MB) and a few more seconds of
+      one-off redraw.
+    - Look at it after step 1 has been seen.
+- **Snapshots of rare moments** (brainstorm #1): deferred.
+- **Small fixes:**
+  - the sprite-cache collision when two meadows start at once after an art
+    change
+  - the npm cache, which needs the owner's password
 - **The Swift `.saver` rewrite:** last, and only when asked.
 - **After Swift:** things a screensaver can't do, such as live weather,
   interacting with Mochi, and widgets.
