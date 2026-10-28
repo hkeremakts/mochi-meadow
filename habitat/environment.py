@@ -380,7 +380,8 @@ class Environment:
         self.wind.direction = self.wind.toward
         self._spell = self.weather.spell
         self.clouds = CloudLayer(rng, width, height)
-        self.sheen = GustSheen(rng, width, height)
+        # its own random numbers, so adding it changed nothing else in a seeded meadow
+        self.sheen = GustSheen(random.Random(seed * 13 + 5), width, height)
         self.clouds.seed_initial(self.weather.cloud, self.weather.rain)
         self.temperature = self._temperature()
         self.snow_cover = 0.0    # 0..1 of the ground under snow
