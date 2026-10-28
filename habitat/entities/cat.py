@@ -424,7 +424,7 @@ class Cat(Entity):
         wet = self._exposed()
         fox = any(e.kind == "fox" and e.alive and not getattr(e, "hidden", False)
                   and self.distance_to(e) < MOCHI["fox_fear_distance"] for e in world.entities)
-        if wet or fox or self.activity_name == "hide":
+        if wet or fox or world.storm is not None or self.activity_name == "hide":
             return "wary"
         mood, give = self.p.mood, AIR["settle"]
         if mood < AIR["cross_below"] + (give if self.air == "cross" else 0.0):

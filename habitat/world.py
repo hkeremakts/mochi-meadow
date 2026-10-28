@@ -52,6 +52,7 @@ class World:
         self.effects = []
         self.captions = []
         self.later = []           # [at world.time, text, tier]: captions still to come
+        self.storm = None         # a thunderstorm going on now (events.Thunderstorm)
         self.stats = collections.Counter()   # what Mochi got up to this session
         self.bowl_fill = 1.0
         self._bowl_level = None

@@ -257,6 +257,7 @@ legendary = 1440
 "morning mist" = 360
 "a rainbow" = 120
 "a whirlwind" = 40
+"a thunderstorm" = 240
 "bats" = 180
 "a gift" = 300
 "a shooting star" = 60
@@ -292,6 +293,9 @@ rainbow_lasts_minutes = { typical = 5, spread = 0.35, min = 2, max = 14 }
 rainbow_after_rain = 240  # a rainbow may come this long after the rain stops
 puddles_last_minutes = { typical = 12, spread = 0.4, min = 4, max = 40 }
 fireworks_minutes = { mean = 15, sd = 3, min = 8, max = 25 }
+# A summer thunderstorm: silent lightning in little bursts, while the downpour lasts.
+thunderstorm = { mean_wait = 40, excite = 0.05, memory = 25 }
+thunderstorm_minutes = { typical = 8, spread = 0.4, min = 3, max = 25 }
 butterfly_dance = { typical = 9, spread = 0.25, min = 5, max = 18 }
 
 # How many.

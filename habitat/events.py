@@ -301,6 +301,68 @@ class Whirl(Effect):
             r.blit_px(r.dot(color, 255, 2 if int(a * 2) % 2 else 1, 1), x, y - z)
 
 
+class Thunderstorm(Effect):
+    """Lightning in a warm downpour: silent flashes, now and then a double
+    flicker, lighting the whole meadow for a split second.  They come in
+    little bursts (a Hawkes process) until the rain eases.  Mochi keeps her
+    ears flat while it lasts, and a flash sends her for cover if she's out
+    in it."""
+
+    FLASH = 0.5            # seconds a flash takes to come and go
+
+    def __init__(self, world):
+        self.world = world
+        storm = FX["thunderstorm"]
+        self.strikes = Hawkes(world.rng, storm["mean_wait"], storm["excite"], storm["memory"])
+        self.flash = None          # seconds into the flash now showing
+        self.double = False
+        self.age = 0.0
+        self.duration = sample(world.rng, FX["thunderstorm_minutes"]) * 60.0
+        self.timer = world.rng.uniform(2.0, 6.0)     # the first one comes soon
+        world.storm = self
+
+    def update(self, dt):
+        world = self.world
+        self.age += dt
+        if self.flash is not None:
+            self.flash += dt
+            if self.flash > self.FLASH:
+                self.flash = None
+        over = world.env.rain < 0.45 or self.age > self.duration
+        if over and self.flash is None:
+            self.alive = False
+            world.storm = None
+            return
+        self.timer -= dt
+        if not over and self.flash is None and (self.timer <= 0 or self.strikes.step(dt)):
+            self.timer = 1e9
+            self.strike()
+
+    def strike(self):
+        world = self.world
+        self.flash = 0.0
+        self.double = world.rng.random() < 0.4
+        cat = world.cat
+        cat.p.feel(-0.04)
+        if cat.posture != "sleep" and not cat.sheltered and cat.interruptible:
+            cat.attend("shelter", cat.act_shelter())
+
+    def brightness(self):
+        """How much the flash lights the meadow now, 0..1."""
+        t = self.flash
+        if t is None:
+            return 0.0
+        k = max(0.0, 1.0 - t / 0.12)
+        if self.double and 0.2 < t < 0.32:
+            k = max(k, 0.7 * (1.0 - (t - 0.2) / 0.12))
+        return max(k, 0.25 * max(0.0, 1.0 - t / self.FLASH))     # and a faint afterglow
+
+    def draw_glow(self, r):
+        k = self.brightness()
+        if k > 0.02:
+            r.screen.fill((int(96 * k), int(100 * k), int(124 * k)), special_flags=pygame.BLEND_ADD)
+
+
 class Fireworks(Effect):
     """New Year's midnight: distant fireworks, seen as flashes on the
     meadow and as bursts mirrored in the pond."""
@@ -924,6 +986,19 @@ class RainbowEvent(Event):
         return Rainbow(world)
 
 
+class ThunderstormEvent(Event):
+    name, tier, title = "a thunderstorm", "uncommon", "Lightning flickers over the meadow"
+    weight = 3.0   # it can only come in a downpour: take it when it does
+
+    def ready(self, world):
+        env = world.env
+        return (env.rain > 0.7 and env.temperature > 10 and not env.snowing
+                and getattr(world, "storm", None) is None)
+
+    def start(self, world, events):
+        return Thunderstorm(world)
+
+
 class LeafWhirl(Event):
     name, tier, title = "a whirlwind", "uncommon", "A gust spins up the leaves"
 
@@ -1239,7 +1314,7 @@ class Halloween(Notice):
 
 ROLLED = [TailChase(), DandelionSeeds(), FallingFeather(), CrowVisit(), MousePeek(), ShadowPounce(), LeafChase(),
           GrasshopperVisit(), Moths(), AfterRain(), TwoButterflies(), DewyWeb(),
-          MorningMist(), RainbowEvent(), LeafWhirl(), DuskBats(), AGift(),
+          MorningMist(), RainbowEvent(), ThunderstormEvent(), LeafWhirl(), DuskBats(), AGift(),
           ShootingStarEvent(), FourthWall(), GingerVisit(), FoxVisit(), HeronVisit(), DuckFamily(),
           GoldenButterflyEvent(), DeerAtDawn()]
 NOTICES = [Birthday(), FullMoon(), MeteorShowerNotice(), FirstSnow(), NewYear(), Halloween()]
