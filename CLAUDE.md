@@ -64,14 +64,15 @@ N new meadow, S screenshot, F fullscreen. In `--screensaver` any key quits.
   walk grid), `paths.py` (A* plus string-pulling), `shade.py` (the tree
   shadow follows the sun), `marks.py` (paw prints and worn paths), `water.py`,
   `particles.py`.
-- Life: `entities/cat.py` (Mochi: needs and activities), `entities/visitor.py`
-  (the ginger cat), `entities/wildlife.py`, `world.py` (Director spawns
+- Life: `entities/cat.py` (Mochi: needs, activities, body language),
+  `entities/visitor.py` (the ginger cat and his kitten), `entities/wildlife.py`, `world.py` (Director spawns
   creatures), `events.py` (four rarity tiers, notices, recap), `personality.py`,
   `places.py` (places she remembers and goes back to), `journal.py` (atomic
   JSON persistence).
 - Art: procedural puppets drawn in code. `pixelrig.py` is the rig.
   `cat_art.py`/`cat_anims.py` draw Mochi in "storybook" proportions (see the
-  logbook, 2026-10-28), plus `bird_art.py`, `fox_art.py`,
+  logbook, 2026-10-28; `cat_art.kitten()` draws the kitten with the same rig),
+  plus `bird_art.py`, `fox_art.py`,
   `deer_art.py`, `pond_art.py` and `critter_art.py`. Frames are cached in
   `assets/generated/` (git-ignored, redrawn when the drawing code's hash
   changes, so the first start after an art change takes about 5 s).
@@ -85,6 +86,14 @@ N new meadow, S screenshot, F fullscreen. In `--screensaver` any key quits.
 
 - Test first for bugs and behaviour, and keep the whole suite green. Use seeded
   simulations to check that a refactor changes nothing.
+- Commit only after the full suite reports OK: chain the commit with `&&`
+  behind the test run, never `;` (a commit once went in with tests failing).
+- Anything new that is random but not part of the meadow's own story (sheen
+  bands, ice cracks, the tree) draws its own `random.Random(seed + k)`, so
+  existing seeded meadows and behaviour tests play out exactly as before.
+- Movement: measure before changing it (time treading in place, turn speeds,
+  view changes over a simulated hour); `tests/test_locomotion.py` guards
+  arriving without circling.
 - Art changes: look at the frames (render a contact sheet). One style for the
   whole meadow: dark eyes with a glint (`pixelrig.glint_eye`), shadows cool and
   highlights warm, dark plum-tinted outlines, `despeckle` in every finish.
