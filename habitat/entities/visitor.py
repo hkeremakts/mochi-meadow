@@ -250,6 +250,7 @@ class Kitten(Cat):
         self.parent = parent
         self.strides = cat_anims.KITTEN_STRIDES
         self.strides_vertical = cat_anims.KITTEN_STRIDES_VERTICAL
+        self.strides_quarter = cat_anims.KITTEN_STRIDES_QUARTER
         self.posture = "stand"
         self.facing = parent.facing
         self.met = False

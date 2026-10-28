@@ -105,15 +105,29 @@ class Views(unittest.TestCase):
         self.assertEqual(view_for(math.pi / 2), "front")
         self.assertEqual(view_for(-math.pi / 2), "back")
 
-    def test_diagonals_use_the_side_view(self):
-        self.assertEqual(view_for(math.radians(40)), "right")
-        self.assertEqual(view_for(math.radians(140)), "left")
+    def test_diagonals_use_the_three_quarter_views(self):
+        self.assertEqual(view_for(math.radians(45)), "fr")       # down and to the right: coming toward you
+        self.assertEqual(view_for(math.radians(135)), "fl")
+        self.assertEqual(view_for(math.radians(-45)), "br")      # up and to the right: going away
+        self.assertEqual(view_for(math.radians(-135)), "bl")
+
+    def test_eight_views_round_the_compass(self):
+        seen = [view_for(math.radians(a)) for a in range(0, 360, 45)]
+        self.assertEqual(seen, ["right", "fr", "front", "fl", "left", "bl", "back", "br"])
 
     def test_the_current_view_holds_near_a_boundary(self):
-        just_past = math.radians(58)
-        self.assertEqual(view_for(just_past), "front")
+        just_past = math.radians(29)
+        self.assertEqual(view_for(just_past), "fr")
         self.assertEqual(view_for(just_past, current="right"), "right")
-        self.assertEqual(view_for(math.radians(75), current="right"), "front")
+        self.assertEqual(view_for(math.radians(40), current="right"), "fr")
+
+    def test_a_turn_from_side_on_to_face_on_passes_through_three_quarters(self):
+        views, current = [], "right"
+        for a in range(0, 91, 2):
+            current = view_for(math.radians(a), current)
+            if not views or views[-1] != current:
+                views.append(current)
+        self.assertEqual(views, ["right", "fr", "front"])
 
 
 def run(world, seconds):

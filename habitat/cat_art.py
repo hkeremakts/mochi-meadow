@@ -157,7 +157,9 @@ def finish(c, features=(), late=()):
         if 0 <= xi < W and 0 <= yi < H:
             grid[yi, xi] = colour
     grid = outline(grid, OUT)
-    grid = despeckle(grid, keep=(OUT, PINK, MOUTH, MARK, IRIS, PUPIL, SHINE))
+    # (an outline pixel on the edge always touches empty space, so only a
+    # pinhole of outline inside her shape counts as a crumb and is filled)
+    grid = despeckle(grid, keep=(PINK, MOUTH, MARK, IRIS, PUPIL, SHINE))
     for x, y, colour in late:
         xi, yi = (int(math.floor(v)) for v in c.to_art(x, y))
         if 0 <= xi < W and 0 <= yi < H and grid[yi, xi] == CLEAR:
@@ -302,7 +304,11 @@ def tail_root(p):
 
 
 def draw_side(p):
-    p = proportioned("side", p)
+    return _draw_side(proportioned("side", p))
+
+
+def _draw_side(p):
+    """The side view of a pose already in her proportions."""
     c = canvas()
     features, late = [], []
     hx, hy = p.hip
@@ -348,6 +354,8 @@ def draw_side(p):
     c.paint(c.capsule(sx + 1.0 * ca, sy - 1.0, qx - 1.0, qy + 1.0, 3.5 * puff, 3.0), BASE)
     if p.turn >= 0.5:
         _front_face(c, qx, qy, p, features, late)
+    elif p.turn <= -0.5:
+        _back_head(c, qx, qy, p)                 # walking away at three-quarters: the back of her head
     else:
         _side_head(c, qx, qy, p, features, late)
     if hind_over:
@@ -532,7 +540,55 @@ def draw_back(p):
     return finish(c)
 
 
-DRAW = {"side": draw_side, "front": draw_front, "back": draw_back}
+# =============================================================================
+# Three-quarter views: the side view's skeleton seen at an angle
+
+QUARTER_SHORTEN = {"front": 0.64, "back": 0.58}    # the body, foreshortened along its length
+QUARTER_DEPTH = {"front": 0.32, "back": 0.17}      # how much higher on screen the far end sits, per pixel of length
+# (going away, the far end is her head and fore paws: lifted as much as her
+# hind end is coming toward you, she looks as if she's climbing)
+QUARTER_WIDEN = 1.14       # ...and a little more of her chest (or rump) shows
+
+
+def three_quarter(p, toward):
+    """A side pose (facing right) turned to three-quarters: ``toward``
+    "front" walks down to the right, coming at you; "back" walks up to the
+    right, going away.  The body shortens along its length, the far end
+    sits higher (further away, as everything in the meadow does), and her
+    face turns to you, or away.  The nearest paws stay on the ground line."""
+    q = Pose(p)
+    hip_x, sho_x = p.hip[0], p.sho[0]
+    pivot = sho_x if toward == "front" else hip_x
+
+    def at(pt):
+        x, y = pt
+        far = (pivot - x) if toward == "front" else (x - pivot)    # how far behind (or ahead), toward the far end
+        return pivot + (x - pivot) * QUARTER_SHORTEN[toward], y - max(0.0, far) * QUARTER_DEPTH[toward]
+
+    for key in ("hip", "sho", "head", "fn", "ff", "hn", "hf"):
+        q[key] = at(p[key])
+    if p.get("troot"):
+        q["troot"] = at(p.troot)
+    q["chest"] = (p.chest[0] * QUARTER_WIDEN, p.chest[1])
+    q["haunch"] = (p.haunch[0] * QUARTER_WIDEN, p.haunch[1])
+    q["tail_len"] = p.tail_len * 0.8
+    if toward == "back":
+        q["head"] = (q.head[0], q.head[1] + 1.5)      # seen from behind and above, the head sits lower over the shoulders
+    if p.get("turn", 0.0) < 0.5:
+        q["turn"] = 1.0 if toward == "front" else -1.0
+    return q
+
+
+def draw_front_quarter(p):
+    return _draw_side(three_quarter(proportioned("side", p), "front"))
+
+
+def draw_back_quarter(p):
+    return _draw_side(three_quarter(proportioned("side", p), "back"))
+
+
+DRAW = {"side": draw_side, "front": draw_front, "back": draw_back,
+        "fquarter": draw_front_quarter, "bquarter": draw_back_quarter}
 
 
 # =============================================================================
@@ -543,7 +599,14 @@ def head_points(view, p):
     her mouth sits, and the top of her head between the ears.  ``mouth`` is
     None when her face is turned away."""
     c = canvas()
-    p = proportioned("side" if view == "side" else view, p)
+    if view in ("fquarter", "bquarter"):
+        p = three_quarter(proportioned("side", p), "front" if view == "fquarter" else "back")
+        if view == "bquarter":
+            qx, qy = p.head
+            return None, c.to_art(*face_at(qx, qy, 0.0, -4.7))
+        view = "side"
+    else:
+        p = proportioned("side" if view == "side" else view, p)
     qx, qy = p.head
     if view == "side" and p.get("turn", 0.0) < 0.5:
         mouth = side_at(qx, qy, p.tilt, 5.0, 2.4)

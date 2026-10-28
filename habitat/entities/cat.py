@@ -36,6 +36,9 @@ TAU = 2 * math.pi
 HEADING = {"right": 0.0, "down": math.pi / 2, "left": math.pi, "up": -math.pi / 2}
 VIEW_OF = {"right": "right", "left": "left", "down": "front", "up": "back"}
 FACING_OF = {v: k for k, v in VIEW_OF.items()}
+FACING_OF.update({"fr": "right", "br": "right", "fl": "left", "bl": "left"})
+QUARTERS = ("fr", "br", "fl", "bl")
+SIDE_OF = {"fr": "right", "br": "right", "fl": "left", "bl": "left"}
 WALKING = SETTINGS["mochi"]["walking"]
 GAIT_SPEED = {"stalk": CAT_STALK_SPEED, "amble": WALKING["amble_speed"], "walk": CAT_WALK_SPEED,
               "brisk": WALKING["brisk_speed"], "trot": CAT_TROT_SPEED, "run": CAT_RUN_SPEED}
@@ -95,10 +98,12 @@ def eye_pixels(frame):
 
 
 def with_left(lib):
-    """Add the left-facing frames: mirrors of the right-facing ones."""
+    """Add the left-facing frames: mirrors of the right-facing ones (side
+    and three-quarter views)."""
     for key in list(lib):
-        if "_right" in key:
-            lib[key.replace("_right", "_left")] = [pygame.transform.flip(f, True, False) for f in lib[key]]
+        twin = cat_anims.mirror_key(key)
+        if twin:
+            lib[twin] = [pygame.transform.flip(f, True, False) for f in lib[key]]
     return lib
 
 
@@ -114,25 +119,29 @@ def wrap(a):
     return (a + math.pi) % TAU - math.pi
 
 
-def view_for(heading, current=None, margin=math.radians(12)):
-    """Which sprite view shows a cat moving along ``heading``.
+# Eight views round the compass (screen y points down, so "front" is
+# heading down, toward you): degrees of heading each one covers.
+SECTORS = {"right": (-25, 25), "fr": (25, 68), "front": (68, 112), "fl": (112, 155),
+           "br": (-68, -25), "back": (-112, -68), "bl": (-155, -112)}
 
-    Side views cover +/-55 degrees around horizontal (they read well on
-    diagonals); front and back cover the rest.  The current view is kept
-    until the heading is clearly past its edge, so the sprite does not
-    flicker on a boundary."""
+
+def view_for(heading, current=None, margin=math.radians(10)):
+    """Which sprite view shows a cat moving along ``heading``: side-on,
+    three-quarters toward you or away, face-on or from behind (the left
+    side, and the left three-quarters, are mirrors).  The current view is
+    kept until the heading is clearly past its edge, so the sprite does
+    not flicker on a boundary."""
     a = math.degrees(wrap(heading))
-    sectors = {"right": (-55, 55), "front": (55, 125), "back": (-125, -55)}
 
     def inside(view, extra):
         if view == "left":
-            return abs(a) >= 125 - extra
-        lo, hi = sectors[view]
+            return abs(a) >= 155 - extra
+        lo, hi = SECTORS[view]
         return lo - extra <= a <= hi + extra
 
     if current is not None and inside(current, math.degrees(margin)):
         return current
-    for view in ("right", "front", "back"):
+    for view in SECTORS:
         if inside(view, 0):
             return view
     return "left"
@@ -197,6 +206,7 @@ class Cat(Entity):
         self._noticed = set()     # ids of creatures whose place she has already remembered
         self.air = None           # how she carries her tail and ears: happy, cross, wary, or calm (None)
         self.strides = cat_anims.STRIDES                      # art pixels a gait cycle covers (a kitten's are shorter)
+        self.strides_quarter = cat_anims.STRIDES_QUARTER
         self._step_clock = 0.0                                # where she is in a step, turning on the spot
         # How she walks varies by its own random numbers, so the walking
         # doesn't change what she decides to do in a seeded meadow.
@@ -347,7 +357,7 @@ class Cat(Entity):
                     hit.blit(b, (round(crown[0] - 1.5), round(crown[1] - 1.5)))
                 if carrying and mouth is not None:
                     g = art()["gifts"][carrying]
-                    flip = key.endswith("_left")
+                    flip = key.rsplit("_", 1)[-1] in ("left", "fl", "bl")
                     g = pygame.transform.flip(g, True, False) if flip else g
                     gx = mouth[0] - (g.get_width() - 1 if flip else 0)
                     hit.blit(g, (round(gx), round(mouth[1] - g.get_height() / 2)))
@@ -357,13 +367,13 @@ class Cat(Entity):
         return hit
 
     def shadow(self):
-        side = self.view in ("left", "right")
+        side, quarter = self.side_view, self.quarter_view
         if self.posture in ("lie", "sleep"):
             rx, ry, dy = 16.0, 3.6, -3
         elif self.posture == "sit":
-            rx, ry, dy = (10.0, 3.2, -1) if side else (8.5, 3.2, -1)
+            rx, ry, dy = (10.0, 3.2, -1) if side else (9.2, 3.3, -1) if quarter else (8.5, 3.2, -1)
         else:
-            rx, ry, dy = (14.5, 3.4, -1) if side else (7.0, 4.0, 0)
+            rx, ry, dy = (14.5, 3.4, -1) if side else (11.0, 3.8, -1) if quarter else (7.0, 4.0, 0)
         k = 1.0 / (1.0 + self.z * 0.07)
         return rx * k, ry * k, int(76 * k), dy
 
@@ -401,6 +411,10 @@ class Cat(Entity):
     def side_view(self):
         return self.view in ("left", "right")
 
+    @property
+    def quarter_view(self):
+        return self.view in QUARTERS
+
     def heading_to(self, x, y):
         return math.atan2(y - self.y, x - self.x)
 
@@ -411,12 +425,23 @@ class Cat(Entity):
         key = f"{name}_{view or self.view}"
         return key if key in self.lib else None
 
+    def _side_on_for(self, name):
+        """At three-quarters, something only drawn side-on (a sniff, a
+        pounce): she turns side-on for it, the nearer side."""
+        if self.quarter_view and self.key_for(name) is None:
+            side = SIDE_OF[self.view]
+            if self.key_for(name, side) is not None:
+                self.view = side
+                self.heading = HEADING[side]
+
     def show(self, name, fps=None, stride=None, loop=True, restart=False, keep_phase=False):
+        self._side_on_for(name)
         key = (self.air and self.key_for(f"{name}~{self.air}")) or self.key_for(name) or self.key_for("stand")
         self.anim.play(key, self.lib[key], fps=fps, stride=stride, loop=loop, restart=restart,
                        keep_phase=keep_phase)
 
     def once(self, name, fps=8.0):
+        self._side_on_for(name)
         if self.key_for(name) is None:
             return
         self.show(name, fps=fps, loop=False, restart=True)
@@ -535,7 +560,7 @@ class Cat(Entity):
             name = "amble"
         else:
             name = "walk"
-        strides = self.strides if self.side_view else self.strides_vertical
+        strides = self._strides()
         self.show(name, stride=strides[name], keep_phase=True)
 
     # ======================================================================
@@ -610,12 +635,18 @@ class Cat(Entity):
         if self._step_clock < TURN_STEP:
             turn = math.copysign(min(abs(diff), TURN_STEP_ANGLE / TURN_STEP * self.dt), diff)
             self.heading = wrap(self.heading + turn)
-            stride = (self.strides if self.side_view else self.strides_vertical)["walk"]
+            stride = self._strides()["walk"]
             self.moved = stride / 4 / TURN_STEP * self.dt       # a quarter of a walk cycle a step
         else:
             self.moved = 0.0
         self.view = view_for(self.heading, self.view)
         self._gait_anim(gait)
+
+    def _strides(self):
+        """Art pixels a gait cycle covers, as she's seen just now."""
+        if self.side_view:
+            return self.strides
+        return self.strides_quarter if self.quarter_view else self.strides_vertical
 
     def _ready(self, gx, gy):
         """A moment before setting off, as a cat takes; heading toward you,
@@ -1268,7 +1299,7 @@ class Cat(Entity):
     def act_groom(self):
         self.label = "grooming"
         self.speed = 0.0
-        if self.view == "back":
+        if self.view in ("back", "br", "bl"):
             yield from self.face("down")
         yield from self.to_posture("sit")
         yield from self.wait(self.rng.uniform(0.4, 0.9))
@@ -1888,7 +1919,7 @@ class Cat(Entity):
             self.view = view_for(self.heading, self.view)
             self.moved = step * 9.0
             self.speed = 0.0
-            strides = self.strides if self.side_view else self.strides_vertical
+            strides = self._strides()
             self.show("trot", stride=strides["trot"], keep_phase=True)
             if self.rng.random() < self.dt * 4:
                 self.world.particles.dust(self.x, self.y, count=1, spread=6.0)
@@ -2219,7 +2250,7 @@ class Cat(Entity):
         end = self.world.time + self.rng.uniform(8.0, 20.0)
         while self.world.time < end and bf.alive and not getattr(bf, "leaving", False):
             dx, dy = bf.x - self.x, bf.y - self.y
-            if (dx > 0) != (self.view == "right") and abs(dx) > 14:
+            if (dx > 0) != (self.facing == "right") and abs(dx) > 14:
                 yield from self.to_posture("stand")
                 yield from self.face("right" if dx > 0 else "left")
                 yield from self.to_posture("sit")

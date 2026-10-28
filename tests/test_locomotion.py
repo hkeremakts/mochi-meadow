@@ -162,5 +162,51 @@ class Walking(unittest.TestCase):
         self.assertLess(seconds, 2.5)
 
 
+class ThreeQuarters(unittest.TestCase):
+    def test_every_gait_and_rest_comes_in_all_eight_views(self):
+        from habitat.entities.cat import cat_library
+        lib = cat_library()
+        for name in ("stand", "walk", "amble", "trot", "run", "stalk", "sit", "sitdown", "standup"):
+            for view in ("right", "fr", "front", "fl", "left", "bl", "back", "br"):
+                self.assertIn(f"{name}_{view}", lib)
+        for air in ("happy", "cross", "wary"):
+            self.assertIn(f"walk~{air}_fr", lib)
+            self.assertIn(f"walk~{air}_bl", lib)
+
+    def test_walking_a_diagonal_she_is_seen_at_three_quarters(self):
+        w = meadow()
+        cat = w.cat
+        cat.x, cat.y = open_ground(w, room=40)
+        cat.heading = math.radians(40)
+        walk(w, (cat.x + 30, cat.y + 26), seconds=1.5)
+        self.assertEqual(cat.view, "fr")
+        self.assertTrue(cat.anim.key.endswith("_fr"))
+
+    def test_something_only_drawn_side_on_turns_her_side_on(self):
+        w = meadow()
+        cat = w.cat
+        cat.view, cat.heading = "fl", math.radians(135)
+        cat.show("sniff", fps=5)
+        self.assertEqual(cat.view, "left")
+        self.assertTrue(cat.anim.key.startswith("sniff_left"))
+
+    def test_turns_no_longer_jump_from_side_on_to_face_on(self):
+        w = World(427, 266, seed=11, clock=fixed_clock(9.0, date=datetime.date(2026, 6, 20)), weather="clear",
+                  weather_locked=True, personality=Personality.neutral())
+        cat = w.cat
+        order = ["right", "fr", "front", "fl", "left", "bl", "back", "br"]
+        jumps, changes, last = 0, 0, cat.view
+        for _ in range(int(900 / DT)):
+            w.update(DT)
+            if cat.view != last:
+                changes += 1
+                steps = abs(order.index(cat.view) - order.index(last))
+                if min(steps, 8 - steps) > 1 and cat.speed > 1.0:
+                    jumps += 1                    # skipped a view while on the move
+                last = cat.view
+        self.assertGreater(changes, 20)
+        self.assertLess(jumps / changes, 0.1, f"{jumps} of {changes} view changes skipped a view")
+
+
 if __name__ == "__main__":
     unittest.main()

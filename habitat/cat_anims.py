@@ -480,16 +480,41 @@ def air_anims():
     return side, views
 
 
+# Three-quarter views (down-right toward you, "fr"; up-right away, "br"; the
+# left ones are mirrors): the side view's poses seen at an angle, for getting
+# about and settling, so a turn passes through them instead of snapping from
+# side-on to face-on.  Anything else is drawn side-on (the cat turns to it).
+QUARTERED = ("stand", "walk", "amble", "trot", "run", "stalk", "sit", "sitdown", "standup")
+QUARTER_VIEWS = {"fr": "fquarter", "br": "bquarter"}
+
+
 def build():
     """{key: [pose, ...]} together with the view each key is drawn in."""
     out = {}
     aired_side, aired_views = air_anims()
-    for name, poses in {**side_anims(), **aired_side}.items():
+    side = {**side_anims(), **aired_side}
+    for name, poses in side.items():
         out[f"{name}_right"] = ("side", poses)
+        if name.split("~")[0] in QUARTERED:
+            for suffix, view in QUARTER_VIEWS.items():
+                out[f"{name}_{suffix}"] = (view, poses)
     for view in ("front", "back"):
         for name, poses in {**front_anims(view), **aired_views[view]}.items():
             out[f"{name}_{view}"] = (view, poses)
     return out
+
+
+MIRRORED = {"right": "left", "fr": "fl", "br": "bl"}     # views drawn facing right, and their mirrors
+
+
+def mirror_key(key):
+    """The left-facing twin of a right-facing key ("walk_fr" -> "walk_fl",
+    "sit_right__blink" -> "sit_left__blink"), or None."""
+    base, sep, tail = key.partition("__")
+    name, _, view = base.rpartition("_")
+    if view not in MIRRORED:
+        return None
+    return f"{name}_{MIRRORED[view]}{sep}{tail}"
 
 
 def head_points():
@@ -499,10 +524,13 @@ def head_points():
     for key, (view, poses) in build().items():
         pts = [ca.head_points(view, p) for p in poses]
         out[key] = pts
-        if key.endswith("_right"):
-            out[key[:-len("_right")] + "_left"] = [(None if m is None else (ca.W - m[0], m[1]), (ca.W - c[0], c[1]))
-                                                   for m, c in pts]
+        twin = mirror_key(key)
+        if twin:
+            out[twin] = [(None if m is None else (ca.W - m[0], m[1]), (ca.W - c[0], c[1])) for m, c in pts]
     return out
+
+
+GAITS = ("walk", "amble", "trot", "run", "stalk")
 
 
 def render_all(progress=None, keep=None):
@@ -522,7 +550,9 @@ def render_all(progress=None, keep=None):
     items = {k: v for k, v in build().items() if keep is None or keep(k)}
     for i, (key, (view, poses)) in enumerate(items.items()):
         lib[key] = [draw(view, p) for p in poses]
-        if view != "back" and any(p.get("eye", 1.0) > 0.75 for p in poses):
+        moving = key.rpartition("_")[0].split("~")[0] in GAITS
+        # Blinks show at rest; mid-stride (and from behind) nobody would see one.
+        if view not in ("back", "bquarter") and not moving and any(p.get("eye", 1.0) > 0.75 for p in poses):
             lib[key + "__blink"] = [draw(view, p.with_(eye=0.0)) if p.get("eye", 1.0) > 0.75 else
                                     draw(view, p) for p in poses]
         if progress:
@@ -541,6 +571,9 @@ STRIDES = {
 # Front/back views have no planted-paw geometry to honour; these give a
 # cadence that matches the side view at the same speed.
 STRIDES_VERTICAL = {"amble": 8.0, "walk": 11.0, "trot": 15.0, "run": 26.0, "stalk": 7.0}
+# At three-quarters the paws sweep a foreshortened stride while the body
+# travels the diagonal: this keeps a planted paw where it was put.
+STRIDES_QUARTER = {k: v * ca.QUARTER_SHORTEN["front"] / math.cos(math.radians(45)) for k, v in STRIDES.items()}
 
 # The ginger cat's kitten: the same animations (the ones it needs), drawn
 # in kitten proportions; its strides are shorter in step with its size.
@@ -548,6 +581,7 @@ KITTEN = ("stand", "walk", "amble", "trot", "run", "sit", "lie", "sleep_curl", "
           "curlup", "uncurl", "crouch", "pounce", "sniff_start", "sniff", "meow_sit", "stand_look", "sit_look")
 KITTEN_STRIDES = {k: v * ca.KITTEN_SCALE / SCALE for k, v in STRIDES.items()}
 KITTEN_STRIDES_VERTICAL = {k: v * ca.KITTEN_SCALE / SCALE for k, v in STRIDES_VERTICAL.items()}
+KITTEN_STRIDES_QUARTER = {k: v * ca.KITTEN_SCALE / SCALE for k, v in STRIDES_QUARTER.items()}
 
 
 def render_kitten():
