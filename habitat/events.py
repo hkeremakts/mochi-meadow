@@ -358,7 +358,7 @@ class Thunderstorm(Effect):
         return max(k, 0.25 * max(0.0, 1.0 - t / self.FLASH))     # and a faint afterglow
 
     def draw_glow(self, r):
-        k = self.brightness()
+        k = self.brightness() * FX["lightning_brightness"]
         if k > 0.02:
             r.screen.fill((int(96 * k), int(100 * k), int(124 * k)), special_flags=pygame.BLEND_ADD)
 

@@ -296,6 +296,7 @@ fireworks_minutes = { mean = 15, sd = 3, min = 8, max = 25 }
 # A summer thunderstorm: silent lightning in little bursts, while the downpour lasts.
 thunderstorm = { mean_wait = 40, excite = 0.05, memory = 25 }
 thunderstorm_minutes = { typical = 8, spread = 0.4, min = 3, max = 25 }
+lightning_brightness = 1.0   # how strongly a flash lights the meadow; 0 for no flashes (if flashing light bothers you)
 butterfly_dance = { typical = 9, spread = 0.25, min = 5, max = 18 }
 
 # How many.
