@@ -136,7 +136,9 @@ native screensaver would do much better.
   - **Night:** mice come out mostly from dusk through the night, fireflies
     glow, and a hedgehog may snuffle past, rolling into a ball if Mochi
     gets too close.
-- **The cat** steers along smooth, curving routes, eases into bends, and
+- **The cat** is drawn in eight directions (side-on, three-quarters toward
+  you or away, face-on and from behind), so she turns smoothly instead of
+  snapping between views. She steers along smooth, curving routes, eases into bends, and
   turns no tighter than her pace allows. She takes a moment before setting
   off (and glances your way if she's coming toward you), turns on the spot
   in a few deliberate steps when she must, and has three paces: a slow

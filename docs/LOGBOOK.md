@@ -565,6 +565,37 @@ commits are now made only when the full suite reports OK.
   - The shade-following test only ever passed by skipping itself. It now
     picks a meadow where the shade falls on open ground.
 
+## 2026-10-29 · Movement step 2: eight directions
+
+**Asked:** "now do the step 2".
+- **The views:** `cat_art.three_quarter()` turns a side pose to
+  three-quarters, so the side skeleton is seen at an angle:
+  - shortened along its length (`QUARTER_SHORTEN`)
+  - the far end higher (`QUARTER_DEPTH`), the nearest paws staying on the
+    ground line
+  - chest and rump a little wider
+  - the face turned to you (toward) or the back of her head (away)
+  - **Tuning:** going away first looked as if she were climbing, so its
+    depth is lower (0.17 against 0.32) and her head sits a little lower.
+- **Coverage:** `QUARTERED` animations (stand, walk, amble, trot, run,
+  stalk, sit, sitdown, standup, and their moods) are built for "fr" and
+  "br". The left ones are mirrors, via `cat_anims.mirror_key`.
+- **View choice:** `view_for` now has 8 sectors, with hysteresis.
+  `_side_on_for` turns her side-on for anything only drawn side-on.
+- **Fixes on the way:**
+  - **Strides:** `STRIDES_QUARTER` keeps planted paws put.
+  - **Gift and bow:** their positions are worked out for the new views.
+  - **Smaller fixes:** shadow size, grooming from behind, and the gift's
+    flip.
+  - **Outline pinholes:** `despeckle` now also fills outline-coloured
+    pinholes inside her shape.
+- **Cost:** about 11 MB more (3,550 frames against 2,870), after dropping
+  blinks mid-stride (about 770 frames nobody would see). The one-off
+  redraw after an art change is about 9 s. CPU per frame is unchanged.
+- **Tests:** in `test_locomotion.ThreeQuarters`, every view exists,
+  diagonals use them, side-on-only actions turn her side-on, and turns
+  skip views less than 10% of the time.
+
 - **Known, not fixed:** two meadows starting at the same moment right after
   an art change can collide while redrawing the sprite cache. This was seen
   when six preview renders ran at once. It's rare in real use.
@@ -583,12 +614,7 @@ commits are now made only when the full suite reports OK.
     Bosphorus in late August, geese heading south in autumn.
   - **Movement, step 1:** done on 2026-10-29 (see above). Waiting on the
     owner's verdict from watching it.
-  - **Movement, step 2: three-quarter views**, giving her 8 directions, so
-    turns stop snapping between side-on and face-on.
-    - It needs a new view for her rig, then her walks and idles drawn in
-      it: about 500 frames (around 8 MB) and a few more seconds of
-      one-off redraw.
-    - Look at it after step 1 has been seen.
+  - **Movement, step 2:** done on 2026-10-29 (see above).
 - **A testing mode** (owner, 2026-10-28: "increasing the clock speed for
   faster testing … the program can switch to testing mode and stops
   following to normal day-night or moon cycles and goes on with its own

@@ -96,6 +96,10 @@ N new meadow, S screenshot, F fullscreen. In `--screensaver` any key quits.
   guards arriving without circling, turn speeds, paces and stepped turns.
   Walking variety (pace drift, pauses, glances, pace choice) uses the cat's
   own `gait_rng`, not `self.rng`.
+- Views: eight (`right`, `fr`, `front`, `fl`, `left`, `bl`, `back`, `br`). The
+  right-facing side and three-quarter keys are drawn and the left ones
+  mirrored (`cat_anims.mirror_key`). Only `QUARTERED` animations exist at
+  three-quarters; anything else turns her side-on (`Cat._side_on_for`).
 - Art changes: look at the frames (render a contact sheet). One style for the
   whole meadow: dark eyes with a glint (`pixelrig.glint_eye`), shadows cool and
   highlights warm, dark plum-tinted outlines, `despeckle` in every finish.
