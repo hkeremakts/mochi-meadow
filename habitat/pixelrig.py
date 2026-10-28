@@ -199,6 +199,30 @@ def shade(grid, rules):
     return out
 
 
+def despeckle(grid, keep=()):
+    """Merge lone pixels into their surroundings: a pixel inside the shape
+    (filled on all four sides) that shares its colour with none of its
+    eight neighbours takes the colour most of them have.  These are crumbs
+    left where creases and shading meet; they read as dirt.  Colours in
+    ``keep`` (a nose, an inner ear) are left alone."""
+    h, w = grid.shape
+    pad = np.pad(grid, 1)
+    shifts = [pad[1 + dy:1 + dy + h, 1 + dx:1 + dx + w]
+              for dy in (-1, 0, 1) for dx in (-1, 0, 1) if dx or dy]
+    lone = grid > 0
+    for n in shifts:
+        lone &= n != grid
+    for n in (pad[:-2, 1:-1], pad[2:, 1:-1], pad[1:-1, :-2], pad[1:-1, 2:]):
+        lone &= n > 0
+    for k in keep:
+        lone &= grid != k
+    out = grid.copy()
+    for y, x in zip(*np.nonzero(lone)):
+        around = [int(n[y, x]) for n in shifts if n[y, x] > 0]
+        out[y, x] = max(set(around), key=around.count)
+    return out
+
+
 def outline(grid, color, diagonal=False):
     """One-pixel outline around the silhouette."""
     filled = grid > 0

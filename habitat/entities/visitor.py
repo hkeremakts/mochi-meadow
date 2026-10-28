@@ -28,6 +28,7 @@ GINGER = {
     cat_art.CREAM_SH: (210, 188, 160),
     cat_art.PINK: (226, 146, 136),
     cat_art.IRIS: (222, 172, 62),
+    cat_art.MARK: (212, 126, 58),     # Mochi's blaze and tail tip are hers: on him, plain coat
 }
 
 

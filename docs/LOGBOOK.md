@@ -309,11 +309,66 @@ account until lots of people want the Swift version.
   - A hook was considered and judged unnecessary, because it could only
     remind, not write.
 
+## 2026-10-28 · Remodelling Mochi: research, tools and the storybook look
+
+- **Asked:** "Search the internet to make the models more visually pleasing.
+  If you can find a skill that is reliable and usable great … the cat … can
+  have more personality in the model."
+- **What held her back:**
+  - realistic proportions (a small head and long legs), so at this size she
+    read stiff and a bit dog-like
+  - one-pixel eyes
+  - a grey coat at about 3% saturation, the same value as the grass
+- **Research:** saint11's "Cuteness" tutorial, ClanGen's cat sprite guide,
+  Slynyrd on colour ramps that shift hue, and pixel-art-studio's checklists.
+  They agree on:
+  - big head, ears and eyes
+  - dark, shiny eyes
+  - cool shadows and warm highlights
+  - silhouette first
+  - ears and tail that carry mood
+- **Skills and tools looked at:**
+  - **Rejected:** pixel-art-studio, claude-pxl, willibrandon's
+    Aseprite-based plugin, and uilianks' pxl/vex/kiln/loom/chirp. None can
+    drive our posable rig. Each would mean hand-drawing about 70
+    animations, and some need Aseprite or would take over the workflow.
+  - **Kept:** pxl's "lint" idea, rewritten in Python as `tests/pixel_lint.py`.
+- **Agent Reach:** installed to read a Reddit post. Reddit blocks it
+  without a login, so the owner pasted the post instead. Removed again at
+  the owner's request.
+- **Model sheet:** three versions (now, storybook, chibi) drawn from the
+  same rig in eleven poses. The owner chose **storybook**: "yes storybook is
+  good. Change every necessary model with storybook".
+- **Built, in `cat_art.py`:**
+  - **Proportions:** a head 1.22× bigger and a muzzle 0.8× as long, legs
+    0.9×, and a fuller body. `proportioned()` lowers a standing body onto
+    the shorter legs (smoothly, so sitting down still blends) and keeps
+    the bigger head off the ground when she eats or sprawls.
+  - **Eyes:** 2×3 pixels, a dark pupil with a glint top-left and amber
+    showing below.
+  - **Coat:** a slate blue-grey ramp (cool shadow, warm light) with a plum
+    outline, darker than the grass.
+  - **Her own marks:** a white blaze and a white tail tip, in their own
+    `MARK` palette slot. The ginger visitor maps that slot to his coat, so
+    the marks stay hers.
+  - **Clean-up:** a `despeckle` pass in `pixelrig.py` merges lone crumbs
+    left by the crease lines. Stray pixels went from 4.2 a frame to about
+    0.4 (only her nose, a single pixel on purpose). Doubled corners dropped
+    by about a third.
+- **Unchanged:** her mouth reach (21), so meadow layouts don't move.
+  Frames are drawn once and cached, so CPU use is the same. The first start
+  after the change redraws them.
+- **Also:** the README preview was remade with the new Mochi.
+
 ---
 
 ## Open items
 
-- **Push** the shade (`9e5e996`) and marks (`ff3a779`) commits to GitHub.
+- **Body language** (agreed as the next step of the remodel): tail and ears
+  follow her mood: tail up when happy, a flick when annoyed, ears flat for
+  the fox or the rain.
+- **Other animals** could get the same treatment (cool-to-warm colour
+  ramps, plum outlines) so the meadow stays one style. Not done; ask first.
 - **Watch it for a day or two** and tune from real viewing: event rates,
   captions, season colours, and whether 15 fps calm mode shows.
 - **Ideas parked from the 2026-10-21 brainstorm:**

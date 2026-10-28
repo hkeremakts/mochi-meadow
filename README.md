@@ -132,6 +132,12 @@ native screensaver would do much better.
 
 ## Mochi
 
+A slate-grey cat with white socks, bib and muzzle, and marks of her own: a
+white blaze up her face and a white tip to her tail. She's drawn in
+"storybook" proportions: a believable cat, with a bigger, rounder head,
+a shorter muzzle, big dark eyes that catch the light, and a soft, fuller
+body on shorter legs.
+
 Every Mochi is a little different, and stays herself. The first time the
 meadow runs she gets a character, kept in the journal from then on:
 

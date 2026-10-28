@@ -70,7 +70,8 @@ N new meadow, S screenshot, F fullscreen. In `--screensaver` any key quits.
   `places.py` (places she remembers and goes back to), `journal.py` (atomic
   JSON persistence).
 - Art: procedural puppets drawn in code. `pixelrig.py` is the rig.
-  `cat_art.py`/`cat_anims.py` draw Mochi, plus `bird_art.py`, `fox_art.py`,
+  `cat_art.py`/`cat_anims.py` draw Mochi in "storybook" proportions (see the
+  logbook, 2026-10-28), plus `bird_art.py`, `fox_art.py`,
   `deer_art.py`, `pond_art.py` and `critter_art.py`. Frames are cached in
   `assets/generated/` (git-ignored, redrawn when the drawing code's hash
   changes, so the first start after an art change takes about 5 s).
@@ -84,6 +85,8 @@ N new meadow, S screenshot, F fullscreen. In `--screensaver` any key quits.
 
 - Test first for bugs and behaviour, and keep the whole suite green. Use seeded
   simulations to check that a refactor changes nothing.
+- Art changes: look at the frames (render a contact sheet), and keep
+  `tests/pixel_lint.py`'s checks (no stray pixels) passing in `test_cat_art.py`.
 - Commit messages describe what you'd see in the meadow (look at `git log`).
 - Before pushing, ask unless the owner already said to push.
 - When something notable is decided, add a dated entry to `docs/LOGBOOK.md`.

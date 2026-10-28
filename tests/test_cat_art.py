@@ -6,11 +6,14 @@ import unittest
 os.environ.setdefault("PYGAME_HIDE_SUPPORT_PROMPT", "1")
 os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
 
+import numpy as np
 import pygame
 
-from habitat import cat_anims
+from habitat import cat_anims, cat_art
 from habitat.cat_art import GROUND, SCALE
-from habitat.entities.cat import cat_library, view_for
+from habitat.entities.cat import cat_library, eye_pixels, view_for
+from habitat.pixelrig import despeckle
+from tests.pixel_lint import orphans
 from tests.support import fixed_clock
 from habitat.world import World
 
@@ -147,6 +150,51 @@ class Body(unittest.TestCase):
                 blinked = True
                 break
         self.assertTrue(blinked)
+
+
+class Craft(unittest.TestCase):
+    """The look holds up as pixel art, and the storybook design is there."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.lib = cat_library()
+
+    def colours(self, frame):
+        w, h = frame.get_size()
+        return {tuple(frame.get_at((x, y)))[:3] for y in range(h) for x in range(w) if frame.get_at((x, y)).a}
+
+    def test_no_stray_pixels(self):
+        nose = cat_art.PALETTE[cat_art.PINK]      # a nose is one pixel on purpose
+        for key, frames in self.lib.items():
+            if key.endswith("_left") or "__blink" in key:
+                continue
+            for i, frame in enumerate(frames):
+                strays = [p for p in orphans(frame) if tuple(frame.get_at(p))[:3] != nose]
+                self.assertEqual(strays, [], f"{key}[{i}]")
+
+    def test_she_has_her_own_marks_and_the_visitor_does_not(self):
+        from habitat.entities.visitor import ginger_library
+        mark = cat_art.PALETTE[cat_art.MARK]
+        for key in ("stand_right", "sit_front", "sit_back", "hiss_right"):
+            self.assertIn(mark, self.colours(self.lib[key][0]), f"{key}: blaze or tail tip")
+            self.assertNotIn(mark, self.colours(ginger_library()[key][0]), key)
+
+    def test_big_eyes_with_a_glint(self):
+        frame = self.lib["sit_front"][0]
+        shine = cat_art.PALETTE[cat_art.SHINE]
+        pupils = [(x, y) for y in range(64) for x in range(64)
+                  if frame.get_at((x, y)).a and tuple(frame.get_at((x, y)))[:3] == cat_art.PALETTE[cat_art.PUPIL]]
+        self.assertGreaterEqual(len(pupils), 6, "three dark pixels an eye")
+        self.assertEqual(len(eye_pixels(frame)), 2)
+        self.assertEqual(cat_art.EYE_SHINE, shine)
+
+    def test_despeckle_merges_crumbs_and_keeps_what_it_is_told(self):
+        grid = np.full((5, 5), 4, dtype=np.uint8)
+        grid[2, 2] = 3
+        self.assertEqual(despeckle(grid)[2, 2], 4)
+        self.assertEqual(despeckle(grid, keep=(3,))[2, 2], 3)
+        grid[2, 3] = 3                            # two together are a shape, not a crumb
+        self.assertEqual(despeckle(grid)[2, 2], 3)
 
 
 if __name__ == "__main__":

@@ -16,7 +16,7 @@ import math
 
 from . import cat_art as ca
 from .cat_art import BACK, BACK_SIT, FRONT, FRONT_SIT, GROUND, SCALE, SIDE
-from .pixelrig import Pose, ease, rot
+from .pixelrig import Pose, ease
 
 # =============================================================================
 # Key poses (side view, facing right)
@@ -64,7 +64,7 @@ REAR = SIT.with_(hip=(27.5, 40.0), sho=(31.0, 28.0), chest=(4.6, 6.2), head=(33.
 
 # Where the cat's nose is while eating or drinking, in art pixels from the
 # feet: game code lines the bowl and the water up with it.
-_nx, _ny = rot(5.7, 0.5, EAT.tilt)
+_nx, _ny = ca.side_at(0.0, 0.0, EAT.tilt, *ca.NOSE)
 MOUTH_REACH = round((EAT.head[0] + _nx - ca.CX) * SCALE)
 
 # =============================================================================
