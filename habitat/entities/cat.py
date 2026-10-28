@@ -77,15 +77,19 @@ def eye_pixels(frame):
     return hit
 
 
+def with_left(lib):
+    """Add the left-facing frames: mirrors of the right-facing ones."""
+    for key in list(lib):
+        if "_right" in key:
+            lib[key.replace("_right", "_left")] = [pygame.transform.flip(f, True, False) for f in lib[key]]
+    return lib
+
+
 def cat_library():
     """Mochi's frames, drawn once and cached under assets/generated."""
     if not _LIBRARY:
         sources = [cat_art.__file__, cat_anims.__file__, pixelrig.__file__]
-        lib = generated_library("mochi", sources, cat_anims.render_all)
-        for key in list(lib):
-            if "_right" in key:
-                lib[key.replace("_right", "_left")] = [pygame.transform.flip(f, True, False) for f in lib[key]]
-        _LIBRARY.update(lib)
+        _LIBRARY.update(with_left(generated_library("mochi", sources, cat_anims.render_all)))
     return _LIBRARY
 
 
@@ -175,6 +179,8 @@ class Cat(Entity):
         self._ignored = {}  # id(prey) -> time until which the cat ignores it
         self._noticed = set()     # ids of creatures whose place she has already remembered
         self.air = None           # how she carries her tail and ears: happy, cross, wary, or calm (None)
+        self.strides = cat_anims.STRIDES                      # art pixels a gait cycle covers (a kitten's are shorter)
+        self.strides_vertical = cat_anims.STRIDES_VERTICAL
         self.wet = 0.0            # seconds of rain her coat has taken
         self._blink = 0.0
         self._next_blink = self.rng.uniform(1.0, 4.0)
@@ -502,7 +508,7 @@ class Cat(Entity):
             name = "trot"
         else:
             name = "walk"
-        strides = cat_anims.STRIDES if self.side_view else cat_anims.STRIDES_VERTICAL
+        strides = self.strides if self.side_view else self.strides_vertical
         self.show(name, stride=strides[name], keep_phase=True)
 
     # ======================================================================
@@ -1730,7 +1736,7 @@ class Cat(Entity):
             self.view = view_for(self.heading, self.view)
             self.moved = step * 9.0
             self.speed = 0.0
-            strides = cat_anims.STRIDES if self.side_view else cat_anims.STRIDES_VERTICAL
+            strides = self.strides if self.side_view else self.strides_vertical
             self.show("trot", stride=strides["trot"], keep_phase=True)
             if self.rng.random() < self.dt * 4:
                 self.world.particles.dust(self.x, self.y, count=1, spread=6.0)

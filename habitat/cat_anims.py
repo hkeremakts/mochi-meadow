@@ -490,8 +490,9 @@ def head_points():
     return out
 
 
-def render_all(progress=None):
-    """{key: [Surface, ...]} including the ``__blink`` twins."""
+def render_all(progress=None, keep=None):
+    """{key: [Surface, ...]} including the ``__blink`` twins (only the keys
+    ``keep(key)`` accepts, if given)."""
     lib = {}
     cache = {}
 
@@ -503,7 +504,7 @@ def render_all(progress=None):
             cache[k] = hit
         return hit
 
-    items = build()
+    items = {k: v for k, v in build().items() if keep is None or keep(k)}
     for i, (key, (view, poses)) in enumerate(items.items()):
         lib[key] = [draw(view, p) for p in poses]
         if view != "back" and any(p.get("eye", 1.0) > 0.75 for p in poses):
@@ -524,3 +525,15 @@ STRIDES = {
 # Front/back views have no planted-paw geometry to honour; these give a
 # cadence that matches the side view at the same speed.
 STRIDES_VERTICAL = {"walk": 11.0, "trot": 15.0, "run": 26.0, "stalk": 7.0}
+
+# The ginger cat's kitten: the same animations (the ones it needs), drawn
+# in kitten proportions; its strides are shorter in step with its size.
+KITTEN = ("stand", "walk", "trot", "run", "sit", "lie", "sleep_curl", "sitdown", "standup", "liedown", "situp",
+          "curlup", "uncurl", "crouch", "pounce", "sniff_start", "sniff", "meow_sit", "stand_look", "sit_look")
+KITTEN_STRIDES = {k: v * ca.KITTEN_SCALE / SCALE for k, v in STRIDES.items()}
+KITTEN_STRIDES_VERTICAL = {k: v * ca.KITTEN_SCALE / SCALE for k, v in STRIDES_VERTICAL.items()}
+
+
+def render_kitten():
+    with ca.kitten():
+        return render_all(keep=lambda key: key.rsplit("_", 1)[0] in KITTEN)

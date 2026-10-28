@@ -11,11 +11,12 @@ import math
 import numpy as np
 import pygame
 
-from .. import cat_art
+from .. import cat_anims, cat_art, pixelrig
+from ..assets import generated_library
 from ..chance import sample
 from ..personality import BEST_FRIENDS
 from ..settings import SETTINGS
-from .cat import UNREACHABLE, Cat, cat_library
+from .cat import UNREACHABLE, Cat, Mark, cat_library, with_left
 
 # Mochi's palette index -> the visitor's colour.
 GINGER = {
@@ -31,6 +32,20 @@ GINGER = {
     cat_art.MARK: (212, 126, 58),     # Mochi's blaze and tail tip are hers: on him, plain coat
 }
 
+
+# His kitten: paler, a cream-ginger.
+KITTEN_COAT = {
+    cat_art.OUT: (74, 40, 30),
+    cat_art.DEEP: (150, 84, 46),
+    cat_art.DARK: (190, 112, 56),
+    cat_art.BASE: (230, 150, 76),
+    cat_art.LIGHT: (246, 186, 112),
+    cat_art.CREAM: (246, 234, 212),
+    cat_art.CREAM_SH: (214, 194, 168),
+    cat_art.PINK: (236, 150, 150),
+    cat_art.IRIS: (120, 160, 196),        # kittens' eyes are blue
+    cat_art.MARK: (246, 234, 212),        # a white blaze and tail tip, as kittens often have
+}
 
 STAYS = SETTINGS["effects"]["stays"]
 
@@ -72,6 +87,17 @@ def ginger_library():
     if not _GINGER:
         _GINGER.append(Recoloured(cat_library(), GINGER))
     return _GINGER[0]
+
+
+_KITTEN = []
+
+
+def kitten_library():
+    if not _KITTEN:
+        sources = [cat_art.__file__, cat_anims.__file__, pixelrig.__file__]
+        frames = with_left(generated_library("kitten", sources, cat_anims.render_kitten))
+        _KITTEN.append(Recoloured(frames, KITTEN_COAT))
+    return _KITTEN[0]
 
 
 class VisitorCat(Cat):
@@ -208,3 +234,107 @@ class VisitorCat(Cat):
         off = -30 if self.entry[0] < world.width / 2 else world.width + 30
         yield from self.step_to(off, self.y, speed=24.0)
         self.alive = False
+
+
+class Kitten(Cat):
+    """The ginger cat's kitten, once he and Mochi are old friends: it trots
+    along behind him, bounds over to touch noses with Mochi, pounces at
+    her tail, scampers about, and follows him home."""
+
+    kind = "kitten"
+
+    def __init__(self, world, parent):
+        behind = -14.0 if parent.side < 0 else 14.0
+        super().__init__(world, parent.x + behind, parent.y + 4, name="the kitten")
+        self.lib = kitten_library()
+        self.parent = parent
+        self.strides = cat_anims.KITTEN_STRIDES
+        self.strides_vertical = cat_anims.KITTEN_STRIDES_VERTICAL
+        self.posture = "stand"
+        self.facing = parent.facing
+        self.met = False
+        self.idle_pose()
+        self._start("tag along", self.act_tag_along(), interruptible=False)
+
+    def _perceive(self):
+        pass
+
+    def _choose(self):
+        return "tag along", self.act_tag_along()
+
+    def _update_needs(self, dt):
+        pass
+
+    def _follow(self, gap=16.0):
+        """A little way behind its parent."""
+        parent = self.parent
+        behind = -gap if math.cos(parent.heading) >= 0 else gap
+        goal = (parent.x + behind, parent.y + 3)
+        if math.hypot(goal[0] - self.x, goal[1] - self.y) > 6:
+            if self.world.terrain.walkable(*goal):
+                yield from self.go(*goal, gait="trot", max_time=0.6, stop=False)
+            else:
+                yield from self.step_to(*goal, speed=40.0)
+        else:
+            if self.speed:
+                yield from self.settle()
+            yield
+
+    def act_tag_along(self):
+        world = self.world
+        mochi = world.cat
+        rng = self.rng
+        parent = self.parent
+        while parent.alive:
+            phase = parent.phase
+            if phase in ("friendly", "play", "snuggle") and not self.met:
+                self.met = True
+                yield from self.meet(mochi)
+            elif phase in ("arriving", "greeting", "leaving") or self.distance_to(parent) > 40:
+                self.label = "trotting after the ginger cat"
+                yield from self._follow()
+            else:
+                self.label = "sitting by the ginger cat"
+                if self.posture != "sit":
+                    yield from self.settle()
+                    yield from self.to_posture("sit")
+                if rng.random() < self.dt * 0.1:
+                    yield from self.once("meow_sit", fps=7)
+                    self.idle_pose()
+                yield
+        # He's gone home: off after him, at a scamper.
+        self.label = "scampering home"
+        off = -30.0 if self.x < world.width / 2 else world.width + 30.0
+        yield from self.step_to(off, self.y, speed=46.0)
+        self.alive = False
+
+    def meet(self, mochi):
+        """Over to Mochi: noses, a pounce at her tail, a scamper or two."""
+        rng = self.rng
+        world = self.world
+        self.label = "bounding over to Mochi"
+        side = -18 if self.parent.x > mochi.x else 18        # her other side from the ginger cat
+        if not world.terrain.walkable(mochi.x + side, mochi.y + 2):
+            side = -side
+        yield from self.go(mochi.x + side, mochi.y + 2, gait="trot", max_time=6.0)
+        yield from self.face("right" if mochi.x > self.x else "left")
+        mochi.attend("kitten", mochi.act_gaze(self.x, self.y, rng.uniform(4.0, 7.0), "meeting the kitten"))
+        self.label = "touching noses with Mochi"
+        yield from self.once("sniff_start", fps=8)
+        self.show("sniff", fps=5)
+        yield from self.wait(rng.uniform(1.5, 2.5))
+        self.idle_pose()
+        tail = Mark("tail", mochi.x + (-12 if math.cos(mochi.heading) >= 0 else 12), mochi.y)
+        if world.terrain.walkable(tail.x, tail.y):
+            self.label = "pouncing on Mochi's tail"
+            yield from self.pounce(tail)
+        self.interruptible = False
+        for _ in range(rng.randint(2, 3)):
+            angle = rng.uniform(0, 2 * math.pi)
+            gx = self.x + math.cos(angle) * rng.uniform(25, 55)
+            gy = self.y + math.sin(angle) * rng.uniform(15, 35)
+            if world.terrain.walkable(gx, gy) and world.terrain.regions.connected((self.x, self.y), (gx, gy)):
+                self.label = "scampering about"
+                yield from self.go(gx, gy, gait="run", max_time=3.0)
+                yield from self.wait(rng.uniform(0.3, 0.9))
+        mochi.p.feel(0.25)

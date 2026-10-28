@@ -26,6 +26,7 @@ the grass, cool in shadow and warmer where the light catches it, and she
 has marks of her own: a white blaze up her face and a white tail tip.
 """
 
+import contextlib
 import math
 
 from .pixelrig import Canvas, Pose, despeckle, outline, rot, shade, to_surface, two_bone
@@ -123,7 +124,22 @@ def face_at(hx, hy, dx, dy):
 
 
 NOSE = (5.7, 0.5)                  # in profile
-FRONT_NOSE = 1.3 - (1 - MUZZLE) * 1.5   # below the face's centre, seen from the front
+
+KITTEN_SCALE = 0.74                # a kitten: about two-thirds of her size...
+
+
+@contextlib.contextmanager
+def kitten():
+    """Draw a kitten instead of Mochi while this is open: smaller, mostly
+    head, short in the leg and round in the body.  The same rig, so the
+    pixels stay as crisp as hers (a scaled-down copy would not be)."""
+    global SCALE, HEAD, MUZZLE, LEGS, LOWER, WAIST, BELLY
+    saved = SCALE, HEAD, MUZZLE, LEGS, LOWER, WAIST, BELLY
+    SCALE, HEAD, MUZZLE, LEGS, LOWER, WAIST, BELLY = KITTEN_SCALE, 1.5, 0.7, 0.82, 2.2, 1.35, 0.9
+    try:
+        yield
+    finally:
+        SCALE, HEAD, MUZZLE, LEGS, LOWER, WAIST, BELLY = saved
 
 
 def canvas():
@@ -394,8 +410,9 @@ def _front_face(c, hx, hy, p, features, late):
             c.paint(c.ellipse(*at(0, 3.5 - drawn_in + p.mouth * 1.2), 0.9, 0.8), PINK)
     _eye(c, features, *at(-3.1, -0.9), p.eye, front=True)
     _eye(c, features, *at(1.8, -0.9), p.eye, front=True)
-    features.append((*at(-0.4, FRONT_NOSE), PINK))
-    features.append((*at(0.4, FRONT_NOSE), PINK))
+    nose = 1.3 - drawn_in                    # below the face's centre
+    features.append((*at(-0.4, nose), PINK))
+    features.append((*at(0.4, nose), PINK))
     for side in (-1, 1):
         for dx, dy in ((6.8, 1.4), (7.8, 1.0), (6.8, 2.8), (7.8, 3.2)):
             late.append((*at(side * dx, dy), LIGHT))

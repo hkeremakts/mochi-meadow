@@ -271,6 +271,7 @@ legendary = 1440
 "a duck and her ducklings" = 480
 "the golden butterfly" = 720
 "a deer at dawn" = 1440
+"the ginger cat's kitten" = 2880
 
 # Events that belong to a time of day: smooth peaks on the clock (standard hours).
 [events.hours]

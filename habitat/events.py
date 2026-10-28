@@ -31,6 +31,7 @@ from .entities.cat import Mark
 from .entities.wildlife import (Bat, Bird, BirdFlock, Butterfly, Crow, Deer, Duck, Fox, GoldenButterfly, Grasshopper,
                                 Heron, Moth, PeekingMouse, Pumpkin, Sparrow, art, halloween)
 from .chance import Hawkes, count, lognormal, peaks, sample
+from .personality import BEST_FRIENDS
 from .settings import SETTINGS
 from .util import clamp, value_noise
 
@@ -1137,6 +1138,29 @@ class GingerVisit(Event):
         return True
 
 
+class KittenVisit(Event):
+    name, tier, title = "the ginger cat's kitten", "legendary", "The ginger cat has brought his kitten!"
+
+    def affinity(self, p):
+        return p.lean("affectionate", 0.6, 1.6)
+
+    def ready(self, world):
+        env = world.env
+        p = getattr(world, "personality", None) or world.cat.p
+        kitten_time = 0.25 <= env.sky.year_phase <= 0.65        # spring into summer
+        return (kitten_time and p.friendship("ginger") >= BEST_FRIENDS and env.sun > 0.2 and env.rain < 0.05
+                and world.count("visitor") == 0)
+
+    def start(self, world, events):
+        from .entities.visitor import Kitten, VisitorCat
+        visitor = VisitorCat(world)
+        if visitor.entry is None:
+            return None
+        world.entities.append(visitor)
+        world.entities.append(Kitten(world, visitor))
+        return True
+
+
 class FourthWall(Event):
     name, tier, title = "Mochi noticed you", "rare", "Mochi has noticed you"
 
@@ -1329,7 +1353,7 @@ ROLLED = [TailChase(), DandelionSeeds(), FallingFeather(), CrowVisit(), MousePee
           GrasshopperVisit(), Moths(), AfterRain(), TwoButterflies(), DewyWeb(),
           MorningMist(), RainbowEvent(), ThunderstormEvent(), LeafWhirl(), DuskBats(), AGift(),
           ShootingStarEvent(), FourthWall(), GingerVisit(), FoxVisit(), HeronVisit(), DuckFamily(),
-          GoldenButterflyEvent(), DeerAtDawn()]
+          GoldenButterflyEvent(), DeerAtDawn(), KittenVisit()]
 NOTICES = [Birthday(), FullMoon(), LunarEclipse(), MeteorShowerNotice(), FirstSnow(), NewYear(), Halloween()]
 ALL = {e.name: e for e in ROLLED + NOTICES}
 # Cooldowns and omens come from the settings.
@@ -1340,7 +1364,8 @@ for _event in ALL.values():
 
 # How a recap says each event ("While you were away, Mochi saw ...").
 RECAP = {"Mochi noticed you": "came to the screen looking for you", "the ginger cat": "had a visit from the ginger cat",
-         "a carved pumpkin": None, "New Year fireworks": "hid from the New Year fireworks"}
+         "a carved pumpkin": None, "New Year fireworks": "hid from the New Year fireworks",
+         "the ginger cat's kitten": "met the ginger cat's kitten"}
 
 
 def recap(summary, name, now):
