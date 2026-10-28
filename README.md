@@ -10,6 +10,10 @@ the wildlife comes and goes with them.
 
 ![Six scenes from the meadow](screenshots/preview.png)
 
+Everything is drawn in code, in one storybook style: believable animals
+with eyes that catch the light, colours cool in shadow and warm in the
+sun, and soft dark outlines.
+
 ## Setup
 
 ```bash

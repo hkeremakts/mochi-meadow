@@ -7,11 +7,15 @@ strikes, swallows, and flies with its neck tucked into an S and its legs
 trailing.  The duck waddles, swims low in the water (everything under the
 waterline is cut away) and up-ends to feed.  Ducklings are the same
 puppet, small, fluffy and yellow.
+
+Both are drawn in the meadow's storybook style: colours cool in shadow and
+warm in the light, dark plum-tinted outlines, and (on the heron, whose
+head is big enough) an eye with a glint.
 """
 
 import math
 
-from .pixelrig import Canvas, Pose, ease, outline, rot, shade, to_surface
+from .pixelrig import Canvas, Pose, despeckle, ease, glint_eye, outline, rot, shade, to_surface
 
 # --------------------------------------------------------------------------
 # Heron
@@ -24,19 +28,21 @@ HERON_SCALE = 1.5
 HERON_SHIFT = 14
 HERON_ANCHOR = (int(HERON_CX) + HERON_SHIFT, int(HERON_GROUND) + HERON_HEADROOM)
 
-H_CLEAR, H_OUT, H_DARK, H_BASE, H_LIGHT, H_WHITE, H_BLACK, H_BILL, H_LEG, H_EYE, H_WING = range(11)
+H_CLEAR, H_OUT, H_DARK, H_BASE, H_LIGHT, H_WHITE, H_BLACK, H_BILL, H_LEG, H_EYE, H_WING, H_PUPIL, H_SHINE = range(13)
 HERON_PALETTE = [
     None,
-    (40, 42, 50),       # OUT
-    (88, 92, 104),      # DARK
+    (40, 38, 56),       # OUT    dark slate-plum
+    (82, 86, 110),      # DARK   cooler
     (138, 142, 152),    # BASE   grey back
-    (172, 176, 184),    # LIGHT
-    (226, 228, 230),    # WHITE  neck and face
-    (30, 30, 36),       # BLACK  crest, wing tips, neck streaks
-    (214, 178, 70),     # BILL   yellow dagger
-    (170, 150, 96),     # LEG
-    (230, 200, 60),     # EYE
-    (110, 114, 126),    # WING   folded wing
+    (182, 180, 182),    # LIGHT  warmer
+    (234, 232, 226),    # WHITE  neck and face
+    (30, 28, 40),       # BLACK  crest, wing tips, neck streaks
+    (224, 184, 70),     # BILL   yellow dagger
+    (176, 152, 96),     # LEG
+    (234, 204, 60),     # EYE    yellow, round the pupil
+    (106, 110, 130),    # WING   folded wing
+    (22, 18, 28),       # PUPIL
+    (240, 244, 244),    # SHINE
 ]
 HERON_SHADE = {H_BASE: (H_LIGHT, H_DARK), H_WHITE: (None, H_LIGHT)}
 
@@ -99,10 +105,11 @@ def draw_heron(p):
     perp = (-math.sin(a) * 0.9, math.cos(a) * 0.9)
     c.paint(c.polygon([(hx + 1.2 - perp[0], hy - perp[1]), tip, (hx + 1.2 + perp[0], hy + perp[1])]), H_BILL)
     c.paint(c.capsule(hx - 0.4, hy - 1.2, hx - 6.0, hy - 1.8, 0.5, 0.3), H_BLACK)                # crest
-    features.append((hx + 0.6, hy - 0.5, H_EYE))
+    glint_eye(c, features, hx + 0.1, hy - 1.0, 1.0, H_PUPIL, H_SHINE, iris=H_EYE)
     if p.flying:
         _heron_wing(c, p, at, far=False)
-    return _finish(c, features, HERON_PALETTE, HERON_SHADE, H_OUT, HERON_W, HERON_H)
+    return _finish(c, features, HERON_PALETTE, HERON_SHADE, H_OUT, HERON_W, HERON_H,
+                   keep=(H_OUT, H_EYE, H_PUPIL, H_SHINE, H_BILL))
 
 
 def _heron_wing(c, p, at, far):
@@ -161,10 +168,10 @@ WATERLINE = DUCK_GROUND - 2.6     # on water, nothing below this shows
 D_CLEAR, D_OUT, D_DARK, D_BASE, D_LIGHT, D_CHEEK, D_STRIPE, D_BILL, D_SADDLE, D_LEG, D_EYE, D_SPEC = range(12)
 HEN = [
     None,
-    (50, 38, 28),
-    (98, 72, 48),       # DARK
+    (52, 34, 44),       # OUT     dark plum-brown
+    (94, 66, 58),       # DARK    cooler
     (140, 106, 72),     # BASE    mottled brown
-    (178, 142, 100),    # LIGHT
+    (192, 154, 100),    # LIGHT   warmer
     (196, 168, 128),    # CHEEK
     (70, 52, 38),       # STRIPE  eye stripe, cap
     (206, 132, 56),     # BILL    orange
@@ -175,10 +182,10 @@ HEN = [
 ]
 DUCKLING = [
     None,
-    (78, 60, 30),
-    (150, 118, 50),
+    (80, 52, 60),       # OUT     brown-plum, softer than the hen's
+    (156, 114, 66),     # DARK    cooler
     (226, 196, 92),     # BASE    downy yellow
-    (244, 222, 128),
+    (250, 230, 136),    # LIGHT   warmer
     (240, 214, 120),
     (110, 84, 40),      # STRIPE  dark back and cap
     (96, 80, 60),       # BILL    grey-brown
@@ -227,7 +234,7 @@ def draw_duck(p, kind="duck"):
         hx, hy = p.head
         neck_from = at(4.6, -1.6)
         c.paint(c.capsule(neck_from[0], neck_from[1], hx - 0.4, hy + 0.8, 2.0, 1.7), D_BASE)
-        head_r = 2.5 if not duckling else 3.0
+        head_r = 2.5 if not duckling else 3.4        # a duckling is mostly head
         c.paint(c.ellipse(hx, hy, head_r, head_r * 0.92), D_BASE)
         c.paint(c.ellipse(hx + 0.2, hy + 0.6, head_r * 0.8, head_r * 0.55), D_CHEEK)
         c.paint(c.capsule(hx - 2.0, hy - 0.4, hx + 1.6, hy - 0.2, 0.35), D_STRIPE)   # eye stripe
@@ -240,7 +247,7 @@ def draw_duck(p, kind="duck"):
         features.append((hx + 0.6, hy - 0.4, D_EYE))
     if p.swim:
         c.idx[c.ys > WATERLINE, :] = 0       # under the water
-    return _finish(c, features, palette, DUCK_SHADE, D_OUT, DUCK_W, DUCK_H)
+    return _finish(c, features, palette, DUCK_SHADE, D_OUT, DUCK_W, DUCK_H, keep=(D_OUT, D_EYE, D_BILL, D_SPEC))
 
 
 def duck_poses():
@@ -269,7 +276,7 @@ def duck_poses():
 
 # --------------------------------------------------------------------------
 
-def _finish(c, features, palette, rules, out, w, h):
+def _finish(c, features, palette, rules, out, w, h, keep=()):
     grid = c.resolve(len(palette))
     grid = shade(grid, rules)
     for x, y, colour in features:
@@ -277,6 +284,7 @@ def _finish(c, features, palette, rules, out, w, h):
         if 0 <= xi < w and 0 <= yi < h and grid[yi, xi]:
             grid[yi, xi] = colour
     grid = outline(grid, out)
+    grid = despeckle(grid, keep=keep)
     return to_surface(grid, palette)
 
 

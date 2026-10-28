@@ -6,26 +6,28 @@ walk, a peck, wing beats, a glide and the flared landing are all
 generated, and walks are stride-locked: the planted foot stays put.
 
 Sizes are true to the cat: a pigeon is about two-thirds of the cat's body
-length, a sparrow less than half of that.
+length, a sparrow less than half of that.  Colours follow the meadow's
+storybook style (cool in shadow, warm in the light, plum-tinted
+outlines), and the crow, big enough for it, has an eye with a glint.
 """
 
 import math
 
-from .pixelrig import Canvas, Pose, ease, outline, rot, shade, to_surface
+from .pixelrig import Canvas, Pose, despeckle, ease, glint_eye, outline, rot, shade, to_surface
 
 W, H = 32, 40
 GROUND = 22.0
 CX = 16.0
 HEADROOM = 8          # canvas rows above the pose space, for raised wings
 
-CLEAR, OUT, DARK, BASE, LIGHT, WING, BAR, NECK_G, NECK_P, FEET, BEAK, CERE, EYE, BELLY, CAP = range(15)
+CLEAR, OUT, DARK, BASE, LIGHT, WING, BAR, NECK_G, NECK_P, FEET, BEAK, CERE, EYE, BELLY, CAP, SHINE = range(16)
 
 PIGEON = [
     None,
     (40, 40, 52),       # OUT
     (86, 88, 104),      # DARK   far wing, shade
     (126, 130, 148),    # BASE   body
-    (160, 164, 180),    # LIGHT
+    (172, 172, 182),    # LIGHT  warmer
     (150, 156, 172),    # WING   folded wing
     (58, 58, 72),       # BAR    wing bars, tail band
     (88, 146, 112),     # NECK_G iridescent green
@@ -36,13 +38,14 @@ PIGEON = [
     (236, 148, 48),     # EYE
     (126, 130, 148),    # BELLY
     (110, 114, 132),    # CAP
+    (240, 244, 244),    # SHINE
 ]
 SPARROW = [
     None,
-    (44, 32, 28),
-    (98, 70, 48),
+    (50, 32, 42),       # OUT    plum-brown
+    (94, 66, 58),       # DARK   cooler
     (150, 112, 74),     # BASE   warm brown back
-    (186, 150, 106),
+    (198, 160, 108),    # LIGHT  warmer
     (132, 92, 58),      # WING
     (62, 42, 30),       # BAR    streaks
     (60, 52, 50),       # NECK_G -> black bib
@@ -51,12 +54,13 @@ SPARROW = [
     (60, 52, 48),
     (210, 200, 182),    # CERE   cheek
     (24, 20, 20),       # EYE
-    (206, 196, 176),    # BELLY  pale front
-    (128, 128, 132),    # CAP    grey crown
+    (210, 200, 180),    # BELLY  pale front
+    (128, 128, 136),    # CAP    grey crown
+    (240, 244, 244),    # SHINE
 ]
 CROW = [
     None,
-    (14, 14, 20),
+    (16, 12, 24),
     (26, 26, 36),
     (40, 40, 52),       # BASE   glossy black
     (66, 68, 90),       # LIGHT  blue sheen on top
@@ -70,6 +74,7 @@ CROW = [
     (12, 10, 14),       # EYE
     (40, 40, 52),
     (36, 36, 48),
+    (232, 236, 240),    # SHINE  the glint that makes a black eye readable
 ]
 # palette, scale, canvas size, offset of the pose space on it, beak length
 SPECIES = {
@@ -140,7 +145,10 @@ def draw(p, species="pigeon"):
     c.paint(c.polygon([(bk0[0], bk0[1] - thick), (bk0[0] + bk1[0], bk0[1] + bk1[1]), (bk0[0], bk0[1] + 0.7 * beak)]),
             BEAK)
     features.append((hx + 1.3, hy - 0.5, CERE))
-    features.append((hx + 0.3, hy - 0.4, EYE))
+    if species == "crow":
+        glint_eye(c, features, hx - 0.2, hy - 0.9, 1.0, EYE, SHINE)
+    else:
+        features.append((hx + 0.3, hy - 0.4, EYE))
     # near wing
     if p.wings == "folded":
         wing = c.ellipse(*at(-0.6, -0.6), 4.4 * bulk, 2.3 * bulk, t - 4)
@@ -157,6 +165,7 @@ def draw(p, species="pigeon"):
         if 0 <= xi < cw and 0 <= yi < ch:
             grid[yi, xi] = col
     grid = outline(grid, OUT)
+    grid = despeckle(grid, keep=(OUT, BAR, NECK_G, NECK_P, FEET, BEAK, CERE, EYE, SHINE))
     return to_surface(grid, palette)
 
 

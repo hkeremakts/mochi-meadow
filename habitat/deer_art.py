@@ -4,13 +4,16 @@ Like the fox it shares the cat's pose conventions (paws ``fn``/``ff``/
 ``hn``/``hf``, ground at y = 48), so the cat's gait generator walks it,
 but it stands far taller: a roe deer is about 70 cm at the shoulder to
 the cat's 25, so the body sits high on long, thin legs and the canvas
-reaches well above the cat's.
+reaches well above the cat's.  Drawn in the meadow's storybook style: a
+slightly bigger head with big ears and a shorter muzzle, large dark eyes
+with a glint, colours cool in shadow and warm in the light, and a dark
+plum-brown outline.
 """
 
 import math
 
 from . import cat_anims
-from .pixelrig import Canvas, Pose, ease, outline, rot, shade, to_surface, two_bone
+from .pixelrig import Canvas, Pose, despeckle, ease, glint_eye, outline, rot, shade, to_surface, two_bone
 
 GROUND = cat_anims.GROUND
 CX = 42.0
@@ -20,21 +23,25 @@ SHIFT_X = 10
 W, H = 104, 98
 ANCHOR = (int(CX) + SHIFT_X, int(GROUND) + HEADROOM)
 
-CLEAR, OUT, DEEP, DARK, BASE, LIGHT, WHITE, WHITE_SH, HOOF, NOSE, EYE, EAR_IN = range(12)
+CLEAR, OUT, DEEP, DARK, BASE, LIGHT, WHITE, WHITE_SH, HOOF, NOSE, EYE, EAR_IN, SHINE = range(13)
 PALETTE = [
     None,
-    (52, 36, 26),       # OUT
-    (98, 64, 42),       # DEEP
-    (126, 86, 58),      # DARK    far legs, belly shade
-    (160, 112, 74),     # BASE    russet-brown coat
-    (190, 144, 100),    # LIGHT   lit back
-    (236, 228, 214),    # WHITE   rump patch, throat, muzzle
-    (196, 184, 168),    # WHITE_SH
-    (40, 30, 26),       # HOOF
-    (28, 22, 20),       # NOSE
-    (30, 22, 18),       # EYE
-    (210, 170, 150),    # EAR_IN
+    (54, 34, 44),       # OUT     dark plum-brown
+    (92, 60, 62),       # DEEP    creases: cooler
+    (124, 86, 74),      # DARK    far legs, belly shade
+    (162, 112, 74),     # BASE    russet-brown coat
+    (204, 158, 104),    # LIGHT   lit back, warmer
+    (242, 234, 214),    # WHITE   rump patch, throat, muzzle
+    (190, 184, 194),    # WHITE_SH  cool
+    (40, 30, 40),       # HOOF
+    (28, 20, 26),       # NOSE
+    (24, 16, 22),       # EYE     big and dark
+    (220, 172, 158),    # EAR_IN
+    (236, 240, 240),    # SHINE
 ]
+HEAD = 1.15            # head size, storybook
+MUZZLE = 0.86          # muzzle length
+EARS = 1.12            # roe deer have big ears
 SHADE_RULES = {BASE: (LIGHT, DARK), WHITE: (None, WHITE_SH)}
 
 UPPER, LOWER = 14.5, 14.0
@@ -116,26 +123,27 @@ def draw(p):
     t = p.tilt
 
     def at(dx, dy):
-        rx, ry = rot(dx, dy, t)
+        if dx > 1.4:
+            dx = 1.4 + (dx - 1.4) * MUZZLE
+        rx, ry = rot(dx * HEAD, dy * HEAD, t)
         return qx + rx, qy + ry
 
     flat = p.ear
     for off, colour in ((-1.4, DARK), (0.6, BASE)):
         base0, base1 = at(-2.6 + off - flat, -2.2 + flat), at(-0.4 + off, -2.8 + flat * 0.5)
-        tip = at(-4.6 + off - flat * 3.0, -7.6 + flat * 4.0)
+        tip = at(-2.6 + off + (-2.0 - flat * 3.0) * EARS, -2.6 + (-5.0 + flat * 4.0) * EARS)
         c.paint(c.polygon([base0, tip, base1]), colour)
         if colour == BASE:
-            c.paint(c.polygon([at(-2.2 + off - flat, -3.0 + flat), at(-4.0 + off - flat * 3.0, -6.6 + flat * 3.6),
+            c.paint(c.polygon([at(-2.2 + off - flat, -3.0 + flat),
+                               at(-2.4 + off + (-1.6 - flat * 3.0) * EARS, -2.8 + (-3.8 + flat * 3.6) * EARS),
                                at(-1.0 + off, -3.4 + flat * 0.5)]), EAR_IN)
-    c.paint(c.ellipse(qx, qy, 3.4, 3.0, t), BASE)
+    c.paint(c.ellipse(qx, qy, 3.4 * HEAD, 3.0 * HEAD, t), BASE)
     muzzle = [at(1.4, -1.8), at(6.8, -0.2), at(7.0, 1.6), at(1.2, 2.6)]
     c.paint(c.polygon(muzzle), BASE)
     c.paint(c.ellipse(*at(5.6, 1.4 + p.chew * 0.5), 1.6, 1.0, t), WHITE)                     # chin
     features.append((*at(6.7, 0.4), NOSE))
     features.append((*at(6.7, 1.0), NOSE))
-    ex, ey = at(0.9, -0.9)
-    features.append((ex, ey, EYE if p.eye > 0.5 else DEEP))
-    features.append((ex + 0.9, ey, EYE if p.eye > 0.5 else DEEP))
+    glint_eye(c, features, *at(0.5, -1.4), p.eye, EYE, SHINE, lid=DEEP)
     grid = c.resolve(len(PALETTE))
     grid = shade(grid, SHADE_RULES)
     for x, y, colour in features:
@@ -143,6 +151,7 @@ def draw(p):
         if 0 <= xi < W and 0 <= yi < H:
             grid[yi, xi] = colour
     grid = outline(grid, OUT)
+    grid = despeckle(grid, keep=(OUT, NOSE, EYE, SHINE, HOOF))
     return to_surface(grid, PALETTE)
 
 

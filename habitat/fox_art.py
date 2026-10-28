@@ -5,13 +5,16 @@ It shares the cat's pose conventions (paws ``fn``/``ff``/``hn``/``hf``,
 drives its legs too: a fox trots on the diagonal, planted paws still.
 
 Proportions are true to the cat: about half as long again nose to tail,
-taller in the leg, with a long brush of a tail.
+taller in the leg, with a long brush of a tail.  Drawn in the meadow's
+storybook style, like Mochi: a slightly bigger head and shorter snout,
+amber eyes with a glint, colours cool in shadow and warm in the light,
+and a dark plum-brown outline.
 """
 
 import math
 
 from . import cat_anims
-from .pixelrig import Canvas, Pose, ease, outline, rot, shade, to_surface, two_bone
+from .pixelrig import Canvas, Pose, despeckle, ease, glint_eye, outline, rot, shade, to_surface, two_bone
 
 W, H = 88, 56
 GROUND = cat_anims.GROUND
@@ -20,21 +23,25 @@ SCALE = 1.12
 SHIFT = 8             # canvas columns to the left of the pose space, for the brush
 ANCHOR = (int(CX) + SHIFT, int(GROUND))
 
-CLEAR, OUT, DEEP, DARK, BASE, LIGHT, WHITE, WHITE_SH, BLACK, BLACK_L, NOSE, EYE = range(12)
+CLEAR, OUT, DEEP, DARK, BASE, LIGHT, WHITE, WHITE_SH, BLACK, BLACK_L, NOSE, PUPIL, SHINE, IRIS = range(14)
 PALETTE = [
     None,
-    (54, 28, 20),       # OUT
-    (122, 54, 26),      # DEEP
-    (164, 74, 32),      # DARK    far side
+    (58, 28, 38),       # OUT     dark plum-brown
+    (112, 46, 44),      # DEEP    creases: cooler, toward red-violet
+    (150, 64, 58),      # DARK    far side: cooler
     (208, 106, 46),     # BASE    russet coat
-    (234, 144, 72),     # LIGHT   lit back
-    (240, 232, 218),    # WHITE   chin, chest, tail tip
-    (204, 192, 176),    # WHITE_SH
-    (44, 32, 30),       # BLACK   stockings, ear backs
-    (78, 60, 54),       # BLACK_L
-    (26, 20, 20),       # NOSE
-    (46, 30, 18),       # EYE
+    (240, 160, 80),     # LIGHT   lit back, warmer
+    (242, 234, 214),    # WHITE   chin, chest, tail tip
+    (190, 184, 194),    # WHITE_SH  cool
+    (42, 30, 44),       # BLACK   stockings, ear backs
+    (80, 64, 82),       # BLACK_L
+    (26, 20, 26),       # NOSE
+    (24, 16, 22),       # PUPIL
+    (236, 240, 240),    # SHINE
+    (222, 168, 60),     # IRIS    amber
 ]
+HEAD = 1.12            # head size, storybook
+SNOUT = 0.88           # snout length
 SHADE_RULES = {BASE: (LIGHT, DARK), WHITE: (None, WHITE_SH), BLACK: (BLACK_L, None)}
 
 STAND = Pose(
@@ -132,7 +139,9 @@ def draw(p):
     t = p.tilt
 
     def at(dx, dy):
-        rx, ry = rot(dx, dy, t)
+        if dx > 1.8:
+            dx = 1.8 + (dx - 1.8) * SNOUT
+        rx, ry = rot(dx * HEAD, dy * HEAD, t)
         return qx + rx, qy + ry
 
     flat = p.ear
@@ -143,16 +152,14 @@ def draw(p):
         c.paint(c.polygon([b0, tip_pt, b1]), colour if not near else BASE)
         if near:
             c.paint(c.polygon([at(-2.0 + off - flat, -4.6 + flat), tip_pt, at(-0.2 + off, -5.2 + flat)]), BLACK)
-    c.paint(c.ellipse(qx, qy, 4.4, 3.9, t), BASE)
+    c.paint(c.ellipse(qx, qy, 4.4 * HEAD, 3.9 * HEAD, t), BASE)
     snout = [at(1.8, -1.6), at(1.8 + 6.0 * p.snout, 0.9), at(1.6 + 5.6 * p.snout, 2.0), at(0.6, 2.8)]
     c.paint(c.polygon(snout), BASE)
     c.paint(c.polygon([at(0.4, 1.2), at(1.6 + 5.2 * p.snout, 1.8), at(1.4 + 5.0 * p.snout, 2.2),
                        at(-0.6, 3.6), at(-2.6, 2.8)]), WHITE)                                  # cheek and jaw
     c.paint(c.capsule(*at(-1.2, 3.0), sx + 4.0, sy - 0.6, 2.0, 2.6), WHITE)                    # throat
     features.append((*at(1.4 + 6.0 * p.snout, 0.6), NOSE))
-    ex, ey = at(0.9, -1.0)
-    features.append((ex, ey, EYE if p.eye > 0.5 else DEEP))
-    features.append((ex + 0.9, ey, DEEP if p.eye > 0.5 else DEEP))
+    glint_eye(c, features, *at(0.7, -1.6), p.eye, PUPIL, SHINE, iris=IRIS, lid=DEEP)
     grid = c.resolve(len(PALETTE))
     grid = shade(grid, SHADE_RULES)
     for x, y, colour in features:
@@ -160,6 +167,7 @@ def draw(p):
         if 0 <= xi < W and 0 <= yi < H:
             grid[yi, xi] = colour
     grid = outline(grid, OUT)
+    grid = despeckle(grid, keep=(OUT, NOSE, PUPIL, SHINE, IRIS))
     return to_surface(grid, PALETTE)
 
 

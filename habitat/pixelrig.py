@@ -199,6 +199,35 @@ def shade(grid, rules):
     return out
 
 
+def glint_eye(c, features, x, y, openness, pupil, shine, iris=None, lid=None):
+    """The eye every creature in the meadow shares: 2x2 pixels from the one
+    under pose point (x, y), a dark pupil with a glint at the top-left (the
+    light's side) and, if ``iris`` is given, its colour showing below.  Half
+    shut, the lid covers the top row; shut, the eye is a lid-coloured
+    line."""
+    ax, ay = c.to_art(x, y)
+    ex, ey = int(math.floor(ax)), int(math.floor(ay))
+
+    def put(dx, dy, colour):
+        features.append((*c.to_pose(ex + dx + 0.5, ey + dy + 0.5), colour))
+
+    lid = pupil if lid is None else lid
+    low = iris if iris is not None else pupil
+    if openness <= 0.2:
+        put(0, 1, lid)
+        put(1, 1, lid)
+    elif openness < 0.75:
+        put(0, 0, lid)
+        put(1, 0, lid)
+        put(0, 1, pupil)
+        put(1, 1, low)
+    else:
+        put(0, 0, shine)
+        put(1, 0, pupil)
+        put(0, 1, low if iris is not None else pupil)
+        put(1, 1, low)
+
+
 def despeckle(grid, keep=()):
     """Merge lone pixels into their surroundings: a pixel inside the shape
     (filled on all four sides) that shares its colour with none of its

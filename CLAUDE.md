@@ -85,8 +85,11 @@ N new meadow, S screenshot, F fullscreen. In `--screensaver` any key quits.
 
 - Test first for bugs and behaviour, and keep the whole suite green. Use seeded
   simulations to check that a refactor changes nothing.
-- Art changes: look at the frames (render a contact sheet), and keep
-  `tests/pixel_lint.py`'s checks (no stray pixels) passing in `test_cat_art.py`.
+- Art changes: look at the frames (render a contact sheet). One style for the
+  whole meadow: dark eyes with a glint (`pixelrig.glint_eye`), shadows cool and
+  highlights warm, dark plum-tinted outlines, `despeckle` in every finish.
+  `tests/test_style.py` and `test_cat_art.py` (via `tests/pixel_lint.py`)
+  hold these rules.
 - Commit messages describe what you'd see in the meadow (look at `git log`).
 - Before pushing, ask unless the owner already said to push.
 - When something notable is decided, add a dated entry to `docs/LOGBOOK.md`.

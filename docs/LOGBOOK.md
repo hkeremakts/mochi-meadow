@@ -359,6 +359,26 @@ account until lots of people want the Swift version.
   Frames are drawn once and cached, so CPU use is the same. The first start
   after the change redraws them.
 - **Also:** the README preview was remade with the new Mochi.
+- **"I think the whole meadow should match":** every animal was brought into
+  the same style, kept realistic.
+  - **Eyes:** a shared `glint_eye` in `pixelrig.py` (a dark pupil, a glint
+    top-left, colour below). The fox (amber), deer (big and dark), heron
+    (yellow), crow (its black eye finally readable) and hedgehog have one;
+    the mouse gets a one-pixel glint.
+  - **Fox and deer:** slightly bigger heads with shorter snouts, and bigger
+    ears on the deer.
+  - **Every coat:** shadows shifted cool and highlights warm, and outlines a
+    dark plum-tinted version of each animal's own colour.
+  - **Clean-up:** the same `despeckle` pass, with each animal's deliberate
+    one-pixel details (noses, beaks, wing bars) kept.
+  - **Left as they were:** the insects (a few pixels each) and the duck's
+    one-pixel eye, which a 2×2 eye would swamp on its head.
+  - **Tests:** `tests/test_style.py` holds the rules, and it caught two of
+    my own colour picks on the way: the fox's shadow wasn't cooler than its
+    light, and the duckling's outline wasn't plum-leaning.
+- **Known, not fixed:** two meadows starting at the same moment right after
+  an art change can collide while redrawing the sprite cache. This was seen
+  when six preview renders ran at once. It's rare in real use.
 
 ---
 
@@ -367,8 +387,6 @@ account until lots of people want the Swift version.
 - **Body language** (agreed as the next step of the remodel): tail and ears
   follow her mood: tail up when happy, a flick when annoyed, ears flat for
   the fox or the rain.
-- **Other animals** could get the same treatment (cool-to-warm colour
-  ramps, plum outlines) so the meadow stays one style. Not done; ask first.
 - **Watch it for a day or two** and tune from real viewing: event rates,
   captions, season colours, and whether 15 fps calm mode shows.
 - **Ideas parked from the 2026-10-21 brainstorm:**

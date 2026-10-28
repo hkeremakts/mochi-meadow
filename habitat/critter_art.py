@@ -2,7 +2,9 @@
 
 Small, high-silhouette creatures are drawn pixel by pixel (ASCII grids);
 the mouse, whose shape is rounder, is drawn as supersampled ellipses and
-quantised down to a limited palette with a one-pixel outline.
+quantised down to a limited palette with a one-pixel outline.  Colours
+follow the meadow's storybook style: cool in shadow, warm in the light,
+plum-tinted outlines, and dark eyes with a glint where there's room.
 """
 
 import math
@@ -11,7 +13,7 @@ from PIL import Image, ImageDraw
 import pygame
 
 from .art import from_ascii
-from .pixelrig import Canvas, outline, shade, to_surface
+from .pixelrig import Canvas, despeckle, glint_eye, outline, shade, to_surface
 
 # --------------------------------------------------------------------------
 # Supersampled drawing -> limited palette -> outline
@@ -55,10 +57,11 @@ def _quantise(img, w, h, palette, outline):
 # --------------------------------------------------------------------------
 # Mouse (side view, facing right)
 
-MOUSE_FUR = [(124, 108, 100), (156, 140, 128), (92, 78, 76)]
+MOUSE_FUR = [(124, 108, 100), (170, 150, 128), (86, 74, 84)]   # fur, warm light, cool shade
 MOUSE_PINK = (214, 150, 150)
 MOUSE_EYE = (14, 10, 14)
-MOUSE_OUTLINE = (44, 36, 40)
+MOUSE_SHINE = (236, 240, 240)
+MOUSE_OUTLINE = (46, 32, 46)
 
 
 def _mouse(body_lift=0.0, legs=0, sit_up=False, nose=0):
@@ -88,10 +91,12 @@ def _mouse(body_lift=0.0, legs=0, sit_up=False, nose=0):
     # Eye and nose: placed by hand so they never blur away.
     if sit_up:
         surf.set_at((10, 2), MOUSE_EYE)
+        surf.set_at((10, 1), MOUSE_SHINE)
         surf.set_at((12, 3), MOUSE_PINK)
     else:
         ey = int(round(5.4 - lift))
-        surf.set_at((12, ey), MOUSE_EYE)
+        surf.set_at((12, ey), MOUSE_EYE)            # a beady eye with a glint above
+        surf.set_at((12, ey - 1), MOUSE_SHINE)
         surf.set_at((14 + nose, ey + 1), MOUSE_PINK)
     return surf
 
@@ -290,7 +295,7 @@ def bird_shadow_frames(darkness=196):
 # --------------------------------------------------------------------------
 # Posable small creatures (drawn with the same toolkit as the cat)
 
-def _finish(c, palette, rules, features=()):
+def _finish(c, palette, rules, features=(), keep=()):
     grid = c.resolve(len(palette))
     grid = shade(grid, rules)
     for x, y, col in features:
@@ -298,12 +303,13 @@ def _finish(c, palette, rules, features=()):
         if 0 <= xi < c.w and 0 <= yi < c.h:
             grid[yi, xi] = col
     grid = outline(grid, 1)
+    grid = despeckle(grid, keep=(1,) + tuple(keep))
     return to_surface(grid, palette)
 
 
 # Frog (side view, facing right; feet on y=9 of a 16x11 canvas)
-FROG = [None, (28, 44, 30), (48, 86, 48), (84, 136, 60), (132, 176, 80), (206, 204, 128), (18, 16, 16),
-        (230, 230, 210), (224, 214, 150)]
+FROG = [None, (30, 40, 42), (44, 80, 62), (84, 136, 60), (158, 190, 82), (214, 208, 132), (18, 16, 16),
+        (236, 240, 230), (224, 214, 150)]   # outline, cool shade, body, warm light, belly, eye, glint, sac
 F_OUT, F_DARK, F_BASE, F_LIGHT, F_BELLY, F_EYE, F_SHINE, F_SAC = range(1, 9)
 FROG_ANCHOR = (8, 9)
 
@@ -329,7 +335,7 @@ def _frog(crouch=0.0, stretch=0.0, sac=0.0, swim=False):
     if swim:
         c.idx[int((g - 3.4) * c.ss):, :] = 0          # below the waterline
     features = [(head[0] - 0.6, head[1] - 1.6, F_EYE), (head[0] - 0.9, head[1] - 1.9, F_SHINE)]
-    return _finish(c, FROG, {F_BASE: (F_LIGHT, F_DARK)}, features)
+    return _finish(c, FROG, {F_BASE: (F_LIGHT, F_DARK)}, features, keep=(F_EYE, F_SHINE, F_SAC))
 
 
 def frog_frames():
@@ -342,9 +348,9 @@ def frog_frames():
 
 
 # Hedgehog (side view, facing right; 20x13 canvas, feet on y=11)
-HOG = [None, (36, 28, 24), (74, 56, 44), (118, 92, 66), (158, 130, 96), (196, 170, 132), (20, 16, 14),
-       (210, 196, 176)]
-H_OUT, H_DARK, H_BASE, H_LIGHT, H_TIP, H_EYE, H_FACE = range(1, 8)
+HOG = [None, (44, 28, 38), (70, 52, 56), (118, 92, 66), (158, 130, 96), (214, 184, 136), (20, 14, 18),
+       (214, 198, 176), (236, 240, 240)]   # outline, cool shade, spines, light, warm tips, eye, face, glint
+H_OUT, H_DARK, H_BASE, H_LIGHT, H_TIP, H_EYE, H_FACE, H_SHINE = range(1, 9)
 HOG_ANCHOR = (10, 11)
 
 
@@ -361,7 +367,7 @@ def _hedgehog(step=0.0, sniff=0.0, ball=False):
             spikes |= c.capsule(x0, y0, x1, y1, 0.55, 0.2)
         c.paint(spikes, H_BASE)
         c.paint(c.ellipse(11.4, g - 2.0, 1.6, 1.0), H_FACE)
-        return _finish(c, HOG, {H_BASE: (H_TIP, H_DARK)}, [(12.0, g - 2.6, H_EYE)])
+        return _finish(c, HOG, {H_BASE: (H_TIP, H_DARK)}, [(12.0, g - 2.6, H_EYE)], keep=(H_EYE,))
     for i, fx in enumerate((6.0, 12.0)):
         lift = step if i == 0 else -step
         c.paint(c.capsule(fx, g - 2.0, fx + lift * 0.8, g - 0.5 - max(0.0, lift) * 0.6, 0.7), H_DARK)
@@ -376,8 +382,9 @@ def _hedgehog(step=0.0, sniff=0.0, ball=False):
         spikes |= c.capsule(x0, y0, x1, y1, 0.6, 0.2)
     spikes &= c.below(g - 9.5) & ~c.below(g - 1.2)
     c.paint(spikes, H_BASE)
-    features = [(14.0, g - 4.0, H_EYE), (17.4 + sniff * 0.4, g - 2.6 + sniff * 0.4, H_EYE)]
-    return _finish(c, HOG, {H_BASE: (H_TIP, H_DARK)}, features)
+    features = [(17.4 + sniff * 0.4, g - 2.6 + sniff * 0.4, H_EYE)]        # nose
+    glint_eye(c, features, 13.6, g - 4.6, 1.0, H_EYE, H_SHINE)              # a beady eye
+    return _finish(c, HOG, {H_BASE: (H_TIP, H_DARK)}, features, keep=(H_EYE, H_SHINE))
 
 
 def hedgehog_frames():
@@ -389,8 +396,8 @@ def hedgehog_frames():
 
 
 # Snail (side view, facing right; 10x7, foot on y=6)
-SNAIL = [None, (40, 32, 28), (112, 72, 44), (170, 116, 66), (210, 162, 102), (176, 160, 140),
-         (214, 202, 184), (24, 20, 20)]
+SNAIL = [None, (46, 30, 40), (104, 66, 56), (170, 116, 66), (222, 172, 104), (176, 160, 140),
+         (218, 204, 184), (24, 18, 22)]   # outline, cool shell shade, shell, warm shell light, body, body light, eye
 S_OUT, S_SHELL_D, S_SHELL, S_SHELL_L, S_BODY, S_BODY_L, S_EYE = range(1, 8)
 SNAIL_ANCHOR = (6, 6)
 
@@ -404,7 +411,7 @@ def _snail(stretch=0.0, tucked=False):
     c.paint(c.ellipse(4.7, 3.2, 1.5, 1.3), S_SHELL_D)
     c.paint(c.ellipse(4.6, 3.1, 0.7, 0.6), S_SHELL)
     features = [] if tucked else [(10.2 + stretch, 1.8, S_EYE)]
-    return _finish(c, SNAIL, {S_SHELL: (S_SHELL_L, None), S_BODY: (S_BODY_L, None)}, features)
+    return _finish(c, SNAIL, {S_SHELL: (S_SHELL_L, None), S_BODY: (S_BODY_L, None)}, features, keep=(S_EYE, S_SHELL_D))
 
 
 def snail_frames():
