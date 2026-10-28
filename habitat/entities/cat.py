@@ -40,6 +40,7 @@ GAIT_SPEED = {"stalk": CAT_STALK_SPEED, "walk": CAT_WALK_SPEED, "trot": CAT_TROT
 GAIT_ACCEL = 2.6
 GAIT_DECEL = 3.2
 PIVOT_RATE = 4.2          # rad/s when turning on the spot
+ARRIVE_RADIUS = 12.0      # art pixels from the goal where she lines up for the last steps
 POSTURES = ("stand", "sit", "lie", "sleep")
 SLEEP_IN = {"loaf": "doze", "curl": "curlup", "flat": "sprawl"}
 SLEEP_OUT = {"loaf": "undoze", "curl": "uncurl", "flat": "unsprawl"}
@@ -608,6 +609,7 @@ class Cat(Entity):
         points = [(float(x), float(y)) for x, y in route]
         i = 0
         elapsed = 0.0
+        closing = 0.0          # seconds spent on the final approach
         status = ARRIVED
         replans = 0
         while points:
@@ -623,7 +625,22 @@ class Cat(Entity):
                 break
             remaining = d + sum(math.dist(points[k], points[k + 1]) for k in range(i, len(points) - 1))
             diff = wrap(math.atan2(dy, dx) - self.heading)
-            if abs(diff) > math.radians(100) and self.speed < cruise * 0.5:
+            final = last and remaining < ARRIVE_RADIUS
+            if final:
+                closing += self.dt
+                if closing > 3.0:
+                    # Something keeps her from curving in: just step the last bit.
+                    yield from self.step_to(tx, ty)
+                    break
+            if final and abs(diff) > math.radians(40):
+                # Close, but not facing it: a curve that tight can't be walked
+                # (she'd circle the spot), so brake and turn to it first.
+                turn = math.copysign(min(abs(diff), PIVOT_RATE * self.dt), diff)
+                self.heading = wrap(self.heading + turn)
+                self.speed = approach(self.speed, 0.0, decel * 2.0 * self.dt)
+                step = min(self.speed * self.dt, d * 0.5)
+                self.moved = abs(turn) * 7.0 + step
+            elif abs(diff) > math.radians(100) and self.speed < cruise * 0.5:
                 # Too sharp to curve into: brake and turn on the spot.
                 turn = math.copysign(min(abs(diff), PIVOT_RATE * self.dt), diff)
                 self.heading = wrap(self.heading + turn)
