@@ -139,6 +139,7 @@ class Clock:
 
 # What each weather looks like, what tends to follow it, and how the
 # seasons tilt that: all from the settings.
+SHEEN = SETTINGS["weather"]["sheen"]
 WEATHER_STATES = {name: dict(v) for name, v in SETTINGS["weather"]["states"].items()}
 WEATHER_NEXT = {name: list(v.items()) for name, v in SETTINGS["weather"]["next"].items()}
 SEASON_BIAS = {season: dict(v) for season, v in SETTINGS["weather"]["season_bias"].items()}
@@ -313,6 +314,56 @@ class CloudLayer:
             self.clouds.append([x, y, shape, self.rng.uniform(0.8, 1.2)])
 
 
+class GustSheen:
+    """Pale bands racing over the grass where a gust flattens it and the
+    tilted blades catch the light.  Only in a real wind, by day, and not
+    over snow.  Each band is a soft streak drawn additively over the
+    ground, a few at a time."""
+
+    LEVELS = 4
+
+    def __init__(self, rng, width, height):
+        self.rng = rng
+        self.width = width
+        self.height = height
+        self.shapes = [self._shape(rng) for _ in range(3)]
+        self.streaks = []      # [x, y, shape, speed, age, life]
+
+    def _shape(self, rng):
+        cfg = SHEEN
+        w, h = rng.randint(110, 190), rng.randint(12, 20)
+        yy, xx = np.mgrid[0:h, 0:w].astype(np.float32)
+        soft = np.clip(1.0 - ((xx - w / 2) / (w / 2)) ** 2 - ((yy - h / 2) / (h / 2)) ** 2, 0.0, 1.0) ** 1.5
+        soft *= 0.75 + 0.25 * np.sin(yy * 1.9 + rng.uniform(0, 6.3))     # combed along the wind
+        keep = dither_mask(h, w) < soft * 1.4
+        levels = []
+        for level in range(1, self.LEVELS + 1):
+            v = soft * keep * cfg["brightness"] * level / self.LEVELS
+            rgb = np.dstack([v * 0.85, v, v * 0.55]).astype(np.uint8)   # a warm green-gold sheen
+            levels.append(pygame.surfarray.make_surface(np.ascontiguousarray(rgb.swapaxes(0, 1))))
+        return levels
+
+    def update(self, dt, wind, sun, snow):
+        cfg = SHEEN
+        for s in self.streaks:
+            s[0] += wind.direction * s[3] * dt
+            s[4] += dt
+        self.streaks = [s for s in self.streaks if s[4] < s[5]]
+        gust = (wind.strength - cfg["above"]) / (1.0 - cfg["above"])
+        if gust <= 0 or sun < 0.25 or snow > 0.3 or len(self.streaks) >= cfg["most"]:
+            return
+        if self.rng.random() < dt * cfg["rate"] * min(1.0, gust):
+            shape = self.rng.randrange(len(self.shapes))
+            w, h = self.shapes[shape][0].get_size()
+            x = self.rng.uniform(-w * 0.5, self.width - w * 0.5)
+            y = self.rng.uniform(0, self.height - h)
+            self.streaks.append([x, y, shape, 60.0 + 70.0 * wind.strength, 0.0, self.rng.uniform(1.6, 3.2)])
+
+    def level(self, age, life):
+        """How bright a band is now (0..LEVELS): it swells and fades."""
+        return int(math.sin(math.pi * min(1.0, age / life)) * self.LEVELS + 0.5)
+
+
 def _day_value(ordinal):
     """A fixed 0..1 value per calendar day: some days run warm, some cold."""
     return random.Random(ordinal * 7919 + 17).random()
@@ -329,6 +380,7 @@ class Environment:
         self.wind.direction = self.wind.toward
         self._spell = self.weather.spell
         self.clouds = CloudLayer(rng, width, height)
+        self.sheen = GustSheen(rng, width, height)
         self.clouds.seed_initial(self.weather.cloud, self.weather.rain)
         self.temperature = self._temperature()
         self.snow_cover = 0.0    # 0..1 of the ground under snow
@@ -365,6 +417,7 @@ class Environment:
             self.wind.veer(self.day.prevailing, SETTINGS["weather"]["wind_scatter"])
         self.wind.update(dt, self.weather.wind)
         self.clouds.update(dt, self.weather.cloud, self.weather.rain, self.wind)
+        self.sheen.update(dt, self.wind, self.sun, self.snow_cover)
         self.temperature = self._temperature()
         sim = dt * self.clock.speed
         t = self.temperature

@@ -232,6 +232,7 @@ class Renderer:
         world.water.draw(self)
         for fx in world.effects:
             fx.draw_ground(self)
+        self._draw_sheen(world.env.sheen)
 
         for e in world.entities:
             sh = e.shadow()
@@ -279,6 +280,21 @@ class Renderer:
             fx.draw(self)
         self._light(world)
         self._glow_pass(world)
+
+    def _draw_sheen(self, sheen):
+        """Gusts over the grass, added to the ground under everything on it."""
+        S = self.S
+        for x, y, shape, _, age, life in sheen.streaks:
+            level = sheen.level(age, life)
+            if not level:
+                continue
+            key = ("sheen", id(sheen), shape, level)
+            img = self._sprites.get(key)
+            if img is None:
+                src = sheen.shapes[shape][level - 1]
+                img = pygame.transform.scale(src, (src.get_width() * S, src.get_height() * S))
+                self._sprites[key] = img
+            self.screen.blit(img, (round(x * S), round(y * S)), special_flags=pygame.BLEND_ADD)
 
     def _draw_entity(self, e):
         spr = e.sprite()

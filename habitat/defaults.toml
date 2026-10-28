@@ -45,6 +45,8 @@ blend = { typical = 45, spread = 0.5, min = 10, max = 180 }   # easing into the 
 quick_blend = 3           # ...and into one chosen with W
 cloud_steadiness = 25     # how closely each spell's cloud cover keeps to its kind's (beta)
 wind_scatter = 3.0        # how closely the wind keeps to the day's prevailing direction (von Mises)
+# Gusts you can see: pale bands race over the grass where a gust flattens it and the blades catch the light.
+sheen = { above = 0.5, rate = 0.9, brightness = 38, most = 5 }   # gust strength it needs, bands a second at full gust, how bright, at most at once
 
 # How long each kind of weather lasts, in minutes (divided by the day's volatility).
 [weather.hold_minutes]
