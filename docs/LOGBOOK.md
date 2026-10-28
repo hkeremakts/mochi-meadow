@@ -550,6 +550,20 @@ commits are now made only when the full suite reports OK.
       it: about 500 frames (around 8 MB) and a few more seconds of
       one-off redraw.
     - Look at it after step 1 has been seen.
+- **A testing mode** (owner, 2026-10-28: "increasing the clock speed for
+  faster testing … the program can switch to testing mode and stops
+  following to normal day-night or moon cycles and goes on with its own
+  clock"; not to be built yet).
+  - **Already there:** `T` cycles time-lapse 1× → 60× → 600×, and
+    `--time`, `--date`, `--speed`, `--weather`, `--event` set things up.
+    These still follow the real sky and calendar.
+  - **To design:** a switchable mode where the meadow runs on its own
+    clock. Day and night, the moon's phase and the seasons would cycle
+    quickly and independently of the real date, so a whole day, month or
+    year can be watched in minutes. It needs a clear on-screen sign that
+    it's in testing mode, and must not write the real journal (or must
+    keep a separate one), so test runs don't change Mochi or the saved
+    meadow.
 - **Snapshots of rare moments** (brainstorm #1): deferred.
 - **Small fixes:**
   - the sprite-cache collision when two meadows start at once after an art
