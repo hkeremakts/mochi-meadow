@@ -19,10 +19,11 @@ import numpy as np
 import pygame
 
 from .settings import SETTINGS
+from .terrain import CROWN_LIFT
 from .util import clamp, dither_mask, smoothstep
 
 SQUASH = 0.6
-CROWN_HEIGHT = 42.0
+CROWN_HEIGHT = CROWN_LIFT
 MAX_LENGTH = 150.0         # the longest shadow worth drawing (art pixels)
 TINT = (164, 172, 196)     # multiply colour of full shade: a cool blue-grey
 LEVELS = 12                # strengths the shadow is redrawn at

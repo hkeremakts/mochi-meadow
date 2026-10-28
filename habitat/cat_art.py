@@ -63,9 +63,10 @@ HEAD = 1.22        # head size against the body
 MUZZLE = 0.8       # muzzle length
 LEGS = 0.9         # leg bones
 LOWER = 1.4        # how much lower a standing body sits on them
-FULL = 1.06        # a little more chest and haunch
-WAIST = 1.2        # the body between chest and haunch: fuller, not a puppet's pinched joint
-BELLY = 0.8        # how far her belly hangs below the line from chest to haunch, standing
+FULL = 1.06        # a little more chest
+HAUNCH = 0.9       # the haunches a little smaller than the chest, so her rear doesn't dominate
+WAIST = 1.3        # the body between chest and haunch: fuller, not a puppet's pinched joint
+BELLY = 1.2        # how far her belly hangs below the line from chest to haunch, standing
 
 
 def _lowered(y, top=33.0, bottom=40.0):
@@ -87,7 +88,7 @@ def proportioned(view, p):
         # ...and the bigger head is kept off the ground (eating, sprawled asleep)
         q["head"] = (qx, qy - max(0.0, _head_bottom(qx, qy, p.tilt) - (GROUND - 0.6)))
         q["chest"] = (p.chest[0] * FULL, p.chest[1] * FULL)
-        q["haunch"] = (p.haunch[0] * FULL, p.haunch[1] * FULL)
+        q["haunch"] = (p.haunch[0] * HAUNCH, p.haunch[1] * HAUNCH)
     else:
         drop = LOWER * (1.0 - clamp(p.sit, 0.0, 1.0))
         q["chest"] = (p.chest[0], p.chest[1] + drop)

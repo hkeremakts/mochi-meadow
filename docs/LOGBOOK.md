@@ -407,6 +407,21 @@ account until lots of people want the Swift version.
     stays straight and the fullness sits underneath.
   - Both fade as she lies down, where her body rests on the ground
     (otherwise a curled-up cat sank into it).
+- **"for Mochi belly C good I think and his ass is a little big too big …
+  I think tree is again too small."**
+  - **Mochi:** belly option C (`WAIST` 1.3, `BELLY` 1.2), and the haunches
+    drawn at 0.9 of their pose size (`HAUNCH`, replacing the 1.06 fuller
+    look), so her rear no longer dominates.
+  - **The tree:** everything scaled by `TREE_SIZE` = 1.35 in `terrain.py`:
+    - the crown's width, and the trunk's height (30 → 40) and thickness
+    - the crown's height above the ground, which the sun-shadow code now
+      reads from `terrain.CROWN_LIFT` rather than its own copy
+    - the dry patch under the crown and the baked shade
+  - **Checked:** across 60 meadows at four screen sizes the tree always
+    still fits. The owner's own meadow keeps everything else where it was,
+    because the tree is planted last from its own random numbers.
+  - **A bigger crown is see-through over Mochi more often** (that keeps her
+    in sight when she's behind it).
 - **Known, not fixed:** two meadows starting at the same moment right after
   an art change can collide while redrawing the sprite cache. This was seen
   when six preview renders ran at once. It's rare in real use.

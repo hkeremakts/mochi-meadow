@@ -288,13 +288,13 @@ def tree_canopy(rng, rx, ry):
     return surf
 
 
-def tree_trunk(rng, height=30):
+def tree_trunk(rng, height=30, girth=1.0):
     """The part of the trunk that shows under the crown, with a root flare."""
-    w = 14
+    w = int(14 * girth) + 1
     surf = blank(w, height)
     for y in range(height):
         f = y / (height - 1)
-        half = 3.6 + (3.0 * max(0.0, f - 0.65) / 0.35) ** 1.5      # flaring at the foot
+        half = (3.6 + (3.0 * max(0.0, f - 0.65) / 0.35) ** 1.5) * girth      # flaring at the foot
         for x in range(w):
             d = (x - (w - 1) / 2) / half
             if abs(d) <= 1.0:

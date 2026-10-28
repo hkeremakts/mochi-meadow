@@ -73,6 +73,13 @@ class Bush:
         self.x, self.y, self.rx, self.ry, self.prop = x, y, rx, ry, prop
 
 
+# The old tree.  A real tree stands many times a cat's height; the first
+# one read too small, so everything about it is scaled by TREE_SIZE.
+TREE_SIZE = 1.35
+TRUNK = round(30 * TREE_SIZE)      # how much trunk shows under the crown, art pixels
+CROWN_LIFT = 42.0 * TREE_SIZE      # the crown's centre above the trunk's foot
+
+
 class Tree:
     """The old tree.  Its crown is drawn over everything beneath it; under
     it (the ``roof``, an ellipse on the ground) rain and snow don't reach."""
@@ -81,7 +88,7 @@ class Tree:
 
     def __init__(self, x, y, trunk, canopy, rx, ry):
         self.x, self.y, self.trunk, self.canopy, self.rx, self.ry = x, y, trunk, canopy, rx, ry
-        self.roof_cx, self.roof_cy = x, y - 8
+        self.roof_cx, self.roof_cy = x, y - 8 * TREE_SIZE
         self.roof_rx, self.roof_ry = rx * 0.88, ry * 0.62
 
     def covers(self, x, y):
@@ -503,11 +510,12 @@ def _make_tree(t, img, rng, features, footprints):
     w, h = t.width, t.height
     if w < 300 or h < 190:
         return
-    rx = clamp(w * 0.1, 34.0, 52.0)
+    rx = clamp(w * 0.1, 34.0, 52.0) * TREE_SIZE
     ry = rx * 0.62
+    girth = TREE_SIZE ** 0.5
     for _ in range(80):
         x = rng.uniform(EDGE_MARGIN_X + rx * 0.6, w - EDGE_MARGIN_X - rx * 0.6)
-        y = rng.uniform(EDGE_MARGIN_TOP + 46, h - EDGE_MARGIN_BOTTOM - 24)
+        y = rng.uniform(EDGE_MARGIN_TOP + 46 * TREE_SIZE, h - EDGE_MARGIN_BOTTOM - 24)
         if abs(x - w / 2) < 50 and abs(y - h * 0.55) < 40:
             continue                     # leave the middle (where the cat starts) open
         if not _claim_ok(features, x, y - 8, rx * 0.9, ry * 0.7):
@@ -517,17 +525,17 @@ def _make_tree(t, img, rng, features, footprints):
         return
     canopy_img = art.tree_canopy(rng, rx, ry)
     cw, ch = canopy_img.get_size()
-    trunk_img = art.tree_trunk(rng)
+    trunk_img = art.tree_trunk(rng, TRUNK, girth)
     trunk = Prop("trunk", [trunk_img], x, y, (trunk_img.get_width() / 2, trunk_img.get_height() - 1))
-    canopy = Prop("canopy", [canopy_img], x, y - 42, (cw / 2, ch / 2), sway=0.5, phase=rng.random())
+    canopy = Prop("canopy", [canopy_img], x, y - CROWN_LIFT, (cw / 2, ch / 2), sway=0.5, phase=rng.random())
     t.props.append(trunk)
     t.canopies.append(canopy)
     t.tree = Tree(x, y, trunk, canopy, rx, ry)
     features.append((x, y - 8, rx * 0.9, ry * 0.7))
     # Only the soft shade a crown gives in any light: the sun's shadow moves (shade.py).
-    _bake_shadow(img, x + 1, y - 6, rx * 0.8, ry * 0.5, 0.86)
-    _bake_shadow(img, x, y, 5.0, 2.0, 0.7)
-    _fill_ellipse(footprints, x, y - 1, 4.0, 2.0)
+    _bake_shadow(img, x + 1, y - 6 * TREE_SIZE, rx * 0.8, ry * 0.5, 0.86)
+    _bake_shadow(img, x, y, 5.0 * girth, 2.0 * girth, 0.7)
+    _fill_ellipse(footprints, x, y - 1, 4.0 * girth, 2.0 * girth)
 
 
 # --- rocks ------------------------------------------------------------------
