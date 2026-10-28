@@ -133,6 +133,19 @@ class Terrain:
         """Under the tree's crown, where rain doesn't fall."""
         return self.tree is not None and self.tree.covers(x, y)
 
+    def behind_crown(self, x, y):
+        """Hidden from view by the tree's crown, which is drawn over the
+        ground (unless it's see-through just now, over the cat)."""
+        for canopy in self.canopies:
+            if canopy.fade < 0.6:
+                continue
+            frame = canopy.frames[0]
+            ax, ay = canopy.anchor
+            px, py = int(x - canopy.x + ax), int(y - canopy.y + ay)
+            if 0 <= px < frame.get_width() and 0 <= py < frame.get_height() and frame.get_at((px, py)).a:
+                return True
+        return False
+
     def is_water(self, x, y):
         xi, yi = int(x), int(y)
         return 0 <= xi < self.width and 0 <= yi < self.height and bool(self.water[yi, xi])

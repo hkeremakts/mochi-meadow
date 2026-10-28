@@ -115,9 +115,12 @@ class WaterFX:
     def moon_spot(self):
         """Where the moon's reflection sits on the pond: it drifts across the
         water as the moon crosses the sky."""
+        return self.sky_spot(self.world.env.sky.moon_az)
+
+    def sky_spot(self, azimuth):
+        """Where something in the sky at ``azimuth`` shows in the pond."""
         pond = self.world.terrain.pond
-        sky = self.world.env.sky
-        a = math.radians(sky.moon_az)
+        a = math.radians(azimuth)
         for scale in (0.45, 0.3, 0.15, 0.0):
             x = pond.cx - math.sin(a) * pond.rx * scale
             y = pond.cy + math.cos(a) * pond.ry * scale * 0.6
@@ -134,28 +137,52 @@ class WaterFX:
         if clarity < 0.05:
             return
         x, y = self.moon_spot()
+        if self.world.terrain.behind_crown(x, y):
+            return
         t = self.world.time
         # Ripples break the reflection into wobbling rows.
         rough = 0.4 + env.wind.strength + env.rain * 2
         level = int(clarity * 7) / 7
-        img = moon_image(sky.moon_age, level, r.S)
+        img = moon_image(sky.moon_age, level, r.S, int(sky.eclipse * 4 + 0.5))
         for row in range(img.get_height() // r.S):
             shift = round(math.sin(t * 2.3 + row * 1.7) * rough * 0.7)
             area = (0, row * r.S, img.get_width(), r.S)
             r.screen.blit(img, (round((x - 3 + shift) * r.S), round((y - 3 + row) * r.S)), area,
                           special_flags=pygame.BLEND_ADD)
 
+    def draw_venus(self, r):
+        """The evening (or morning) star: the brightest point in the pond,
+        steady where the stars twinkle, broken a little by ripples."""
+        env = self.world.env
+        sky = env.sky
+        if not sky.venus_shows or env.weather.cloud > 0.6 or env.frozen:
+            return
+        clarity = (1.0 - env.weather.cloud / 0.6) * min(1.0, (-4 - sky.sun_alt) / 4) * min(1.0, sky.venus_alt / 8)
+        x, y = self.sky_spot(sky.venus_az)
+        x += 6
+        if self.world.terrain.behind_crown(x, y):
+            return
+        wobble = round(math.sin(self.world.time * 2.1) * (env.wind.strength + env.rain * 2) * 0.6)
+        alpha = int(255 * clarity)
+        if alpha > 12:
+            r.blit_px(r.dot((255, 246, 222), alpha, 2, 1), x + wobble, y, add=True)
+            r.blit_px(r.dot((255, 246, 222), alpha // 3, 1, 1), x + wobble, y - 1, add=True)
+
     def draw_glow(self, r):
-        """Stars and the moon mirrored in the water on clear nights (after
-        lighting)."""
+        """Stars, Venus and the moon mirrored in the water on clear nights
+        (after lighting)."""
         env = self.world.env
         if self.world.terrain.pond is not None:
             self.draw_moon(r)
+            self.draw_venus(r)
         if not self.stars or env.sun > 0.15 or env.weather.cloud > 0.55:
             return
         clarity = (1.0 - env.sun / 0.15) * (1.0 - env.weather.cloud / 0.55)
         t = self.world.time
+        crown = self.world.terrain.behind_crown
         for x, y, phase in self.stars:
+            if crown(x, y):
+                continue
             tw = 0.55 + 0.45 * math.sin(t * 1.7 + phase)
             alpha = int(170 * tw * clarity)
             if alpha > 10:
@@ -167,11 +194,12 @@ MOON_RADIUS = 3
 _MOONS = {}
 
 
-def moon_image(age, level, S):
+def moon_image(age, level, S, shadow=0):
     """The moon's disc as the pond mirrors it, lit side and all: a pixel
     disc with the terminator cut for the phase, at zoom ``S``.  Additive
-    colours."""
-    key = (round(age * 32) % 32, level, S)
+    colours.  ``shadow`` (0..4) is a lunar eclipse: the earth's shadow
+    dims the moon and turns it copper."""
+    key = (round(age * 32) % 32, level, S, shadow)
     hit = _MOONS.get(key)
     if hit is None:
         rad = MOON_RADIUS
@@ -180,7 +208,9 @@ def moon_image(age, level, S):
         small.fill((0, 0, 0))
         c = math.cos(2 * math.pi * key[0] / 32)
         waxing = key[0] < 16
-        bright = (int(150 * level), int(156 * level), int(150 * level))
+        e = shadow / 4
+        silver, copper = (150, 156, 150), (96, 40, 24)
+        bright = tuple(int((s + (c - s) * e) * level) for s, c in zip(silver, copper))
         dim = (int(26 * level), int(30 * level), int(40 * level))
         for py in range(size):
             for px in range(size):

@@ -147,6 +147,84 @@ def moon_altaz(utc, lat, lon):
     return _altaz(d, mlon, mlat, lat, lon)
 
 
+# Venus, from mean orbital elements (Standish, JPL; good to a degree or so
+# for centuries around now): a, e, inclination, mean longitude and its rate
+# per century, longitude of perihelion, of the ascending node (degrees).
+_ELEMENTS = {
+    "venus": (0.72333566, 0.00677672, 3.39467605, 181.97909950, 58517.81538729, 131.60246718, 76.67984255),
+    "earth": (1.00000261, 0.01671123, 0.0, 100.46457166, 35999.37244981, 102.93768193, 0.0),
+}
+
+
+def _heliocentric(name, T):
+    a, e, inc, L0, rate, peri, node = _ELEMENTS[name]
+    M = math.radians((L0 + rate * T - peri) % 360.0)
+    E = M
+    for _ in range(6):
+        E -= (E - e * math.sin(E) - M) / (1 - e * math.cos(E))
+    x, y = a * (math.cos(E) - e), a * math.sqrt(1 - e * e) * math.sin(E)
+    w, n, i = math.radians(peri - node), math.radians(node), math.radians(inc)
+    cw, sw, cn, sn, ci, si = math.cos(w), math.sin(w), math.cos(n), math.sin(n), math.cos(i), math.sin(i)
+    return ((cw * cn - sw * sn * ci) * x + (-sw * cn - cw * sn * ci) * y,
+            (cw * sn + sw * cn * ci) * x + (-sw * sn + cw * cn * ci) * y,
+            sw * si * x + cw * si * y)
+
+
+def _venus_ecliptic(d):
+    T = d / 36525.0
+    vx, vy, vz = _heliocentric("venus", T)
+    ex, ey, ez = _heliocentric("earth", T)
+    x, y, z = vx - ex, vy - ey, vz - ez
+    return math.degrees(math.atan2(y, x)) % 360.0, math.degrees(math.atan2(z, math.hypot(x, y)))
+
+
+def venus_altaz(utc, lat, lon):
+    d = _days(utc)
+    vlon, vlat = _venus_ecliptic(d)
+    return _altaz(d, vlon, vlat, lat, lon)
+
+
+def venus_elongation(utc):
+    """Degrees from the sun along the ecliptic: east (+) is the evening
+    star, west (-) the morning star."""
+    d = _days(utc)
+    return (_venus_ecliptic(d)[0] - _sun_ecliptic(d) + 180.0) % 360.0 - 180.0
+
+
+# Lunar eclipses (NASA, eclipse.gsfc.nasa.gov): greatest eclipse (TD, within
+# a minute or so of UT), umbral magnitude, and how many minutes the partial
+# and the total phases last.  Penumbral eclipses, and partials too shallow to
+# see, are left out.
+ECLIPSES = [
+    ("2026-03-03 11:35", 1.151, 207, 58), ("2026-08-28 04:14", 0.930, 198, 0),
+    ("2028-07-06 18:21", 0.389, 141, 0), ("2028-12-31 16:53", 1.246, 209, 71),
+    ("2029-06-26 03:23", 1.844, 220, 102), ("2029-12-20 22:43", 1.117, 213, 54),
+    ("2030-06-15 18:35", 0.502, 144, 0), ("2032-04-25 15:15", 1.191, 211, 66),
+    ("2032-10-18 19:04", 1.103, 196, 47), ("2033-04-14 19:14", 1.094, 215, 49),
+    ("2033-10-08 10:56", 1.350, 202, 79), ("2036-02-11 22:13", 1.299, 202, 74),
+    ("2036-08-07 02:53", 1.454, 231, 95), ("2037-01-31 14:02", 1.207, 197, 64),
+    ("2037-07-27 04:10", 0.809, 192, 0), ("2039-06-06 18:54", 0.885, 179, 0),
+    ("2039-11-30 16:56", 0.943, 206, 0), ("2040-05-26 11:46", 1.535, 211, 92),
+    ("2040-11-18 19:05", 1.397, 220, 88),
+]
+_ECLIPSE_TIMES = [(datetime.datetime.fromisoformat(t).replace(tzinfo=datetime.timezone.utc), m, p, tot)
+                  for t, m, p, tot in ECLIPSES]
+
+
+def eclipse_at(utc):
+    """(shadow, total): how much of the moon the earth's shadow covers now
+    (0..1), and whether it is wholly inside it."""
+    for when, mag, partial, total in _ECLIPSE_TIMES:
+        minutes = abs((utc - when).total_seconds()) / 60.0
+        if minutes < partial / 2:
+            if minutes < total / 2:
+                return 1.0, True
+            edge = partial / 2
+            inner = total / 2
+            return min(1.0, mag) * (edge - minutes) / (edge - inner), False
+    return 0.0, False
+
+
 def moon_phase(utc):
     """(age, lit): age 0 = new, 0.5 = full, back to 1; lit is the
     illuminated fraction of the disc."""
@@ -266,6 +344,11 @@ class Sky:
         self.moon_az = 0.0
         self.moon_age = 0.0
         self.moon_lit = 0.0
+        self.venus_alt = -10.0
+        self.venus_az = 0.0
+        self.venus_elong = 0.0
+        self.eclipse = 0.0        # 0..1 of the moon in the earth's shadow
+        self.eclipse_total = False
         self.standard_hour = 0.0
         self.date = None
         self.season = "spring"
@@ -300,6 +383,9 @@ class Sky:
         self.sun_alt, self.sun_az, self.rising = alt, az, later >= alt
         self.moon_alt, self.moon_az = moon_altaz(utc, lat, lon)
         self.moon_age, self.moon_lit = moon_phase(utc)
+        self.venus_alt, self.venus_az = venus_altaz(utc, lat, lon)
+        self.venus_elong = venus_elongation(utc)
+        self.eclipse, self.eclipse_total = eclipse_at(utc)
         date = moment.date()
         hour = moment.hour + moment.minute / 60 + moment.second / 3600
         self.standard_hour = self.shape(date, offset).standard_hour(hour)
@@ -320,7 +406,13 @@ class Sky:
         """0..1: how much the moon lights the meadow (before clouds)."""
         if self.moon_alt <= 0:
             return 0.0
-        return self.moon_lit * min(1.0, self.moon_alt / 25.0) ** 0.7
+        return self.moon_lit * min(1.0, self.moon_alt / 25.0) ** 0.7 * (1.0 - 0.85 * self.eclipse)
+
+    @property
+    def venus_shows(self):
+        """Venus as the evening or morning star: up, clear of the sun's
+        glare, and the sky dark enough."""
+        return self.venus_alt > 3 and self.sun_alt < -4 and abs(self.venus_elong) > 10
 
     @property
     def full_moon(self):

@@ -1234,6 +1234,19 @@ class FullMoon(Notice):
         return env.sky.full_moon and env.sky.moon_alt > 15 and env.sun < 0.05 and env.weather.cloud < 0.4
 
 
+class LunarEclipse(Notice):
+    name, tier, title = "a lunar eclipse", "legendary", "A lunar eclipse: the moon turns copper in the pond"
+
+    def key(self, world):
+        return night_key(world.env.clock.moment)
+
+    def triggered(self, world):
+        env = world.env
+        sky = env.sky
+        return (sky.eclipse > 0.4 and sky.moon_alt > 3 and env.sun < 0.05 and env.weather.cloud < 0.6
+                and world.terrain.pond is not None)
+
+
 class MeteorShowerNotice(Notice):
     name, tier = "a meteor shower", "legendary"
     lasting = True
@@ -1317,7 +1330,7 @@ ROLLED = [TailChase(), DandelionSeeds(), FallingFeather(), CrowVisit(), MousePee
           MorningMist(), RainbowEvent(), ThunderstormEvent(), LeafWhirl(), DuskBats(), AGift(),
           ShootingStarEvent(), FourthWall(), GingerVisit(), FoxVisit(), HeronVisit(), DuckFamily(),
           GoldenButterflyEvent(), DeerAtDawn()]
-NOTICES = [Birthday(), FullMoon(), MeteorShowerNotice(), FirstSnow(), NewYear(), Halloween()]
+NOTICES = [Birthday(), FullMoon(), LunarEclipse(), MeteorShowerNotice(), FirstSnow(), NewYear(), Halloween()]
 ALL = {e.name: e for e in ROLLED + NOTICES}
 # Cooldowns and omens come from the settings.
 for _event in ALL.values():
