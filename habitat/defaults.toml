@@ -191,6 +191,12 @@ drizzle = 480
 revisit = 1200
 revisit_caption = 10800
 
+# Body language: her tail and ears show her mood (moods run from -1 to 1).
+[mochi.body_language]
+happy_above = 0.5         # tail up, hooked at the tip, ears pricked
+cross_below = -0.3        # ears back, tail lashing
+settle = 0.1              # a mood has to fade this far past its edge before she lets it go
+
 # Places she remembers (a mouse, the fox, a deer, a hedgehog, a gift) and goes back to check.
 [mochi.places]
 sight = 150               # art pixels: how far off she notices something

@@ -168,13 +168,16 @@ TROT_DIAGONAL = {"hn": 0.0, "ff": 0.0, "fn": 0.5, "hf": 0.5}
 GALLOP = {"hn": 0.0, "hf": 0.1, "fn": 0.5, "ff": 0.6}
 
 
-def walk_side(n=8):
-    return [side_gait(STAND, i / n, WALK_STRIDE, 0.62, 2.0, WALK_LATERAL) for i in range(n)]
+def walk_side(n=8, base=STAND, tail_sway=4.0):
+    return [side_gait(base, i / n, WALK_STRIDE, 0.62, 2.0, WALK_LATERAL, tail_sway=tail_sway) for i in range(n)]
 
 
-def trot_side(n=8):
-    base = STAND.with_(tail=120.0, curl=-6.0, curl2=-16.0)
-    return [side_gait(base, i / n, TROT_STRIDE, 0.5, 2.6, TROT_DIAGONAL, bob=0.5) for i in range(n)]
+TROT = STAND.with_(tail=120.0, curl=-6.0, curl2=-16.0)
+
+
+def trot_side(n=8, base=TROT, tail_sway=4.0):
+    return [side_gait(base, i / n, TROT_STRIDE, 0.5, 2.6, TROT_DIAGONAL, bob=0.5, tail_sway=tail_sway)
+            for i in range(n)]
 
 
 def stalk_side(n=8):
@@ -398,13 +401,67 @@ def front_anims(view):
     return a
 
 
+# =============================================================================
+# Body language: the same idles and gaits, carried in a mood
+
+# What a mood does to her tail and ears.  Happy: the tail straight up with
+# its tip hooked over (a question mark), ears pricked.  Cross: ears turned
+# back, and the tail lashes (or, sitting, its tip thumps).  Wary: ears
+# flat, tail held low.  Sitting or lying, only the ears (and a cross cat's
+# tail tip) change: her tail is tucked round her or along the ground.
+AIRS = {
+    "happy": {"side": dict(tail=104.0, curl=-1.0, curl2=-24.0, ear=-0.15),
+              "front": dict(tail=84.0, curl=-1.0, curl2=-16.0, tail_x=5.4, tail_len=2.3, ear=-0.15),
+              "back": dict(tail=92.0, curl=0.0, curl2=-22.0, tail_x=0.0, tail_len=2.1, ear=-0.15)},
+    "cross": {"side": dict(ear=0.45), "front": dict(ear=0.45), "back": dict(ear=0.45)},
+    "wary": {"side": dict(tail=214.0, curl=3.0, curl2=4.0, ear=0.9),
+             "front": dict(tail_len=0.6, ear=0.9),                  # held low, out of sight behind her
+             "back": dict(tail=262.0, curl=0.0, curl2=2.0, ear=0.9)},
+}
+AIRED = ("stand", "walk", "trot", "sit", "lie")    # the animations that come in every mood
+
+
+def in_air(p, air, view, settled=False):
+    over = AIRS[air][view]
+    if settled:
+        over = {k: v for k, v in over.items() if k == "ear"}
+    return p.with_(**over)
+
+
+def air_anims():
+    """{name~air: poses} for the side view, and {view: {name~air: poses}}
+    for the front and back.  A happy cat sitting or lying looks like any
+    other, so those are left out."""
+    side, views = {}, {"front": {}, "back": {}}
+    for air in AIRS:
+        lash = air == "cross"
+        side[f"stand~{air}"] = idle(in_air(STAND, air, "side"), 12, tail_amp=16.0 if lash else 7.0, twitch_at=8)
+        side[f"walk~{air}"] = walk_side(base=in_air(STAND, air, "side"), tail_sway=11.0 if lash else 4.0)
+        side[f"trot~{air}"] = trot_side(base=in_air(TROT, air, "side"), tail_sway=11.0 if lash else 4.0)
+        if air != "happy":
+            side[f"sit~{air}"] = idle(in_air(SIT, air, "side", True), 12, tail_amp=0.0,
+                                      tip_amp=20.0 if lash else 8.0, twitch_at=5)
+            side[f"lie~{air}"] = idle(in_air(LIE, air, "side", True), 12, tail_amp=4.0,
+                                      tip_amp=16.0 if lash else 6.0, twitch_at=9)
+        for view, (stand, sit) in (("front", (FRONT, FRONT_SIT)), ("back", (BACK, BACK_SIT))):
+            base = in_air(stand, air, view)
+            a = views[view]
+            a[f"stand~{air}"] = idle(base, 12, tail_amp=15.0 if lash else 8.0, twitch_at=8)
+            a[f"walk~{air}"] = [front_gait(base, i / 8, back=view == "back") for i in range(8)]
+            a[f"trot~{air}"] = a[f"walk~{air}"]
+            if air != "happy":
+                a[f"sit~{air}"] = idle(in_air(sit, air, view, True), 12, tail_amp=0.0, twitch_at=5)
+    return side, views
+
+
 def build():
     """{key: [pose, ...]} together with the view each key is drawn in."""
     out = {}
-    for name, poses in side_anims().items():
+    aired_side, aired_views = air_anims()
+    for name, poses in {**side_anims(), **aired_side}.items():
         out[f"{name}_right"] = ("side", poses)
     for view in ("front", "back"):
-        for name, poses in front_anims(view).items():
+        for name, poses in {**front_anims(view), **aired_views[view]}.items():
             out[f"{name}_{view}"] = (view, poses)
     return out
 

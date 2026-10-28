@@ -376,6 +376,28 @@ account until lots of people want the Swift version.
   - **Tests:** `tests/test_style.py` holds the rules, and it caught two of
     my own colour picks on the way: the fox's shadow wasn't cooler than its
     light, and the duckling's outline wasn't plum-leaning.
+- **"do body language first"** (before watching it and before Swift):
+  - **Built:** mood versions of her stand, walk, trot, sit and lie, from
+    every angle, chosen by `_read_air()`:
+    - **Happy:** mood above 0.5. The tail goes up and hooked (a question
+      mark), ears pricked.
+    - **Cross:** mood below -0.3. Ears back, the tail lashing, or the tip
+      thumping when she sits.
+    - **Wary:** the fox within fear distance, rain on her fur outside cover,
+      or hiding. Ears flat, tail low. This wins over any mood.
+  - **No flicker:** a mood has to fade 0.1 past its edge before she lets
+    it go.
+  - **Keeps her rhythm:** a mood change mid-walk swaps the clip at the same
+    point in its stride.
+  - **Left out on purpose:** happy versions of sit and lie, where a happy
+    cat looks like any other.
+  - **Settings:** `[mochi.body_language]` in `defaults.toml`.
+  - **Cost:** about 850 more cached frames (about 14 MB of memory). The
+    one-off redraw after an art change went from about 4 s to 6 s. CPU per
+    frame is unchanged.
+  - **Checked in simulation:** over a 14-hour day, two cats were happy 4–19%
+    of the time, and their moods shifted 20–50 times a day. Cross and wary
+    only show after bad moments, which is right for a calm meadow.
 - **Known, not fixed:** two meadows starting at the same moment right after
   an art change can collide while redrawing the sprite cache. This was seen
   when six preview renders ran at once. It's rare in real use.
@@ -384,9 +406,8 @@ account until lots of people want the Swift version.
 
 ## Open items
 
-- **Body language** (agreed as the next step of the remodel): tail and ears
-  follow her mood: tail up when happy, a flick when annoyed, ears flat for
-  the fox or the rain.
+- **Watch it for a few days**, then tune from real viewing (the owner's
+  notes). After that, Swift, when the owner says go.
 - **Watch it for a day or two** and tune from real viewing: event rates,
   captions, season colours, and whether 15 fps calm mode shows.
 - **Ideas parked from the 2026-10-21 brainstorm:**

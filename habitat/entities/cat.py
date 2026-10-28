@@ -50,6 +50,7 @@ RAIN = SETTINGS["mochi"]["rain"]
 SHADE = SETTINGS["shade"]
 DRIZZLE_CHANCE = RAIN["drizzle_chance"]   # per look-round (every 0.35 s): about once in five minutes of drizzle
 PLACE = MOCHI["places"]
+AIR = MOCHI["body_language"]
 WORTH_REMEMBERING = ("mouse", "fox", "deer", "hedgehog")   # creatures whose places she goes back to
 
 _LIBRARY = {}
@@ -173,6 +174,7 @@ class Cat(Entity):
         self._cooldowns = {}
         self._ignored = {}  # id(prey) -> time until which the cat ignores it
         self._noticed = set()     # ids of creatures whose place she has already remembered
+        self.air = None           # how she carries her tail and ears: happy, cross, wary, or calm (None)
         self._blink = 0.0
         self._next_blink = self.rng.uniform(1.0, 4.0)
         self.carrying = None      # the name of a gift in her mouth
@@ -213,6 +215,7 @@ class Cat(Entity):
             self._perceive_timer = 0.35
             if type(self) is Cat:
                 self._notice()
+            self._carry(self._read_air())
             self._perceive()
         if self.activity is None:
             self._start(*self._choose())
@@ -379,7 +382,7 @@ class Cat(Entity):
         return key if key in self.lib else None
 
     def show(self, name, fps=None, stride=None, loop=True, restart=False, keep_phase=False):
-        key = self.key_for(name) or self.key_for("stand")
+        key = (self.air and self.key_for(f"{name}~{self.air}")) or self.key_for(name) or self.key_for("stand")
         self.anim.play(key, self.lib[key], fps=fps, stride=stride, loop=loop, restart=restart,
                        keep_phase=keep_phase)
 
@@ -404,6 +407,49 @@ class Cat(Entity):
         else:
             self.state = "idle"
             self.show("stand", fps=rng.uniform(4.0, 5.5))
+
+    # ======================================================================
+    # Body language
+
+    def _read_air(self):
+        """How she carries herself now.  Wary (ears flat, tail low) when the
+        fox is about or the rain is on her fur, whatever her mood; otherwise
+        her mood shows: happy or cross, each held until it has properly
+        faded, so she doesn't flicker on the edge of one."""
+        if self.posture == "sleep":
+            return None
+        world = self.world
+        env = world.env
+        wet = (env.rain > RAIN["drizzle_above"] and not self.sheltered
+               and not world.terrain.under_roof(self.x, self.y))
+        fox = any(e.kind == "fox" and e.alive and not getattr(e, "hidden", False)
+                  and self.distance_to(e) < MOCHI["fox_fear_distance"] for e in world.entities)
+        if wet or fox or self.activity_name == "hide":
+            return "wary"
+        mood, give = self.p.mood, AIR["settle"]
+        if mood < AIR["cross_below"] + (give if self.air == "cross" else 0.0):
+            return "cross"
+        if mood > AIR["happy_above"] - (give if self.air == "happy" else 0.0):
+            return "happy"
+        return None
+
+    def _carry(self, air):
+        """Change how she carries herself: the clip playing now is swapped
+        for its twin in the new mood, at the same point in its cycle."""
+        if air == self.air:
+            return
+        self.air = air
+        key = self.anim.key
+        if not key:
+            return
+        clip, view = key.rsplit("_", 1)
+        name = clip.split("~")[0]
+        if name not in cat_anims.AIRED:
+            return
+        new = (air and self.key_for(f"{name}~{air}", view)) or self.key_for(name, view)
+        if new and new != key:
+            self.anim.play(new, self.lib[new], fps=self.anim.fps, stride=self.anim.stride, loop=self.anim.loop,
+                           keep_phase=True)
 
     def wait(self, seconds):
         elapsed = 0.0

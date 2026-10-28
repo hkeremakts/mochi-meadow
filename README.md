@@ -158,6 +158,11 @@ meadow runs she gets a character, kept in the journal from then on:
   visit or the golden butterfly cheer her up; rain, the fox, a fight or
   fireworks make her grumpy. A happy cat kneads and slow-blinks; a grumpy
   one grooms more and plays less.
+- **Body language:** her tail and ears show how she feels. Happy, she
+  walks with her tail straight up and the tip hooked over, like a question
+  mark, ears pricked. Cross, her ears turn back and her tail lashes (or,
+  sitting, its tip thumps). When the fox is about, or rain is on her fur,
+  her ears go flat and her tail drops, however she was feeling.
 - **A favourite nap spot**, which she settles on after a few naps there.
 - **Places she remembers:** the bush where she saw a mouse, where the fox
   or the deer passed, where the hedgehog snuffled, where she found a gift.
