@@ -469,10 +469,7 @@ def draw_front(p):
         c.paint(c.ellipse(cx, cy - 1.0, 5.6 * p.puff, 3.8 * p.puff), BASE)  # shoulders
     else:
         c.paint(c.ellipse(cx, 44.5, 7.4, 3.4), BASE)                       # haunches
-        scratching = p.get("scratch", 0.0)
-        for side, paw in ((-1, p.hl), (1, p.hr)):
-            if scratching and side * scratching > 0:
-                continue                                                   # that one is up at her ear
+        for paw in (p.hl, p.hr):
             c.paint(c.ellipse(paw[0], paw[1] - 1.0, 1.9, 1.1), CREAM)
     body = c.ellipse(cx, cy, p.chest_r[0] * p.puff, p.chest_r[1] * p.puff)
     c.paint(body, BASE)
@@ -484,25 +481,7 @@ def draw_front(p):
         _wrapped_tail(c, cx, 1)
     c.paint(c.capsule(cx, cy - 3.0, hx, hy + 2.0, 3.6), BASE)
     _front_face(c, hx, hy, p, features, late)
-    if p.get("scratch", 0.0):
-        _scratching_hind_leg(c, cx, p)
     return finish(c, features, late)
-
-
-def _scratching_hind_leg(c, cx, p):
-    """Seen from the front, scratching an ear: the hind leg comes up out to
-    the side, knee bent outward clear of her body, and the foot rakes at
-    the outside of the ear, over the edge of her head."""
-    s = 1 if p.scratch > 0 else -1
-    root = (cx + s * 4.6, 44.2)
-    kx, ky = p.scratch_knee
-    fx, fy = p.scratch_foot
-    knee = (cx + s * kx, ky)
-    foot = (cx + s * fx, fy)
-    ankle = (knee[0] + (foot[0] - knee[0]) * 0.45, knee[1] + (foot[1] - knee[1]) * 0.45)
-    fur = c.chain([root, knee, ankle], [2.4, 1.8, 1.4])
-    sock = c.capsule(ankle[0], ankle[1], foot[0], foot[1], 1.35, 1.25) | c.ellipse(foot[0], foot[1], 1.7, 1.4)
-    _limb(c, (fur, sock), near=True)
 
 
 BACK = FRONT.with_(tail=70.0, curl=2.0, curl2=-14.0, tail_x=1.6, tail_len=1.7, chest=(32.0, 38.6), chest_r=(5.4, 5.0),

@@ -1306,18 +1306,12 @@ class Cat(Entity):
     def act_groom(self):
         self.label = "grooming"
         self.speed = 0.0
-        scratch = self.rng.random() < 0.5
-        if scratch or self.view in ("back", "br", "bl"):
-            # an ear scratch is a face-on thing: she turns to you once, first
+        if self.view in ("back", "br", "bl"):
             yield from self.face("down")
         yield from self.to_posture("sit")
         yield from self.wait(self.rng.uniform(0.4, 0.9))
         for _ in range(self.rng.randint(1, 3)):
             yield from self.once("groom", fps=7)
-        if scratch and self.view == "front":
-            self.label = "scratching an ear"
-            yield from self.once("scratch", fps=12)
-            self.label = "grooming"
         self.idle_pose()
         yield from self.wait(self.rng.uniform(1.0, 2.5))
         self.needs.groom = 0.0

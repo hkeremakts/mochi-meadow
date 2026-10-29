@@ -408,16 +408,6 @@ def front_anims(view):
         out = sit.with_(fr=(37.5, 33.5))
         down = sit.with_(fr=(37.0, 42.0))
         a["swipe_sit"] = seq([sit, up], [out, out, down], tween(down, sit, 3))
-        # Scratching an ear is drawn face-on, where it reads: the hind leg
-        # comes up out to the side, knee bent outward, and the foot rakes at
-        # the outside of the ear, her head tipped toward it, eyes shut.
-        # (Side-on, the raised leg vanishes into her body.)
-        hx, hy = sit.head
-        rake_up = sit.with_(scratch=-1.0, scratch_knee=(9.6, 39.5), scratch_foot=(7.4, hy - 2.2), eye=0.0,
-                            head=(hx - 0.9, hy + 0.5), ear=0.25)
-        rake_down = rake_up.with_(scratch_knee=(9.9, 40.3), scratch_foot=(7.8, hy - 0.2))
-        lifting = sit.with_(scratch=-1.0, scratch_knee=(8.4, 41.5), scratch_foot=(8.6, 38.0), eye=0.5)
-        a["scratch"] = seq([lifting], [rake_up, rake_down] * 6, [lifting, sit])
         eat = stand.with_(head=(32.0, 36.6), chest=(32.0, 39.6))
         a["eat"] = [eat, eat.with_(mouth=0.3, head=(32.0, 36.2)), eat, eat.with_(head=(32.0, 36.9))]
         a["eat_start"] = tween(stand, eat, 3)

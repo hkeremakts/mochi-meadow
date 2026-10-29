@@ -637,6 +637,9 @@ commits are now made only when the full suite reports OK.
       if so turns to face you once, before sitting.
     - **Test fix:** the circling check now ignores tail chasing, which
       spins on purpose.
+  - **Owner: "just drop the ear scratch mechanism for now".** Removed: no
+    scratch animation in any view, and grooming no longer scratches. It
+    could come back later as its own drawn sequence.
 
 - **Known, not fixed:** two meadows starting at the same moment right after
   an art change can collide while redrawing the sprite cache. This was seen
