@@ -862,6 +862,38 @@ its own clock").
   and 2, the seasonal stories and the testing mode (2026-10-29, see
   above). In testing mode (`X`, then `]`) the stories can be watched
   without waiting for spring.
+- **Events for certain, for testing** (owner, 2026-10-30: "add making the
+  possibility of seeing an event 1 for testing … this way I can test
+  everything in real life"; not to be built yet).
+  - **The idea:** a testing switch that sets the odds of seeing an event
+    to 1, so each event happens as soon as its conditions allow, at real
+    pace, and every one can be checked as it really plays out.
+  - **Already there:** `--event NAME` makes one event happen at the start;
+    `D` shows each tier's odds and what could happen right now; testing
+    mode fast-forwards everything.
+  - **To design:**
+    - every event in turn (a queue), the next possible one on a key, or
+      every chance at 1 (with cooldowns kept, so they don't pile up)
+    - how it fits with one rare-or-better event at a time, and with the
+      hush before a legendary one
+    - whether it's only in testing mode, so the real meadow keeps its
+      rarities
+- **One window with everything I need** (owner, 2026-10-30: "a windows
+  that holds every necessary info for me"; not to be built yet).
+  - **The idea:** one place to read everything at once, instead of the
+    separate `I` (info), `J` (journal) and `D` (event odds) panels and the
+    testing badge.
+  - **What it could hold:**
+    - the time, the weather and temperature, the sun and the moon, the
+      season and where each story is
+    - what Mochi is doing, her needs, mood and character, and who's about
+    - each event tier's odds and timers, what could happen now and what's
+      running
+    - the journal so far, and the testing pace and keys
+  - **To design:**
+    - a panel over the meadow, or a second window beside it (which keeps
+      the meadow itself clean and suits testing)
+    - which of the existing panels it would replace
 - **Snapshots of rare moments** (brainstorm #1): deferred.
 - **Small fixes:**
   - the sprite-cache collision when two meadows start at once after an art
