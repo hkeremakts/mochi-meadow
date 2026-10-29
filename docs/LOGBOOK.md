@@ -890,10 +890,9 @@ its own clock").
     - each event tier's odds and timers, what could happen now and what's
       running
     - the journal so far, and the testing pace and keys
-  - **To design:**
-    - a panel over the meadow, or a second window beside it (which keeps
-      the meadow itself clean and suits testing)
-    - which of the existing panels it would replace
+  - **Decided** (owner, 2026-10-30: "panel over window"): a panel drawn
+    over the meadow, not a second window beside it.
+  - **To design:** which of the existing panels it would replace.
 - **Snapshots of rare moments** (brainstorm #1): deferred.
 - **Small fixes:**
   - the sprite-cache collision when two meadows start at once after an art
