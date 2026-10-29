@@ -38,6 +38,7 @@ python3.12 -m venv venv && source venv/bin/activate   # 3.12 or 3.13; pygame 2.6
 pip install -r requirements.txt
 python main.py                  # window, live time
 python main.py --screensaver    # fullscreen lite mode, 30/15 fps
+python main.py --testing        # testing mode: its own clock, nothing remembered (X toggles it)
 python main.py --help           # all flags (--time, --speed, --date, --place, --event, --seed, ...)
 ./venv/bin/python -m unittest discover -s tests -t .    # all tests must pass
 ```
@@ -46,7 +47,10 @@ Lint: install pyflakes temporarily, run `python -m pyflakes habitat tests main.p
 then uninstall it (it isn't a project dependency).
 
 Keys in a window: I info, J journal, D event odds/debug, W weather, T time-lapse,
-N new meadow, S screenshot, F fullscreen. In `--screensaver` any key quits.
+N new meadow, S screenshot, F fullscreen, X testing mode. In testing mode T
+steps through its paces, the arrows jump a day or an hour, and `[`/`]` go
+to the last or next step of a seasonal story. In `--screensaver` any key
+quits.
 
 ## Layout
 
@@ -83,6 +87,10 @@ N new meadow, S screenshot, F fullscreen. In `--screensaver` any key quits.
   changes, so the first start after an art change takes about 5 s).
 - Drawing: `render.py` (one MULT light pass, lite GPU-scaled mode), `hud.py`,
   `app.py` (loop, flags, keys, screensaver mode).
+- `testing.py`: testing mode's clock (`TestClock`: any pace, jumps, whole
+  days with the hour held) and its scratch copy of the journal. Use it to
+  try anything seasonal; it must never write the real journal
+  (`tests/test_testing.py` checks).
 - `legacy/main_original.py` is the original game, kept for reference.
   `tools/` holds the old sprite-sheet scripts. Only `assets/environment/` is
   published; the other third-party art folders are git-ignored.

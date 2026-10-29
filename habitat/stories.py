@@ -1035,12 +1035,13 @@ class Stories:
                 out.append(f"{passage.kind} heading {way}")
         return out
 
-    def next_change(self):
-        """(days from now, story, stage) of the next stage to begin, or None."""
-        for year in (self.year, self.year + 1):
+    def steps(self):
+        """Every step of every story from last year to next: [(days from
+        now, story, stage)], in order (for testing mode's jumps)."""
+        out = []
+        for year in (self.year - 1, self.year, self.year + 1):
+            offset = (year - self.year) * DAYS
             for day, story, stage in self.almanac(year).changes():
-                ahead = day - self.day + (DAYS if year > self.year else 0)
-                if ahead > 0.01:
-                    return ahead, story, stage
-        return None
+                out.append((day + offset - self.day, story, stage))
+        return sorted(out)
 

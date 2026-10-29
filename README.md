@@ -33,6 +33,7 @@ python main.py --date 2026-12-24 # pretend it's Christmas Eve (season, moon)
 python main.py --place 51.5,-0.1 # work out the sun and moon for London
 python main.py --event "a rainbow"   # make an event happen now (see --help for names)
 python main.py --name Pamuk      # call the cat something else (remembered)
+python main.py --testing         # testing mode: its own clock, nothing remembered (see below)
 python main.py --help            # every option
 ```
 
@@ -48,8 +49,32 @@ python main.py --help            # every option
 | `W` | next weather |
 | `N` | grow a new meadow |
 | `S` | screenshot (saved to `screenshots/`) |
+| `X` | testing mode on and off (see below) |
 | `H` | show the key guide again |
 | `Esc` / `Q` | quit |
+
+### Testing mode
+
+For watching what takes days or months, without waiting for them. Press
+`X` in a window (or start with `--testing`), and the meadow leaves the
+wall clock and the real calendar and runs on a clock of its own. The sun
+and the moon, the seasons and the stories all follow it. An amber badge
+at the top says it's on, with the testing date and time and what the
+stories are doing.
+
+| Key | in testing mode |
+|---|---|
+| `T` | the pace: real → an hour a minute → a day in two minutes → a week a minute → a day a second with the hour held still (the seasons sweep by without the light flickering) |
+| `←` / `→` | a day back or on |
+| `↓` / `↑` | an hour back or on |
+| `[` / `]` | back to the last step of a seasonal story, or on to the next one, arriving at an hour to see it |
+| `X` | back to the real clock |
+
+Nothing is remembered. Testing mode works on a scratch copy of the journal:
+the same Mochi and the same meadow, but no notices given yet, so each
+caption shows again. The copy is never saved, and leaving puts the real
+journal and clock back, so a test run never changes Mochi or the saved
+meadow.
 
 ### As a screensaver
 
@@ -378,6 +403,7 @@ habitat/
   seasons.py         the meadow's look through the year (grading, snow)
   stories.py         the seasonal stories: each year's dates, the nest,
                      the spawn and tadpoles, storks and geese overhead
+  testing.py         testing mode: a clock of its own, a scratch journal
   events.py          encounters: rarity tiers, conditions, effects
   journal.py         what has been seen, kept between runs
   settings.py        loads defaults.toml and your own settings on top

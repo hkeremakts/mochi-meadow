@@ -23,6 +23,7 @@ KEYS = [
     ("D", "event odds"),
     ("N", "new meadow"),
     ("S", "screenshot"),
+    ("X", "testing mode"),
     ("Esc", "quit"),
 ]
 
@@ -242,6 +243,22 @@ class Hud:
                       f"spread {d.spread:.2f}", self.small, dim))
         lines.append((f"{wx.state} for another {wx.hold / 60:.0f} min (blend {wx.blend:.0f} s)", self.small, dim))
         self._panel(screen, lines, "topleft")
+
+    def draw_testing(self, screen, lines):
+        """Testing mode's badge, top and centre, in amber so there's no
+        mistaking it for the real meadow."""
+        amber, dim = (255, 204, 96), (232, 214, 170)
+        rendered = [self.font.render(lines[0], True, amber)] + [self.small.render(t, True, dim) for t in lines[1:]]
+        w = max(r.get_width() for r in rendered) + self.pad * 2
+        h = sum(r.get_height() for r in rendered) + self.pad * 2 + (len(rendered) - 1) * 3
+        panel = pygame.Surface((w, h), pygame.SRCALPHA)
+        pygame.draw.rect(panel, (40, 26, 6, 200), panel.get_rect(), border_radius=self.pad)
+        pygame.draw.rect(panel, (*amber, 220), panel.get_rect(), width=2, border_radius=self.pad)
+        y = self.pad
+        for r in rendered:
+            panel.blit(r, ((w - r.get_width()) // 2, y))
+            y += r.get_height() + 3
+        screen.blit(panel, ((screen.get_width() - w) // 2, self.pad))
 
     def draw_guide(self, screen):
         if self.guide_time <= 0:

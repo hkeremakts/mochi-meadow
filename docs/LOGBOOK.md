@@ -742,6 +742,52 @@ from the 2026-10-21 brainstorm (#4) were built.
   bug didn't kick in). Tests are in `tests/test_stories.py` (26) and
   `test_style.py` (the new birds, the froglet and the nest).
 
+## 2026-10-29 · Testing mode
+
+**Asked:** "lastly add testing mode" (from the to-do list: "increasing the
+clock speed for faster testing … the program can switch to testing mode
+and stops following to normal day-night or moon cycles and goes on with
+its own clock").
+
+- **Switching:** `X` in a window toggles it; `--testing` starts in it.
+- **Its own clock:** `testing.TestClock` starts where the real one was and
+  runs on its own. The sky, the moon's phase, the seasons and the stories
+  all follow it.
+- **Paces (`T`):**
+  - real pace
+  - an hour a minute
+  - a day in two minutes
+  - a week a minute
+  - a day a second with the hour held still
+- **Why the last pace holds the hour:** past about a week a minute, day
+  and night would flash by, and a whole screen flickering light and dark
+  is unpleasant (and, faster, a seizure risk). So the fastest pace moves
+  whole days at the same hour, and a year sweeps past in six minutes
+  with steady light.
+- **Jumps:** the arrows move a day or an hour. `[`/`]` go back to the last
+  step of a seasonal story or on to the next, arriving at an hour to see
+  it (the nest at ten, froglets in the evening, storks at midday). After a
+  jump the ground settles to the new day (`Environment.settle`): no
+  January snow left lying in June.
+- **Nothing remembered:**
+  - **The journal:** testing works on a scratch copy (the same Mochi and
+    meadow, but no notices given yet, so captions show again), never
+    saved.
+  - **Switching in:** the real session is saved first.
+  - **Leaving:** the real journal, cat, clock and meadow come back (a new
+    meadow grown with `N` while testing is for testing only).
+  - **Started with `--testing`:** the real journal is only read, not even
+    written to meet a new cat; that waits until you leave testing.
+- **The badge:** an amber panel at the top shows it's on, with the pace,
+  the testing date and time, what the stories are doing, and the keys.
+- **In a time-lapse** the stories keep pace with the clock up to 30×. A
+  year at the fastest pace ran in 1.8 s of computing, every story stage
+  in order, the slowest frame 29 ms (the weekly regrade of the ground).
+- **Tests:** in `tests/test_testing.py` (11): it switches both ways, the
+  real journal file is byte-for-byte unchanged after testing, a first run
+  in testing makes no journal, the paces, the held hour, jumps, story
+  steps, no winter left after a jump into summer, and the badge.
+
 ---
 
 ## Open items
@@ -750,23 +796,9 @@ from the 2026-10-21 brainstorm (#4) were built.
   notes): event rates, captions, how often she goes back to places, the new
   look in every light, and whether the 15 fps calm mode shows.
 - **Waiting on the owner's verdict from watching it:** movement steps 1
-  and 2, and the seasonal stories (2026-10-29, see above). Once the
-  testing mode is in, the stories can be watched without waiting for
-  spring.
-- **A testing mode** (owner, 2026-10-28: "increasing the clock speed for
-  faster testing … the program can switch to testing mode and stops
-  following to normal day-night or moon cycles and goes on with its own
-  clock"; not to be built yet).
-  - **Already there:** `T` cycles time-lapse 1× → 60× → 600×, and
-    `--time`, `--date`, `--speed`, `--weather`, `--event` set things up.
-    These still follow the real sky and calendar.
-  - **To design:** a switchable mode where the meadow runs on its own
-    clock. Day and night, the moon's phase and the seasons would cycle
-    quickly and independently of the real date, so a whole day, month or
-    year can be watched in minutes. It needs a clear on-screen sign that
-    it's in testing mode, and must not write the real journal (or must
-    keep a separate one), so test runs don't change Mochi or the saved
-    meadow.
+  and 2, the seasonal stories and the testing mode (2026-10-29, see
+  above). In testing mode (`X`, then `]`) the stories can be watched
+  without waiting for spring.
 - **Snapshots of rare moments** (brainstorm #1): deferred.
 - **Small fixes:**
   - the sprite-cache collision when two meadows start at once after an art
@@ -774,7 +806,9 @@ from the 2026-10-21 brainstorm (#4) were built.
   - the npm cache, which needs the owner's password
   - a test that failed once and then passed three times running
     (2026-10-29), probably one of the timing tests in `test_render.py` when
-    the Mac was busy. Find it and make it robust.
+    the Mac was busy. Find it and make it robust. (If it was a behaviour
+    test instead, the `id()` bug fixed the same day, which made seeded runs
+    depend on memory layout, may have been the cause.)
 - **The Swift `.saver` rewrite:** last, and only when asked.
 - **After Swift:** things a screensaver can't do, such as live weather,
   interacting with Mochi, and widgets.

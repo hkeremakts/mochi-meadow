@@ -387,10 +387,23 @@ class Environment:
         self.snow_cover = 0.0    # 0..1 of the ground under snow
         self.frost = 0.0         # 0..1 hoar frost on the grass
         self.ice = 0.0           # 0..1 the pond freezing over
+        self._as_it_might_be(rng)
+
+    def _as_it_might_be(self, rng):
+        """The cold's mark on the meadow as it might be when you first look:
+        snow that fell while nobody was watching, a pond frozen overnight."""
         if self.temperature < 0.5 and self.clock.sky.season == "winter" and rng.random() < 0.3:
-            self.snow_cover = rng.uniform(0.4, 1.0)  # it snowed while nobody was watching
+            self.snow_cover = rng.uniform(0.4, 1.0)
         if self.temperature < COLD["ice_below"] and rng.random() < 0.6:
-            self.ice = 1.0                           # a hard frost overnight: frozen already
+            self.ice = 1.0
+
+    def settle(self, rng):
+        """After a jump through the calendar (testing mode): the ground as it
+        might be on the new day, not as it was on the old one."""
+        self.day.update(self.clock.date)
+        self.temperature = self._temperature()
+        self.snow_cover = self.frost = self.ice = 0.0
+        self._as_it_might_be(rng)
 
     @property
     def sky(self):

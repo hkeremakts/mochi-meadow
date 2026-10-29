@@ -1,6 +1,7 @@
 """Window, input and the main loop."""
 
 import argparse
+import copy
 import datetime
 import os
 import random
@@ -19,6 +20,7 @@ from .hud import Hud
 from .render import Renderer
 from .settings import SETTINGS
 from .sky import parse_place
+from .testing import PACES, TestClock, badge, scratch_copy, story_target
 from .world import World
 
 _screen = SETTINGS["screen"]
@@ -29,6 +31,9 @@ SAVE_EVERY = float(_screen["save_every"])  # seconds between journal saves of th
 LITE_ZOOM = _screen["lite_zoom"]          # in lite mode the scene is drawn at this zoom, the GPU does the rest
 SCREENSAVER_GRACE = float(_screen["screensaver_grace"])  # seconds before input ends a screensaver session
 RESIZE_SETTLE = 0.25      # rebuild once the window has stopped changing size
+# Testing mode's jumps: key -> (how far, what it's called).
+JUMPS = {pygame.K_RIGHT: (datetime.timedelta(days=1), "A day on"), pygame.K_LEFT: (datetime.timedelta(days=-1), "A day back"),
+         pygame.K_UP: (datetime.timedelta(hours=1), "An hour on"), pygame.K_DOWN: (datetime.timedelta(hours=-1), "An hour back")}
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
@@ -93,6 +98,8 @@ def parse_args(argv=None):
                    help="don't remember anything between runs (a new cat and meadow each time)")
     p.add_argument("--name", help="what the cat is called (remembered)")
     p.add_argument("--debug-events", action="store_true", help="show event odds and timers (toggle with D)")
+    p.add_argument("--testing", action="store_true",
+                   help="testing mode: the meadow on a clock of its own, nothing remembered (toggle with X)")
     p.add_argument("--settings", metavar="PATH",
                    help="a settings file of your own (see habitat/defaults.toml for every value)")
     p.add_argument("--frames", type=int, help=argparse.SUPPRESS)        # run N frames then exit
@@ -112,11 +119,15 @@ class App:
         self.fullscreen = args.fullscreen or args.screensaver
         self.windowed_size = self._initial_window_size(args.size)
         remembering = not (args.no_journal or args.frames)
-        self.journal = Journal(default_path() if remembering else None)
+        self.journal = real_journal = Journal(default_path() if remembering else None)
+        if args.testing:
+            # Testing from the start: the real journal is only read, never
+            # written, not even to meet a new cat.
+            self.journal = scratch_copy(real_journal)
         # Her meadow: the same layout every run, unless asked for another.
         stored = self.journal.notes.get("meadow_seed")
         self.seed = args.seed if args.seed is not None else (stored if stored is not None else random.randrange(1 << 30))
-        if remembering and args.seed is None and stored is None:
+        if remembering and not args.testing and args.seed is None and stored is None:
             self.journal.note("meadow_seed", self.seed)
         if remembering:
             self.personality = Personality.from_journal(self.journal, args.name)
@@ -124,6 +135,13 @@ class App:
             self.personality = Personality.roll(random.Random(self.seed), args.name or "Mochi")
         self.clock = Clock(parse_hour(args.hour), speed=args.speed, date=args.date, place=args.place)
         self.speed_index = TIME_SPEEDS.index(int(args.speed)) if args.speed in TIME_SPEEDS else None
+        self.testing = None       # while testing: the real (journal, personality, clock, meadow) to go back to
+        self.pace = 0             # which of testing.PACES
+        if args.testing:
+            self.testing = (real_journal, None, self.clock, self.seed)     # (the real cat is met on leaving)
+            self.clock = TestClock(self.clock.moment, place=args.place)
+            if args.speed != 1:
+                self.clock.set_pace(args.speed)
         self.screen = self._set_mode()
         self.world = None
         self.renderer = None
@@ -261,9 +279,20 @@ class App:
                 self.show_debug = not self.show_debug
             elif key in (pygame.K_h, pygame.K_SLASH):
                 self.hud.show_guide()
+            elif key == pygame.K_x:
+                self.toggle_testing()
+            elif key == pygame.K_t and self.testing is not None:
+                self.pace = (self.pace + 1) % len(PACES)
+                name, speed, days = PACES[self.pace]
+                self.clock.set_pace(speed, days)
+                self.hud.toast(f"Testing: {name}")
             elif key == pygame.K_t:
                 self.speed_index = 0 if self.speed_index is None else (self.speed_index + 1) % len(TIME_SPEEDS)
                 self.clock.set_speed(TIME_SPEEDS[self.speed_index])
+            elif self.testing is not None and key in JUMPS:
+                self.jump(*JUMPS[key])
+            elif self.testing is not None and key in (pygame.K_LEFTBRACKET, pygame.K_RIGHTBRACKET):
+                self.story_step(forward=key == pygame.K_RIGHTBRACKET)
             elif key == pygame.K_w:
                 self.world.env.weather.cycle()
                 self.hud.guide_time = 0.0
@@ -282,6 +311,77 @@ class App:
             self.paused_render = True
         elif event.type in (pygame.WINDOWRESTORED, pygame.WINDOWSHOWN, pygame.WINDOWEXPOSED):
             self.paused_render = False
+
+    # --- testing mode ---------------------------------------------------------
+
+    def toggle_testing(self):
+        if self.testing is None:
+            if self.journal.path:
+                self._save_session()          # the real session, kept before testing begins
+            self._swap_in_testing()
+            self._build_world()
+            self.hud.toast("Testing mode: its own clock, nothing remembered")
+        else:
+            journal, personality, clock, self.seed = self.testing
+            if personality is None:           # started in testing mode: now meet the real cat
+                if journal.path:
+                    if self.args.seed is None and journal.notes.get("meadow_seed") is None:
+                        journal.note("meadow_seed", self.seed)
+                    personality = Personality.from_journal(journal, self.args.name)
+                else:
+                    personality = self.personality
+                    personality.journal = None
+            self.journal, self.personality, self.clock = journal, personality, clock
+            self.testing = None
+            self._build_world()
+            self.hud.toast("Back to the real clock")
+
+    def _swap_in_testing(self):
+        """A scratch journal (same cat, same meadow), a copy of Mochi to go
+        with it, and a clock of its own."""
+        self.testing = (self.journal, self.personality, self.clock, self.seed)
+        self.journal = scratch_copy(self.journal)
+        mochi = copy.deepcopy(self.personality)
+        mochi.journal = self.journal
+        mochi.first_meeting = False
+        self.personality = mochi
+        self.clock = TestClock(self.clock.moment, place=self.args.place)
+        self.pace = 0
+
+    @property
+    def pace_name(self):
+        name, speed, days = PACES[self.pace]
+        if self.clock.speed == speed and self.clock.days_per_second == days:
+            return name
+        return f"time x{self.clock.speed:g}"
+
+    def jump(self, delta, what):
+        """Testing mode: move the clock on (or back), and let the meadow
+        catch up at once."""
+        self.clock.jump(delta)
+        world = self.world
+        world.env.settle(world.rng)
+        world.stories.timer = 0.0
+        world._scenery_check = 0.0
+        self.hud.toast(f"{what}: {self.clock.moment.strftime('%d %b %H:%M').lstrip('0')}")
+
+    def story_step(self, forward=True):
+        """Testing mode: on to the next step of a seasonal story (or back
+        to the last), arriving at an hour to see it."""
+        now = self.clock.moment
+        hour = datetime.timedelta(hours=1)
+        targets = [(story_target(now, ahead, story, stage), story, stage)
+                   for ahead, story, stage in self.world.stories.steps()]
+        if forward:
+            options = [t for t in targets if t[0] > now + hour]
+            pick = min(options) if options else None
+        else:
+            options = [t for t in targets if t[0] < now - hour]
+            pick = max(options) if options else None
+        if pick is None:
+            return
+        when, story, stage = pick
+        self.jump(when - now, f"{story}: {stage}")
 
     def save_screenshot(self, path=None):
         if path is None:
@@ -326,6 +426,8 @@ class App:
                     self.hud.draw_debug(self.screen, self.world)
                 elif self.show_journal:
                     self.hud.draw_journal(self.screen, self.world.events)
+                if self.testing is not None:
+                    self.hud.draw_testing(self.screen, badge(self.clock, self.pace_name, self.world.stories))
                 self.hud.draw_guide(self.screen)
                 self.hud.draw_toast(self.screen)
                 pygame.display.flip()
