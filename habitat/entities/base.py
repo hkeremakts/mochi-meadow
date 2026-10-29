@@ -1,6 +1,10 @@
 """Common shape of everything that lives in the meadow."""
 
+import itertools
+
 from ..anim import Animator
+
+_SERIALS = itertools.count()    # for a creature made without a world of its own counting
 
 
 class Entity:
@@ -13,6 +17,10 @@ class Entity:
         self.z = 0.0  # height above the ground; the shadow stays at (x, y)
         self.alive = True
         self.anim = Animator()
+        # A name for remembering this one by: unlike id(), never handed on
+        # to a newcomer once this one has gone (which made a seeded meadow
+        # depend on where things happened to land in memory).
+        self.serial = next(getattr(world, "serials", None) or _SERIALS)
 
     def update(self, dt):
         pass

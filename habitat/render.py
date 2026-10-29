@@ -271,6 +271,7 @@ class Renderer:
             lean = wind.sway(canopy.x, canopy.y, canopy.phase) * canopy.sway
             img.set_alpha(int(255 * canopy.fade))
             self.screen.blit(img, (round((canopy.x - ax + ox + lean) * self.S), round((canopy.y - ay + oy) * self.S)))
+            self._draw_nest(world, canopy, lean)
         flying.sort(key=lambda e: e.y)
         for e in flying:
             self._draw_entity(e)
@@ -280,6 +281,17 @@ class Renderer:
             fx.draw(self)
         self._light(world)
         self._glow_pass(world)
+
+    def _draw_nest(self, world, canopy, lean):
+        """The blackbirds' nest, in the crown: it sways and fades with it."""
+        stories = getattr(world, "stories", None)
+        nest = stories.nest if stories is not None else None
+        if nest is None or nest.canopy is not canopy:
+            return
+        for frame, x, y in nest.layers():
+            img, ox, oy = self.sprite(frame)
+            img.set_alpha(int(255 * canopy.fade))
+            self.screen.blit(img, (round((x + ox + lean) * self.S), round((y + oy) * self.S)))
 
     def _draw_sheen(self, sheen):
         """Gusts over the grass, added to the ground under everything on it."""

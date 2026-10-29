@@ -645,6 +645,103 @@ commits are now made only when the full suite reports OK.
   an art change can collide while redrawing the sprite cache. This was seen
   when six preview renders ran at once. It's rare in real use.
 
+## 2026-10-29 · Seasonal stories
+
+**Asked:** "push them then add seasonal stories with every drawing you need
+then push it too lastly add testing mode" (at max effort). All four stories
+from the 2026-10-21 brainstorm (#4) were built.
+
+- **How the calendar works:** `stories.Almanac` decides each meadow's dates
+  for a year, from distributions under `[stories]` in `defaults.toml`. It
+  uses its own random numbers per story, seeded by meadow, story and year,
+  so the dates hold however often the screensaver restarts, shift a little
+  from year to year, and changing one story's settings leaves the others'
+  dates alone. Days are counted from 1 January in the north and from early
+  July in the south, as `sky.year_phase` does, so the stories follow the
+  seasons there too.
+- **The nest** (blackbirds, common in Istanbul gardens and famous for
+  scolding cats):
+  - **Timeline:** building starts about 1 April (sd 8 days) and takes
+    about 6 days; then one egg each morning (3–5), 13 days' sitting from
+    the last egg, about 13.5 days of chicks, fledging in the morning, and
+    about 18 days of fledglings on the ground. The empty nest stays about
+    5 weeks. Some years (1 in 10) they nest elsewhere.
+  - **Where it is:** a spot in the crown with leaves all round it, low on
+    its front. The nest is drawn over the crown with the crown's sway and
+    fade, with a fringe of the crown's own leaves over its front rim so it
+    sits in the foliage, not on it.
+  - **The parents' errands** are generators like Mochi's activities: down
+    to the grass, quick runs, a stop to listen, a stab, a tug, and up to
+    the rim with a worm or a beakful of grass.
+  - **The hen** sits in spells (about 25 minutes, with breaks of about 7)
+    and through the night on her eggs and young chicks.
+  - **Feeds:** about 8 visits an hour for new chicks rising to 22, when
+    the chicks gape. The fledglings sit by the bushes, beg with their
+    wings quivering, and flutter into cover when Mochi comes close; she
+    never catches one.
+  - **Scolding:** a cat near the nest or the young (or where they're
+    hiding) brings a parent down a safe distance off to scold, tail
+    flicking and bill snapping. A cat stalking a fledgling gets a swoop
+    over her head first. Her ears go back (the "cross" air).
+  - **Mochi's part:** she sometimes sits at the edge of the crown's shade,
+    head tipped back (`sit_skyward`, a new pose), watching the nest.
+- **The frogs:**
+  - **Spawn:** one to four clumps appear in the shallows on a night about
+    mid-March, black dots turning to commas, then hatching after about 16
+    days.
+  - **Tadpoles:** they shoal along the edges for about 80 days, drawn as
+    specks like the fish, and Mochi "watches the tadpoles".
+  - **Froglets:** for about 8 days in June or July they leave the pond,
+    mostly in the evening or after rain, hopping away into the grass.
+    Mochi stalks and pats at them.
+- **Storks:**
+  - **When:** the Bosphorus passage peaks about 24 August (sd 4 days,
+    spread over about 8). A smaller passage heads north in spring, about
+    2 April.
+  - **Kettles:** they need thermals (sunny, little cloud, no rain, not
+    much wind, around midday), and each day has its own luck: a quarter of
+    days hardly any come. Each kettle streams in, circles for a minute or
+    two, drifting with the wind, and peels off south-east.
+  - **How you see them:** only as soft shadows and as reflections in the
+    pond. The pond mirrors a patch of sky a little north of it, smaller,
+    and often that's where the kettle circles. Mochi may sit and look up
+    after them.
+- **Geese:** skeins in a V (sometimes one slanting line), peaking about
+  1 November going south and about 3 March coming north, mostly mornings
+  and evenings. Shadows and reflections, as with the storks.
+- **Notices:** each step is noticed once a year, the first time it is
+  actually on screen (`StoryNotice` in events.py, nine new names in the
+  journal). The migrants are noticed once each way.
+- **The info panel** has a "this season" line (for example "blackbird
+  chicks, 6 days old, tadpoles in the pond").
+- **In a time-lapse** the stories keep pace with the clock (things
+  arriving per hour of meadow time), capped at `rate_cap` (30×) so a fast
+  clock doesn't fill the sky.
+- **Drawings:**
+  - the blackbird cock, hen and fledgling on the bird rig (`bird_art`:
+    a per-species tail, fluff and speckles, an opening bill, a carried
+    worm or straw, and listen, tug, scold, feed and beg animations; the
+    pigeon, sparrow and crow are pixel-identical)
+  - the nest at every stage (`story_art`)
+  - frogspawn, tadpoles and froglets
+  - storks and geese from below (in 16 headings) and their soft shadows
+  - Mochi looking up
+- **Cost:** in screensaver lite mode, a spring day costs about 0.04 ms a
+  frame more (0.33 → 0.37 ms for update and draw), a kettle overhead about
+  0.1 ms while it's there, and winter is unchanged. A first try cost
+  0.1 ms; drawing each tadpole as one sprite instead of two dots, and
+  moving them ten times a second, brought it down.
+- **A bug found on the way:** Mochi remembered creatures by their memory
+  address (`id()`). When one died, a newcomer could get the same address
+  and inherit what she felt about the old one (ignored for a minute or
+  two): 310 times in one seeded run. It also made seeded runs depend on
+  memory layout, which broke a before/after check. Creatures now carry
+  `Entity.serial`.
+- **Checked:** on days with no story under way, seeded meadows play out
+  exactly as without the stories (and as before them, where the old `id()`
+  bug didn't kick in). Tests are in `tests/test_stories.py` (26) and
+  `test_style.py` (the new birds, the froglet and the nest).
+
 ---
 
 ## Open items
@@ -652,14 +749,10 @@ commits are now made only when the full suite reports OK.
 - **Watch it for a few days** and tune from real viewing (the owner's
   notes): event rates, captions, how often she goes back to places, the new
   look in every light, and whether the 15 fps calm mode shows.
-- **Next projects, waiting for the owner's go:**
-  - **Seasonal stories** (from the 2026-10-21 brainstorm, #4): a nest in the
-    tree in spring (eggs, chirping, fledglings, parents scolding Mochi),
-    frogspawn becoming tadpoles and tiny frogs, storks circling over the
-    Bosphorus in late August, geese heading south in autumn.
-  - **Movement, step 1:** done on 2026-10-29 (see above). Waiting on the
-    owner's verdict from watching it.
-  - **Movement, step 2:** done on 2026-10-29 (see above).
+- **Waiting on the owner's verdict from watching it:** movement steps 1
+  and 2, and the seasonal stories (2026-10-29, see above). Once the
+  testing mode is in, the stories can be watched without waiting for
+  spring.
 - **A testing mode** (owner, 2026-10-28: "increasing the clock speed for
   faster testing … the program can switch to testing mode and stops
   following to normal day-night or moon cycles and goes on with its own

@@ -154,6 +154,55 @@ native screensaver would do much better.
   for longer. Fed at dusk, she sometimes goes mad for a minute: evening
   zoomies.
 
+## Seasonal stories
+
+Some things in the meadow unfold over weeks of the real calendar, a little
+differently every year. When each step comes is decided for your meadow
+and the year (from the dates under `[stories]` in `defaults.toml`), so it
+stays the same however often the screensaver starts.
+
+- **A nest in the old tree,** from about the start of April:
+  - A pair of blackbirds builds in the crown. The hen comes and goes with
+    beakfuls of dry grass, the cock now and then.
+  - She lays an egg each morning (three to five, blue-green), then sits
+    tight for a fortnight. When she takes a break to feed on the grass,
+    you can see the eggs.
+  - The chicks hatch. Both parents run over the grass, stop dead to listen,
+    stab for worms and fly up with them, and the chicks stretch up, all
+    yellow mouth.
+  - After about two weeks the young leave the nest: speckled, stub-tailed
+    fledglings that sit by the bushes, hop about a little and flutter into
+    cover if Mochi comes close. Their parents feed them on the ground while
+    they beg, wings quivering.
+  - Mochi sometimes sits under the tree, head tipped back, watching the
+    nest. A cat near the nest or the young gets a scolding: a parent lands
+    a safe distance off, flicking its tail and calling, and her ears go
+    back. She never catches one.
+- **Frogs in the pond:**
+  - On a mild night in March, frogspawn appears in the shallows: clumps of
+    jelly whose black dots turn to commas and hatch about a fortnight
+    later.
+  - All spring, tadpoles wriggle in shoals along the edges, and Mochi
+    watches them.
+  - For a few days in June or July, tiny frogs leave the pond, mostly in
+    the evening or after rain, and hop off into the grass. Mochi pats at
+    them.
+- **Storks,** in late August (and fewer, heading north, in spring): white
+  storks on their way south over the Bosphorus circle in the midday
+  thermals overhead. From the meadow you see their soft shadows crossing
+  the grass and their reflections circling in the pond, and Mochi sits and
+  looks up after them. They need sunshine, and on some days the wind is
+  wrong and hardly any come.
+- **Geese,** in autumn (and north again at the end of winter): skeins of
+  geese in a V or a long slanting line, mostly in the mornings and
+  evenings. Their shadows sweep over and their reflections pass through
+  the pond.
+
+Each new step is noticed once a year with a caption ("The blackbird's eggs
+have hatched", "White storks circling high overhead, on their way to
+Africa") and goes in the journal. The info panel (`I`) says what the
+stories are doing: "blackbird chicks, 6 days old", "tadpoles in the pond".
+
 ## Mochi
 
 A slate-grey cat with white socks, bib and muzzle, and marks of her own: a
@@ -224,6 +273,8 @@ Others happen when the world makes them true:
 - **Meteor showers:** on their real peak nights (the Perseids in August,
   the Geminids in December, and five more).
 - **First snow:** the first snow of winter.
+- **Seasonal stories:** each new step of a story, the first time it shows
+  that year (see Seasonal stories above).
 - **Calendar:** a carved pumpkin by the bowl in late October, and distant
   New Year fireworks at midnight on 1 January. The fireworks are mirrored
   in the pond, and Mochi hides under a bush until they stop.
@@ -325,6 +376,8 @@ habitat/
   sky.py             sun and moon positions, moon phase, sunrise and
                      sunset, seasons, location from the time zone
   seasons.py         the meadow's look through the year (grading, snow)
+  stories.py         the seasonal stories: each year's dates, the nest,
+                     the spawn and tadpoles, storks and geese overhead
   events.py          encounters: rarity tiers, conditions, effects
   journal.py         what has been seen, kept between runs
   settings.py        loads defaults.toml and your own settings on top
@@ -340,12 +393,15 @@ habitat/
   pixelrig.py        toolkit for posable pixel-art puppets
   cat_art.py         Mochi's puppet: side, front and back views
   cat_anims.py       every cat animation, as poses
-  bird_art.py        bird puppet: pigeon, sparrow, crow
+  bird_art.py        bird puppet: pigeon, sparrow, crow, the blackbirds
+                     and their young
   fox_art.py         the fox's puppet (it borrows the cat's gaits)
   deer_art.py        the roe deer's puppet (the same gaits, on long legs)
   pond_art.py        the heron's and the ducks' puppets
   art.py             procedural props (rocks, flowers, reeds, bowl)
   critter_art.py     the smaller creatures' sprites
+  story_art.py       the stories' drawings: the nest, frogspawn, froglets,
+                     birds high overhead (in the pond, and their shadows)
   particles.py       rain, splashes, dust, leaves, petals, pollen, feathers
   water.py           glints, ripples, fish, night reflections
   hud.py             info panel and key guide
@@ -357,6 +413,8 @@ habitat/
                          and her ducklings, moths, grasshoppers, the
                          Halloween pumpkin
   entities/visitor.py    the ginger cat from next door
+  entities/seasonal.py   the blackbirds nesting in the tree, their
+                         fledglings, the froglets
 tests/               python -m unittest discover -s tests -t .
 legacy/              the original single-file version, kept for reference
 ```

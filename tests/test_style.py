@@ -8,7 +8,7 @@ os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
 
 import pygame
 
-from habitat import bird_art, cat_art, critter_art, deer_art, fox_art, pond_art
+from habitat import bird_art, cat_art, critter_art, deer_art, fox_art, pond_art, story_art
 from habitat.entities.wildlife import art
 from tests.pixel_lint import orphans
 
@@ -18,7 +18,7 @@ pygame.display.set_mode((64, 64))
 # Each creature's palette, and the colours it may use for a single pixel on
 # purpose (a nose, a beak, an eye, a wing bar, an outline's corner).
 BIRD_DETAILS = (bird_art.OUT, bird_art.BAR, bird_art.NECK_G, bird_art.NECK_P, bird_art.FEET, bird_art.BEAK,
-                bird_art.CERE, bird_art.EYE, bird_art.SHINE)
+                bird_art.CERE, bird_art.EYE, bird_art.SHINE, bird_art.WORM, bird_art.STRAW)
 CREATURES = {
     "fox": (fox_art.PALETTE, (fox_art.OUT, fox_art.NOSE, fox_art.PUPIL, fox_art.SHINE, fox_art.IRIS)),
     "deer": (deer_art.PALETTE, (deer_art.OUT, deer_art.NOSE, deer_art.EYE, deer_art.SHINE, deer_art.HOOF)),
@@ -27,6 +27,10 @@ CREATURES = {
     "pigeon": (bird_art.PIGEON, BIRD_DETAILS),
     "sparrow": (bird_art.SPARROW, BIRD_DETAILS),
     "crow": (bird_art.CROW, BIRD_DETAILS),
+    "blackbird": (bird_art.BLACKBIRD, BIRD_DETAILS),
+    "blackbird_hen": (bird_art.BLACKBIRD_HEN, BIRD_DETAILS),
+    "fledgling": (bird_art.FLEDGLING, BIRD_DETAILS),
+    "froglet": (story_art.FROGLET, (1, story_art.FL_EYE)),
     "frog": (critter_art.FROG, (1, critter_art.F_EYE, critter_art.F_SHINE, critter_art.F_SAC)),
     "hedgehog": (critter_art.HOG, (1, critter_art.H_EYE, critter_art.H_SHINE)),
     "snail": (critter_art.SNAIL, (1, critter_art.S_EYE, critter_art.S_SHELL_D)),
@@ -70,7 +74,7 @@ class OneStyle(unittest.TestCase):
     def test_outlines_are_dark_and_soft_not_black(self):
         # Like Mochi's plum: dark, but with colour in it, and a little blue.
         palettes = {"mochi": cat_art.PALETTE, "duck": pond_art.HEN, "duckling": pond_art.DUCKLING,
-                    **{name: palette for name, (palette, _) in CREATURES.items()}}
+                    "nest": story_art.NEST, **{name: palette for name, (palette, _) in CREATURES.items()}}
         for name, palette in palettes.items():
             out = palette[1]
             self.assertLess(lum(out), 90, name)
@@ -95,7 +99,9 @@ class OneStyle(unittest.TestCase):
         for name, palette, dark, light in (("mochi", cat_art.PALETTE, cat_art.DARK, cat_art.LIGHT),
                                            ("fox", fox_art.PALETTE, fox_art.DARK, fox_art.LIGHT),
                                            ("deer", deer_art.PALETTE, deer_art.DARK, deer_art.LIGHT),
-                                           ("sparrow", bird_art.SPARROW, bird_art.DARK, bird_art.LIGHT)):
+                                           ("sparrow", bird_art.SPARROW, bird_art.DARK, bird_art.LIGHT),
+                                           ("blackbird hen", bird_art.BLACKBIRD_HEN, bird_art.DARK, bird_art.LIGHT),
+                                           ("fledgling", bird_art.FLEDGLING, bird_art.DARK, bird_art.LIGHT)):
             d, li = palette[dark], palette[light]
             self.assertGreater(d[2] / max(1, d[0]), li[2] / max(1, li[0]), name)
 

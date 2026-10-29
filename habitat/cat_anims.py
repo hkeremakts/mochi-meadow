@@ -58,6 +58,7 @@ HISS = SIDE.with_(hip=(26.0, 33.0), sho=(37.0, 33.5), arch=3.0, puff=1.15, head=
                   ear=1.0, mouth=0.9, fn=(40.5, 48.0), ff=(38.0, 48.0), hn=(24.5, 48.0), hf=(22.5, 48.0),
                   tail=96.0, curl=-1.0, curl2=-5.0)
 SNIFF = SIDE.with_(head=(47.0, 33.5), tilt=-22.0, sho=(38.5, 34.5))
+SKYWARD = SIT.with_(tilt=26.0, head=(37.7, 23.3), sho=(34.2, 33.1))
 REAR = SIT.with_(hip=(27.5, 40.0), sho=(31.0, 28.0), chest=(4.6, 6.2), head=(33.5, 19.0), tilt=12.0,
                  fn=(37.5, 17.0), ff=(36.0, 19.0), fn_rot=-160.0, ff_rot=-160.0, fore_bend=-1.0,
                  hn=(31.5, 48.0), hn_lift=20.0, hf=(29.5, 48.0), hf_lift=20.0)
@@ -378,6 +379,11 @@ def side_anims():
     a["sniff"] = [SNIFF, SNIFF.with_(head=_shift(SNIFF.head, 0.4, -0.2)), SNIFF,
                   SNIFF.with_(head=_shift(SNIFF.head, 0.3, 0.2))]
     a["sniff_start"] = tween(STAND, SNIFF, 3)
+    # looking up after something high overhead (storks, geese, the nest):
+    # her head tipped back, following it
+    a["sit_skyward"] = [SKYWARD.with_(tilt=SKYWARD.tilt + 4.0 * math.sin(2 * math.pi * i / 12),
+                                      head=_shift(SKYWARD.head, 0.25 * math.sin(2 * math.pi * i / 12)))
+                        for i in range(12)]
     return a
 
 

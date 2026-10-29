@@ -1349,12 +1349,85 @@ class Halloween(Notice):
         return self.title if world.events.journal_count(self.name) == 0 else ""
 
 
+# --- the seasonal stories (stories.py) --------------------------------------
+
+class StoryNotice(Notice):
+    """A seasonal story come to its next step: noticed the first time it is
+    actually on screen that year."""
+
+    sighting = ""
+
+    def key(self, world):
+        return str(world.stories.year)
+
+    def triggered(self, world):
+        stories = getattr(world, "stories", None)
+        return stories is not None and self.sighting in stories.sightings
+
+
+class NestBuilding(StoryNotice):
+    name, tier, title, sighting = ("blackbirds building a nest", "uncommon",
+                                   "Blackbirds are building a nest in the old tree", "building")
+
+
+class HenSitting(StoryNotice):
+    name, tier, title, sighting = "a blackbird sitting on eggs", "uncommon", "The blackbird is sitting on her eggs", \
+        "sitting"
+
+
+class NestChicks(StoryNotice):
+    name, tier, title, sighting = "blackbird chicks", "rare", "The blackbird's eggs have hatched", "chicks"
+
+
+class NestFledglings(StoryNotice):
+    name, tier, title, sighting = "blackbird fledglings", "rare", "The young blackbirds have left the nest", \
+        "fledglings"
+
+
+class Frogspawn(StoryNotice):
+    name, tier, title, sighting = "frogspawn", "uncommon", "Frogspawn in the pond", "frogspawn"
+
+
+class Tadpoles(StoryNotice):
+    name, tier, title, sighting = "tadpoles", "uncommon", "The frogspawn has hatched into tadpoles", "tadpoles"
+
+
+class Froglets(StoryNotice):
+    name, tier, title, sighting = "tiny frogs", "rare", "Tiny frogs are leaving the pond", "froglets"
+
+
+class Migrants(StoryNotice):
+    """Once for each passage: going south in autumn, north in spring."""
+
+    titles = {}
+
+    def key(self, world):
+        return f"{world.stories.year}-{world.stories.heading.get(self.sighting, '')}"
+
+    def caption(self, world):
+        return self.titles.get(world.stories.heading.get(self.sighting), self.titles["south"])
+
+
+class StorkPassage(Migrants):
+    name, tier, sighting = "migrating storks", "rare", "storks"
+    titles = {"south": "White storks circling high overhead, on their way to Africa",
+              "north": "White storks circling overhead, flying north again"}
+
+
+class GoosePassage(Migrants):
+    name, tier, sighting = "migrating geese", "uncommon", "geese"
+    titles = {"south": "Geese flying south for the winter", "north": "Geese flying north again"}
+
+
+STORIES = [NestBuilding(), HenSitting(), NestChicks(), NestFledglings(), Frogspawn(), Tadpoles(), Froglets(),
+           StorkPassage(), GoosePassage()]
+
 ROLLED = [TailChase(), DandelionSeeds(), FallingFeather(), CrowVisit(), MousePeek(), ShadowPounce(), LeafChase(),
           GrasshopperVisit(), Moths(), AfterRain(), TwoButterflies(), DewyWeb(),
           MorningMist(), RainbowEvent(), ThunderstormEvent(), LeafWhirl(), DuskBats(), AGift(),
           ShootingStarEvent(), FourthWall(), GingerVisit(), FoxVisit(), HeronVisit(), DuckFamily(),
           GoldenButterflyEvent(), DeerAtDawn(), KittenVisit()]
-NOTICES = [Birthday(), FullMoon(), LunarEclipse(), MeteorShowerNotice(), FirstSnow(), NewYear(), Halloween()]
+NOTICES = [Birthday(), FullMoon(), LunarEclipse(), MeteorShowerNotice(), FirstSnow(), NewYear(), Halloween()] + STORIES
 ALL = {e.name: e for e in ROLLED + NOTICES}
 # Cooldowns and omens come from the settings.
 for _event in ALL.values():

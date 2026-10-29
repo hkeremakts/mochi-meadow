@@ -1,6 +1,7 @@
 """The meadow and everything in it."""
 
 import collections
+import itertools
 import math
 import random
 
@@ -19,6 +20,7 @@ from .shade import TreeShade
 from .marks import Marks
 from .places import Places
 from .sky import mean_temperature
+from .stories import Stories
 from .util import clamp
 from .terrain import generate_terrain
 from .water import WaterFX
@@ -34,6 +36,7 @@ class World:
                  personality=None):
         self.seed = seed if seed is not None else random.randrange(1 << 30)
         self.rng = random.Random(self.seed + 1)
+        self.serials = itertools.count()    # every creature's own number (Entity.serial)
         self.width = width
         self.height = height
         self.time = 0.0
@@ -72,6 +75,7 @@ class World:
         self.entities.append(self.cat)
         self.director = Director(self)
         self.events = Events(self, journal)
+        self.stories = Stories(self)
         self.director.populate()
         self._sync_bowl()
         if personality is not None and personality.first_meeting:
@@ -90,6 +94,7 @@ class World:
         self._update_canopy(dt)
         self.director.update(dt)
         self.events.update(dt)
+        self.stories.update(dt)
         for e in list(self.entities):
             e.update(dt)
         self.entities = [e for e in self.entities if e.alive]
@@ -199,6 +204,8 @@ class World:
             return False
         if self.effects or self.captions or self.env.rain > 0.05:
             return False
+        if any(getattr(f, "fast", False) for f in self.overhead):
+            return False         # geese and storks crossing: their shadows would judder
         for e in self.entities:
             if e is cat or e.kind == "bee":     # a bee is a two-pixel speck: no need
                 continue

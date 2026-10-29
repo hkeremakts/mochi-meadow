@@ -65,7 +65,7 @@ class Marks:
             kind = getattr(e, "TRACK", None)
             if kind is None or not e.alive or e.z > 0.5 or getattr(e, "hidden", False):
                 continue
-            key = id(e)
+            key = e.serial if hasattr(e, "serial") else ("id", id(e))
             seen.add(key)
             feet = self._feet.get(key)
             if feet is None:

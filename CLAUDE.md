@@ -64,6 +64,11 @@ N new meadow, S screenshot, F fullscreen. In `--screensaver` any key quits.
   walk grid), `paths.py` (A* plus string-pulling), `shade.py` (the tree
   shadow follows the sun), `marks.py` (paw prints and worn paths), `water.py`,
   `particles.py`.
+- Seasonal stories: `stories.py` (`Almanac`: each meadow's dates per year;
+  `Stories`, one per world: the blackbirds' nest in the crown, frogspawn and
+  tadpoles in the pond, stork kettles and goose skeins overhead, seen only
+  as shadows and pond reflections), `entities/seasonal.py` (the blackbird
+  parents' errands as generators, fledglings, froglets), `story_art.py`.
 - Life: `entities/cat.py` (Mochi: needs, activities, body language),
   `entities/visitor.py` (the ginger cat and his kitten), `entities/wildlife.py`, `world.py` (Director spawns
   creatures), `events.py` (four rarity tiers, notices, recap), `personality.py`,
@@ -72,7 +77,7 @@ N new meadow, S screenshot, F fullscreen. In `--screensaver` any key quits.
 - Art: procedural puppets drawn in code. `pixelrig.py` is the rig.
   `cat_art.py`/`cat_anims.py` draw Mochi in "storybook" proportions (see the
   logbook, 2026-10-28; `cat_art.kitten()` draws the kitten with the same rig),
-  plus `bird_art.py`, `fox_art.py`,
+  plus `bird_art.py` (pigeon, sparrow, crow, the blackbirds and fledgling), `fox_art.py`,
   `deer_art.py`, `pond_art.py` and `critter_art.py`. Frames are cached in
   `assets/generated/` (git-ignored, redrawn when the drawing code's hash
   changes, so the first start after an art change takes about 5 s).
@@ -91,6 +96,12 @@ N new meadow, S screenshot, F fullscreen. In `--screensaver` any key quits.
 - Anything new that is random but not part of the meadow's own story (sheen
   bands, ice cracks, the tree) draws its own `random.Random(seed + k)`, so
   existing seeded meadows and behaviour tests play out exactly as before.
+  The seasonal stories do too (never `world.rng`): on a day with no story
+  under way a meadow plays out exactly as without them
+  (`tests/test_stories.py` checks it).
+- Remember a creature by `Entity.serial`, never `id()`: a dead creature's
+  memory address gets reused, and a newcomer inherited what Mochi felt
+  about the old one (and seeded runs depended on memory layout).
 - Movement: measure before changing it (time treading in place, turn speeds,
   view changes, pace spread over a simulated hour); `tests/test_locomotion.py`
   guards arriving without circling, turn speeds, paces and stepped turns.

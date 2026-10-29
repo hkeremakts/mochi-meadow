@@ -93,6 +93,13 @@ class WaterFX:
         if not self.world.env.frozen:       # under the ice, the fish are out of sight
             for f in self.fish:
                 f.draw(r)
+        stories = getattr(self.world, "stories", None)
+        if stories is not None and stories.pond is not None:
+            stories.pond.draw(r)            # frogspawn and tadpoles
+        for flock in self.world.overhead:
+            reflection = getattr(flock, "draw_reflection", None)
+            if reflection is not None:
+                reflection(r)               # storks and geese, high over the meadow
         for x, y, dx, age, *_ in self.jumps:
             f = min(1.0, age / JUMP_TIME)
             z = 7.0 * 4 * f * (1 - f)

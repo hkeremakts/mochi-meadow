@@ -298,6 +298,68 @@ legendary = 1440
 "the golden butterfly" = 25
 "a deer at dawn" = 30
 
+# ---------------------------------------------------------------------------
+# Seasonal stories (stories.py).  When each happens is decided per meadow and
+# year from these.  Dates are days of the year: 0 is 1 January (in the south,
+# early July, so the seasons line up); 91 is about 1 April.  How often things
+# come is per hour of meadow time, in daylight.
+[stories]
+rate_cap = 30             # in a time-lapse the stories keep pace with the clock, but no more than this much faster
+
+# Blackbirds nest in the old tree in spring.
+[stories.nest]
+chance = 0.9              # odds they nest in this tree in a given year
+building_starts = { mean = 91, sd = 8, min = 68, max = 118 }
+building_days = { typical = 6, spread = 0.3, min = 3, max = 12 }
+eggs = { mean = 4, sd = 0.7, min = 3, max = 5 }                     # one laid each morning
+sitting_days = { mean = 13, sd = 0.6, min = 12, max = 14.5 }        # from the last egg to hatching
+nestling_days = { mean = 13.5, sd = 0.8, min = 12, max = 15 }       # in the nest, fed by both parents
+fledgling_days = { typical = 18, spread = 0.2, min = 12, max = 26 } # out about the bushes, still fed
+empty_days = { typical = 35, spread = 0.3, min = 14, max = 70 }     # the empty nest stays in the tree
+building_trips = 14       # trips with nest material an hour
+feeding_visits = [8, 22]  # visits with food an hour, from just hatched to nearly fledged
+fledgling_feeds = 14      # feeds an hour for the fledglings
+hen_sits = { typical = 25, spread = 0.4, min = 8, max = 60 }        # minutes on the eggs before a break...
+hen_break = { typical = 7, spread = 0.4, min = 3, max = 20 }        # ...and minutes off them
+scold_distance = 60       # art pixels: a cat this close to the nest or a fledgling gets told off
+scold_seconds = { typical = 18, spread = 0.4, min = 6, max = 60 }
+
+# Frogspawn in March, tadpoles all spring, tiny frogs leaving the pond in early summer.
+[stories.frogs]
+spawn_night = { mean = 75, sd = 9, min = 50, max = 105 }            # a mild night about mid-March
+spawn_days = { typical = 16, spread = 0.2, min = 9, max = 26 }      # until it hatches
+tadpole_days = { typical = 80, spread = 0.12, min = 60, max = 105 }
+froglet_days = { typical = 8, spread = 0.3, min = 4, max = 15 }     # the days the froglets leave
+clumps = [1, 4]           # clumps of spawn
+tadpoles = 34             # how many wriggle in the shallows at the most
+froglets_per_hour = 160   # at the height of it, in the evening or after rain
+froglets_at_once = 7
+
+# White storks over the Bosphorus: south in late August, back north in spring.
+[stories.storks]
+autumn_peak = { mean = 236, sd = 4, min = 222, max = 250 }          # about 24 August
+autumn_days = 8           # how widely the passage spreads round its peak (days, one standard deviation)
+spring_peak = { mean = 92, sd = 5, min = 75, max = 110 }            # about 2 April
+spring_days = 9
+spring_strength = 0.35    # fewer than in autumn
+kettles_per_hour = 2.2    # at the peak, at midday
+hours = { peak = 12.5, width = 2.2 }                                # they need the thermals
+daily_luck = { mix = [ { weight = 0.25, typical = 0.08, spread = 0.5 }, { weight = 0.75, typical = 1.0, spread = 0.5 } ], max = 3 }
+kettle = { typical = 30, spread = 0.5, min = 6, max = 80 }          # storks in a kettle at the peak
+circling = { typical = 70, spread = 0.35, min = 25, max = 180 }     # seconds circling over the meadow
+
+# Skeins of geese: south in autumn, north again at the end of winter.
+[stories.geese]
+autumn_peak = { mean = 305, sd = 6, min = 285, max = 325 }          # about 1 November
+autumn_days = 12
+spring_peak = { mean = 62, sd = 6, min = 40, max = 85 }             # about 3 March
+spring_days = 10
+spring_strength = 0.5
+skeins_per_hour = 1.1
+hours = [ { peak = 8.0, width = 1.6 }, { peak = 16.8, width = 1.4 } ]   # mornings and evenings
+daily_luck = { typical = 1.0, spread = 0.6, max = 3 }
+skein = { typical = 14, spread = 0.5, min = 4, max = 40 }
+
 [effects]
 shooting_star = 0.75      # seconds for one streak
 meteors = { mean_wait = 30, excite = 0.03, memory = 40 }   # a meteor shower's stars come in little bursts

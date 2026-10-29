@@ -202,8 +202,8 @@ class Cat(Entity):
         self.interruptible = True
         self._perceive_timer = 0.0
         self._cooldowns = {}
-        self._ignored = {}  # id(prey) -> time until which the cat ignores it
-        self._noticed = set()     # ids of creatures whose place she has already remembered
+        self._ignored = {}  # prey.serial -> time until which the cat ignores it
+        self._noticed = set()     # serials of creatures whose place she has already remembered
         self.air = None           # how she carries her tail and ears: happy, cross, wary, or calm (None)
         self.strides = cat_anims.STRIDES                      # art pixels a gait cycle covers (a kitten's are shorter)
         self.strides_quarter = cat_anims.STRIDES_QUARTER
@@ -479,6 +479,8 @@ class Cat(Entity):
                   and self.distance_to(e) < MOCHI["fox_fear_distance"] for e in world.entities)
         if wet or fox or world.storm is not None or self.activity_name == "hide":
             return "wary"
+        if any(getattr(e, "scolding", None) is self for e in world.entities):
+            return "cross"          # a blackbird telling her off: her ears go back
         mood, give = self.p.mood, AIR["settle"]
         if mood < AIR["cross_below"] + (give if self.air == "cross" else 0.0):
             return "cross"
@@ -948,6 +950,9 @@ class Cat(Entity):
             options.append(("explore", 0.5))
         if self._cooldown_ok("meow"):
             options.append(("meow", 0.12))
+        stories = getattr(self.world, "stories", None)
+        if type(self) is Cat and stories is not None and self._cooldown_ok("watch_nest") and stories.nest_watchable():
+            options.append(("watch_nest", 0.35))
         calls = self._recall()
         if calls:
             options.append(("revisit", PLACE["weight"] * min(1.5, sum(pull for _, pull in calls))))
@@ -994,7 +999,7 @@ class Cat(Entity):
                 k *= 1.6
         elif activity == "meow":
             k = p.lean("affectionate", 0.3, 2.0)
-        elif activity == "revisit":
+        elif activity in ("revisit", "watch_nest"):
             k = p.lean("curious", 0.5, 1.8)
         elif activity == "groom":
             k = 1.4 if p.mood < -0.25 else 1.0
@@ -1026,13 +1031,13 @@ class Cat(Entity):
         """Remember where she saw something worth coming back for: for a
         mouse, the bush it lives in; for anything else, the spot."""
         world = self.world
-        self._noticed &= {id(e) for e in world.entities}
+        self._noticed &= {e.serial for e in world.entities}
         if self.posture == "sleep":
             return
         t = world.terrain
         for e in world.entities:
             if (e.kind not in WORTH_REMEMBERING or not e.alive or getattr(e, "hidden", False)
-                    or id(e) in self._noticed or self.distance_to(e) > PLACE["sight"]):
+                    or e.serial in self._noticed or self.distance_to(e) > PLACE["sight"]):
                 continue
             home = getattr(e, "home", None) if e.kind == "mouse" else None
             if home is not None:
@@ -1046,7 +1051,7 @@ class Cat(Entity):
                 x, y, look = e.x, e.y, None
                 if not (0 < x < world.width and 0 < y < world.height and t.walkable(x, y)):
                     continue      # not yet in the meadow, or out of reach: maybe in a moment
-            self._noticed.add(id(e))
+            self._noticed.add(e.serial)
             world.places.remember(e.kind, x, y, look=look)
 
     def _recall(self):
@@ -1091,7 +1096,7 @@ class Cat(Entity):
         world = self.world
         best = None
         for e in world.entities:
-            if e is self or not e.alive or self._ignored.get(id(e), 0.0) > world.time:
+            if e is self or not e.alive or self._ignored.get(e.serial, 0.0) > world.time:
                 continue
             interest = getattr(e, "interest", None)
             if interest is None:
@@ -1663,7 +1668,9 @@ class Cat(Entity):
         ok = yield from self.go_to_spot(spots[0])
         if not ok:
             return
-        self.label = "watching the pond"
+        pond = getattr(self.world, "stories", None)
+        pond = pond.pond if pond is not None else None
+        self.label = "watching the tadpoles" if pond is not None and pond.tadpoles else "watching the pond"
         yield from self.to_posture("sit")
         yield from self.wait(self._enough("pond_watch_seconds"))
 
@@ -1752,6 +1759,55 @@ class Cat(Entity):
         if self.posture == "stand":
             yield from self.to_posture("sit")
         yield from self.wait(seconds)
+
+    def act_look_up(self, flock, label):
+        """Something high overhead (storks circling, a skein of geese): she
+        sits and follows it, head tipped back, until it has gone over."""
+        self._cool("look_up", 45)
+        self.label = label
+        self.speed = 0.0
+        if not self.side_view:
+            side = "right" if math.cos(self.heading) >= 0 else "left"
+            yield from self.pivot(HEADING[side])
+        if self.posture != "sit":
+            yield from self.to_posture("sit")
+        self.show("sit_skyward", fps=3)
+        end = self.world.time + self.rng.uniform(6, 16)
+        while self.world.time < end and flock.alive and flock.over_meadow:
+            yield
+        self.idle_pose()
+        yield from self.wait(self.rng.uniform(0.5, 1.5))
+
+    def act_watch_nest(self):
+        """Up at the blackbirds' nest: she sits at the edge of the tree's
+        shade and watches the comings and goings, head tipped back (and
+        gets told off for it)."""
+        nest = self.world.stories.nest
+        self._cool("watch_nest", self.rng.uniform(240, 600))
+        fx, fy = nest.foot
+        t = self.world.terrain
+        goal = None
+        for _ in range(12):
+            a = self.rng.uniform(0.15 * math.pi, 0.85 * math.pi)
+            r = self.rng.uniform(34, 50)
+            gx, gy = fx + math.cos(a) * r, fy + 4 + math.sin(a) * r * 0.5
+            if t.walkable(gx, gy):
+                goal = (gx, gy)
+                break
+        if goal is None:
+            return
+        self.label = "heading for the tree"
+        status = yield from self.go(*goal, gait="amble", max_time=15.0)
+        if status == UNREACHABLE:
+            return
+        self.label = "watching the blackbirds' nest"
+        side = "right" if fx > self.x else "left"
+        if self.view != side:
+            yield from self.pivot(HEADING[side])
+        yield from self.to_posture("sit")
+        self.show("sit_skyward", fps=3)
+        yield from self.wait(self._enough("watch_seconds") + 4.0)
+        self.idle_pose()
 
     def act_sniff_at(self, x, y, label):
         """Walk over to something on the ground and sniff it."""
@@ -2254,7 +2310,9 @@ class Cat(Entity):
     def lost_interest(self, prey):
         now = self.world.time
         self._ignored = {k: until for k, until in self._ignored.items() if until > now}
-        self._ignored[id(prey)] = now + self.rng.uniform(90, 200)
+        until = now + self.rng.uniform(90, 200)
+        if hasattr(prey, "serial"):          # (a shadow or a leaf is gone anyway)
+            self._ignored[prey.serial] = until
         self.label = f"watching where the {prey.kind} went"
         self.speed = 0.0
         if prey.alive:
@@ -2407,7 +2465,9 @@ class Cat(Entity):
         end = self.world.time + self._enough("watch_seconds")
         while self.world.time < end and creature.alive and not getattr(creature, "hidden", False):
             yield
-        self._ignored[id(creature)] = self.world.time + self.rng.uniform(60, 160)
+        until = self.world.time + self.rng.uniform(60, 160)
+        if hasattr(creature, "serial"):
+            self._ignored[creature.serial] = until
 
     def act_hiss(self, pigeon):
         self._cool("hunt", 10)

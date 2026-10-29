@@ -20,7 +20,8 @@ GROUND = 22.0
 CX = 16.0
 HEADROOM = 8          # canvas rows above the pose space, for raised wings
 
-CLEAR, OUT, DARK, BASE, LIGHT, WING, BAR, NECK_G, NECK_P, FEET, BEAK, CERE, EYE, BELLY, CAP, SHINE = range(16)
+CLEAR, OUT, DARK, BASE, LIGHT, WING, BAR, NECK_G, NECK_P, FEET, BEAK, CERE, EYE, BELLY, CAP, SHINE, WORM, STRAW = range(18)
+CARRIED = [(176, 102, 102), (206, 196, 128)]     # a worm, a stem of dry grass (every palette ends with these)
 
 PIGEON = [
     None,
@@ -76,11 +77,81 @@ CROW = [
     (36, 36, 48),
     (232, 236, 240),    # SHINE  the glint that makes a black eye readable
 ]
+# The blackbirds that nest in the old tree in spring: the cock all black
+# with an orange-yellow bill and eye-ring, the hen dark brown with a
+# mottled breast, and their speckled, short-tailed young with the yellow
+# gape still at the corners of the bill.
+BLACKBIRD = [
+    None,
+    (28, 20, 38),       # OUT
+    (32, 30, 44),       # DARK
+    (46, 44, 56),       # BASE   black, a little warm
+    (80, 78, 96),       # LIGHT  the sheen on top
+    (52, 50, 64),       # WING
+    (38, 36, 48),       # BAR
+    (46, 44, 56),       # NECK_G (none)
+    (46, 44, 56),
+    (86, 64, 50),       # FEET   dark brown
+    (240, 166, 38),     # BEAK   orange-yellow
+    (236, 196, 72),     # CERE   the yellow eye-ring
+    (14, 10, 14),       # EYE
+    (46, 44, 56),
+    (42, 40, 52),       # CAP
+    (240, 244, 244),    # SHINE
+]
+BLACKBIRD_HEN = [
+    None,
+    (46, 30, 42),       # OUT    plum-brown
+    (74, 54, 52),       # DARK   cooler
+    (106, 78, 56),      # BASE   dark brown
+    (144, 110, 74),     # LIGHT  warmer
+    (98, 72, 54),       # WING
+    (72, 52, 42),       # BAR    the mottling on her breast
+    (134, 104, 78),     # NECK_G a paler throat
+    (106, 78, 56),
+    (96, 72, 58),       # FEET
+    (158, 124, 62),     # BEAK   dull yellow-brown
+    (158, 124, 62),     # CERE
+    (18, 14, 16),       # EYE
+    (126, 94, 66),      # BELLY  warm brown breast
+    (98, 72, 52),       # CAP
+    (240, 244, 244),    # SHINE
+]
+FLEDGLING = [
+    None,
+    (50, 32, 44),       # OUT
+    (82, 62, 56),       # DARK
+    (122, 92, 64),      # BASE   warm brown, still fluffy
+    (166, 130, 90),     # LIGHT
+    (110, 82, 58),      # WING
+    (200, 164, 112),    # BAR    pale speckles
+    (152, 118, 82),     # NECK_G
+    (122, 92, 64),
+    (156, 122, 100),    # FEET
+    (100, 82, 62),      # BEAK
+    (238, 206, 92),     # CERE   the yellow gape
+    (18, 14, 16),       # EYE
+    (152, 114, 76),     # BELLY
+    (112, 84, 60),      # CAP
+    (240, 244, 244),    # SHINE
+]
+for _palette in (PIGEON, SPARROW, CROW, BLACKBIRD, BLACKBIRD_HEN, FLEDGLING):
+    _palette.extend(CARRIED)
 # palette, scale, canvas size, offset of the pose space on it, beak length
 SPECIES = {
     "pigeon": (PIGEON, 1.15, (W, H), (0, HEADROOM), 1.0),
     "sparrow": (SPARROW, 0.55, (W, H), (0, HEADROOM), 1.0),
     "crow": (CROW, 1.6, (48, 58), (8, HEADROOM + 12), 1.45),   # ~45 cm, a heavy bill
+    "blackbird": (BLACKBIRD, 0.86, (W, H), (0, HEADROOM), 1.05),        # ~25 cm
+    "blackbird_hen": (BLACKBIRD_HEN, 0.84, (W, H), (0, HEADROOM), 1.0),
+    "fledgling": (FLEDGLING, 0.7, (W, H), (0, HEADROOM), 0.75),
+}
+# How a species differs from the pigeon's build: tail length, fluffiness,
+# and the fledgling's speckles.
+FORM = {
+    "blackbird": dict(tail=1.35),
+    "blackbird_hen": dict(tail=1.35),
+    "fledgling": dict(tail=0.4, fluff=1.14, speckled=True, gape=1.0),
 }
 SHADE = {BASE: (LIGHT, DARK), WING: (LIGHT, None), BELLY: (None, BASE)}
 
@@ -98,6 +169,7 @@ STAND = Pose(
 
 def draw(p, species="pigeon"):
     palette, scale, (cw, ch), shift, beak = SPECIES[species]
+    form = FORM.get(species, {})
     c = Canvas(cw, ch, scale=scale, pivot=(CX, GROUND), shift=shift)
     features = []
     bx, by = p.body
@@ -118,17 +190,22 @@ def draw(p, species="pigeon"):
             c.paint(c.chain([hip, knee, (foot[0], foot[1] - 0.5)], [0.55, 0.5, 0.5]), FEET)
             c.paint(c.ellipse(foot[0] + 0.6, foot[1] - 0.45, 1.3, 0.45), FEET)
     # tail
+    reach = 5.6 * form.get("tail", 1.0)
     spread = 1.2 + p.tail_fan * 1.6
-    tip_a = at(-8.6, -spread + 0.4 + p.tail_drop)
-    tip_b = at(-8.6, spread + 0.8 + p.tail_drop)
+    tip_a = at(-3.0 - reach, -spread + 0.4 + p.tail_drop)
+    tip_b = at(-3.0 - reach, spread + 0.8 + p.tail_drop)
     c.paint(c.polygon([at(-3.0, -1.2), tip_a, tip_b, at(-3.0, 1.6)]), BASE)
-    band = c.polygon([at(-7.4, -spread + 0.2 + p.tail_drop), tip_a, tip_b, at(-7.4, spread + 1.0 + p.tail_drop)])
+    band_x = -3.0 - reach * 4.4 / 5.6
+    band = c.polygon([at(band_x, -spread + 0.2 + p.tail_drop), tip_a, tip_b, at(band_x, spread + 1.0 + p.tail_drop)])
     c.paint(band, BAR)
     # body
-    bulk = p.bulk
+    bulk = p.bulk * form.get("fluff", 1.0)
     body = c.ellipse(bx, by, 5.2 * bulk, 3.4 * bulk, t)
     c.paint(body, BASE)
     c.paint(c.ellipse(*at(2.6, 0.6), 2.6 * bulk, 2.6 * bulk, t), BELLY, within=body)
+    if form.get("speckled"):
+        for dx, dy in ((2.4, 0.2), (3.6, 1.6), (1.2, 1.8), (-1.6, -1.6)):
+            features.append((*at(dx, dy), BAR))
     # neck and head
     hx, hy = p.head
     neck_root = at(3.6, -1.2)
@@ -140,10 +217,32 @@ def draw(p, species="pigeon"):
     c.paint(c.ellipse(hx - 0.2, hy - 0.9, 1.6, 0.9), CAP)
     lk = p.look
     bk0 = (hx + 1.4, hy - 0.2)
-    bk1 = rot(2.3 * beak, 0.5, lk)
     thick = 0.6 * beak
-    c.paint(c.polygon([(bk0[0], bk0[1] - thick), (bk0[0] + bk1[0], bk0[1] + bk1[1]), (bk0[0], bk0[1] + 0.7 * beak)]),
-            BEAK)
+    gape = p.get("gape", 0.0)
+    if gape:
+        # Open: the two halves of the bill part, the mouth showing between
+        # (a begging youngster's is all mouth).
+        size = beak * (1.0 + 0.9 * gape * form.get("gape", 0.0))
+        up = rot(2.3 * size, 0.0, lk + 34 * gape)
+        down = rot(2.1 * size, 0.6, lk - 30 * gape)
+        mouth = c.polygon([(bk0[0] - 0.3, bk0[1] - 0.2), (bk0[0] + up[0], bk0[1] + up[1]),
+                           (bk0[0] + down[0], bk0[1] + down[1])])
+        c.paint(mouth, CERE)
+        c.paint(c.capsule(bk0[0], bk0[1] - thick * 0.6, bk0[0] + up[0], bk0[1] + up[1], 0.5, 0.3), BEAK)
+        c.paint(c.capsule(bk0[0], bk0[1] + 0.5 * beak, bk0[0] + down[0], bk0[1] + down[1], 0.45, 0.3), BEAK)
+        tip = (bk0[0] + (up[0] + down[0]) / 2, bk0[1] + (up[1] + down[1]) / 2)
+    else:
+        bk1 = rot(2.3 * beak, 0.5, lk)
+        c.paint(c.polygon([(bk0[0], bk0[1] - thick), (bk0[0] + bk1[0], bk0[1] + bk1[1]),
+                           (bk0[0], bk0[1] + 0.7 * beak)]), BEAK)
+        tip = (bk0[0] + bk1[0], bk0[1] + bk1[1])
+    carry = p.get("carry")
+    if carry == "worm":          # hanging from the bill, kinked
+        mid = (tip[0] + 0.6, tip[1] + 1.6)
+        c.paint(c.chain([(tip[0] - 0.6, tip[1] + 0.2), mid, (mid[0] - 0.4, mid[1] + 1.8)], [0.6, 0.6, 0.5]), WORM)
+    elif carry == "straw":       # a beakful of dry grass, the ends hanging either side
+        c.paint(c.chain([(tip[0] - 3.2, tip[1] + 2.2), (tip[0] - 0.8, tip[1] + 0.2), (tip[0] + 1.6, tip[1] + 0.6),
+                         (tip[0] + 2.8, tip[1] + 2.4)], [0.5, 0.55, 0.55, 0.45]), STRAW)
     features.append((hx + 1.3, hy - 0.5, CERE))
     if species == "crow":
         glint_eye(c, features, hx - 0.2, hy - 0.9, 1.0, EYE, SHINE)
@@ -151,8 +250,9 @@ def draw(p, species="pigeon"):
         features.append((hx + 0.3, hy - 0.4, EYE))
     # near wing
     if p.wings == "folded":
-        wing = c.ellipse(*at(-0.6, -0.6), 4.4 * bulk, 2.3 * bulk, t - 4)
-        c.paint(wing, WING, within=c.grow(body, 0.3))
+        lift = p.get("wing_lift", 0.0)        # held out a little, quivering (a begging fledgling)
+        wing = c.ellipse(*at(-0.6 + lift * 0.8, -0.6 - lift * 1.6), 4.4 * bulk, 2.3 * bulk, t - 4 + lift * 26)
+        c.paint(wing, WING, within=None if lift else c.grow(body, 0.3))
         for dx in (-1.4, 0.6):
             c.paint(c.capsule(*at(dx, -1.2), *at(dx - 0.6, 1.2), 0.42), BAR, within=wing)
         c.paint(c.capsule(*at(-4.6, 0.2), *at(-2.6, -0.4), 0.6), BAR, within=wing)
@@ -165,7 +265,7 @@ def draw(p, species="pigeon"):
         if 0 <= xi < cw and 0 <= yi < ch:
             grid[yi, xi] = col
     grid = outline(grid, OUT)
-    grid = despeckle(grid, keep=(OUT, BAR, NECK_G, NECK_P, FEET, BEAK, CERE, EYE, SHINE))
+    grid = despeckle(grid, keep=(OUT, BAR, NECK_G, NECK_P, FEET, BEAK, CERE, EYE, SHINE, WORM, STRAW))
     return to_surface(grid, palette)
 
 
@@ -302,7 +402,71 @@ def takeoff(n=4):
     return [base.with_(wing_t=i / n) for i in range(n)]
 
 
+# --- the blackbirds ---------------------------------------------------------
+
+def listen():
+    """A blackbird on a lawn: a few quick steps, then stock-still with its
+    head cocked to the ground, listening for a worm."""
+    cocked = STAND.with_(tilt=8.0, body=(15.2, 15.8), head=(20.8, 11.2), look=-26.0, tail_drop=-0.6)
+    return [STAND.blend(cocked, 0.5), cocked, cocked, cocked]
+
+
+def tug():
+    """...and the worm pulled out: braced, leaning back, it comes free."""
+    stab = STAND.with_(tilt=-22.0, body=(15.6, 16.2), head=(22.6, 19.6), look=-50.0, neck=0.9, tail_drop=-0.5)
+    pull = STAND.with_(tilt=26.0, body=(14.2, 15.2), head=(18.8, 9.6), look=-34.0, carry="worm", tail_drop=0.8)
+    lean = pull.with_(tilt=30.0, body=(13.8, 15.0), head=(18.2, 9.2), look=-44.0)
+    return [stab, stab.with_(carry="worm"), pull, lean, pull, lean, STAND.with_(carry="worm")]
+
+
+def scold():
+    """The alarm at a cat: tail flicked up and fanned, wings drooped, the
+    bill snapping open with every call, bobbing."""
+    up = STAND.with_(tilt=24.0, head=(19.6, 8.8), look=12.0, tail_drop=-4.2, tail_fan=1.0, gape=0.8,
+                     wing_lift=0.3)
+    down = STAND.with_(tilt=6.0, body=(15.0, 16.2), head=(20.6, 11.0), look=-6.0, tail_drop=0.6, tail_fan=0.3)
+    return [up, up, down, up, down, down]
+
+
+def feed(carry="worm"):
+    """Leaning in to a gaping chick: the food goes in, then a moment's
+    look before it's off for more."""
+    reach = STAND.with_(tilt=-14.0, body=(15.8, 16.0), head=(22.6, 15.0), look=-30.0, neck=1.15, gape=0.4,
+                        carry=carry)
+    given = reach.with_(carry=None, gape=0.0, head=(22.8, 15.6))
+    return [STAND.with_(carry=carry), reach, reach, given, given, STAND]
+
+
+def carrying(poses, what):
+    return [p.with_(carry=what) for p in poses]
+
+
+# --- their young -------------------------------------------------------------
+
+FLEDGE = STAND.with_(tilt=10.0, body=(15.0, 16.0), head=(19.6, 10.6), tail_drop=0.6)
+
+
+def fledgling_idle():
+    """Puffed up and still, as fledglings sit waiting to be fed."""
+    return [FLEDGE, FLEDGE, FLEDGE.with_(bulk=1.04), FLEDGE.with_(head=(19.2, 10.4), look=6.0)]
+
+
+def beg():
+    """Head up, the yellow mouth wide open, wings quivering."""
+    ask = FLEDGE.with_(tilt=26.0, head=(18.6, 7.6), look=62.0, gape=1.0, wing_lift=0.9, neck=1.2)
+    return [ask, ask.with_(wing_lift=0.3, head=(18.8, 8.0)), ask, ask.with_(wing_lift=0.4, look=54.0)]
+
+
+def flutter(n=4):
+    """A fledgling's first, clumsy flight: fast beats, legs dangling."""
+    base = FLY.with_(tilt=12.0, legs=1.0, tail_fan=0.2)
+    return [base.with_(wing_t=i / n) for i in range(n)]
+
+
 def build(species):
+    if species == "fledgling":
+        return {"idle": fledgling_idle(), "walk": hop(), "beg": beg(), "peck": peck(), "preen": preen(),
+                "flap": flutter(), "flare": flare(), "takeoff": takeoff()}
     anims = {
         "idle": idle(),
         "walk": hop() if species == "sparrow" else walk(),
@@ -315,6 +479,14 @@ def build(species):
     }
     if species in ("pigeon", "crow"):
         anims["coo"] = coo()     # the crow's version is a caw
+    if species.startswith("blackbird"):
+        anims["listen"] = listen()
+        anims["tug"] = tug()
+        anims["scold"] = scold()
+        for what in ("worm", "straw"):
+            anims[f"feed~{what}"] = feed(what)
+            for name in ("idle", "walk", "flap", "glide", "flare", "takeoff"):
+                anims[f"{name}~{what}"] = carrying(anims[name], what)
     return anims
 
 
@@ -334,4 +506,5 @@ def render(species):
 
 ANCHORS = {name: (int(CX + spec[3][0]), int(GROUND) + spec[3][1]) for name, spec in SPECIES.items()}
 ANCHOR = ANCHORS["pigeon"]
-STRIDE = {"pigeon": WALK_STRIDE * 1.15, "sparrow": 6.0 * 0.55, "crow": WALK_STRIDE * 1.6}
+STRIDE = {"pigeon": WALK_STRIDE * 1.15, "sparrow": 6.0 * 0.55, "crow": WALK_STRIDE * 1.6,
+          "blackbird": WALK_STRIDE * 0.86, "blackbird_hen": WALK_STRIDE * 0.84, "fledgling": 6.0 * 0.7}

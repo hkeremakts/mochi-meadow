@@ -10,8 +10,10 @@ PLURALS = {"butterfly": "butterflies", "mouse": "mice", "firefly": "fireflies", 
            "bee": "bees", "snail": "snails", "hedgehog": "hedgehogs", "crow": "crows", "bat": "bats",
            "fox": "foxes", "golden_butterfly": "golden butterflies", "visitor": "visiting cats", "deer": "deer",
            "heron": "herons", "duck": "ducks", "duckling": "ducklings", "moth": "moths",
-           "grasshopper": "grasshoppers"}
-SINGULAR = {"ladybug": "ladybird", "golden_butterfly": "golden butterfly", "visitor": "visiting cat"}
+           "grasshopper": "grasshoppers", "blackbird": "blackbirds", "fledgling": "young blackbirds",
+           "froglet": "tiny frogs"}
+SINGULAR = {"ladybug": "ladybird", "golden_butterfly": "golden butterfly", "visitor": "visiting cat",
+            "fledgling": "young blackbird", "froglet": "tiny frog"}
 KEYS = [
     ("I", "info panel"),
     ("F", "fullscreen"),
@@ -121,7 +123,8 @@ class Hud:
         if speed != 1:
             time_line += f"   time x{speed:g}"
         counts = []
-        for kind in ("golden_butterfly", "deer", "visitor", "fox", "heron", "duck", "duckling", "butterfly", "bee", "dragonfly", "ladybug", "frog", "snail",
+        for kind in ("golden_butterfly", "deer", "visitor", "fox", "heron", "duck", "duckling", "blackbird", "fledgling",
+                     "butterfly", "bee", "dragonfly", "ladybug", "frog", "froglet", "snail",
                      "mouse", "hedgehog", "pigeon", "sparrow", "crow", "bat", "grasshopper", "moth", "firefly"):
             n = world.count(kind)
             if n:
@@ -143,6 +146,10 @@ class Hud:
             ("  ·  ".join(counts) if counts else "the meadow is quiet", self.small, dim),
             (needs, self.small, dim),
         ]
+        stories = getattr(world, "stories", None)
+        season = stories.describe() if stories is not None else []
+        if season:
+            lines.insert(2, ("this season: " + ", ".join(season), self.small, dim))
         self._panel(screen, lines, "bottomleft")
 
     def draw_captions(self, screen, captions, total):

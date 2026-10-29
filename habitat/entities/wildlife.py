@@ -13,7 +13,7 @@ import math
 import numpy as np
 import pygame
 
-from .. import bird_art, cat_anims, critter_art, deer_art, fox_art, pixelrig, pond_art
+from .. import bird_art, cat_anims, critter_art, deer_art, fox_art, pixelrig, pond_art, story_art
 from ..assets import generated_library
 from ..chance import count, sample
 from ..paths import clear_line, find_path, widen
@@ -29,8 +29,9 @@ STAYS = SETTINGS["effects"]["stays"]
 def art():
     if not _ART:
         sources = [bird_art.__file__, pixelrig.__file__]
-        for species in ("pigeon", "sparrow", "crow"):
+        for species in ("pigeon", "sparrow", "crow", "blackbird", "blackbird_hen", "fledgling"):
             _ART[species] = generated_library(species, sources, lambda sp=species: bird_art.render(sp))
+        _ART["froglet"] = story_art.froglet_frames()
         _ART["mouse"] = critter_art.mouse_frames()
         _ART["butterfly"] = {s: critter_art.butterfly_frames(s) for s in critter_art.BUTTERFLY_SPECIES}
         _ART["ladybug"] = critter_art.ladybug_frames()
