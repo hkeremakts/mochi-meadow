@@ -612,6 +612,19 @@ commits are now made only when the full suite reports OK.
     round once (or sometimes twice) on the spot, slowly, at odds of
     `circle_before_nap` (0.55). There's no circling before sitting.
 
+- **"he scratches his head with his back leg and it looks weird"**
+  - **Cause:**
+    - The raised hind leg was the ordinary two-bone leg stretched straight
+      from haunch to head: a long grey plank across her side.
+    - It was drawn after her head, so the white paw covered her cheek.
+  - **Fix:** `_scratching_leg`, and the poses' `hn_knee`.
+    - The thigh lies along the flank and the knee comes up beside her chest.
+    - The lower leg rises just behind her neck, to a foot that rakes behind
+      the ear.
+    - It's drawn before the head, so her head sits in front and the paw
+      peeks out behind it.
+    - Her head tips toward the paw, with her eyes shut.
+
 - **Known, not fixed:** two meadows starting at the same moment right after
   an art change can collide while redrawing the sprite cache. This was seen
   when six preview renders ran at once. It's rare in real use.

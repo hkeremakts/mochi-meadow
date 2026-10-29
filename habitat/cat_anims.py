@@ -342,10 +342,12 @@ def side_anims():
     a["groom_lie"] = seq(tween(LIE, chest_lick.with_(tongue=0.0, mouth=0.0), 3),
                          [chest_lick, chest_lick.with_(tongue=0.0, mouth=0.1)] * 3,
                          tween(chest_lick, LIE, 3))
-    scratch_a = SIT.with_(hn=(35.0, 23.5), hn_lift=150.0, tilt=-20.0, eye=0.0, head=(38.5, 26.0),
+    # scratching an ear: the knee comes up beside the chest and the foot
+    # rakes down behind the ear, head tipped toward it, eyes shut
+    scratch_a = SIT.with_(hn=(31.6, 21.4), hn_knee=(35.0, 40.0), tilt=-14.0, eye=0.0, head=(38.8, 26.0),
                           hind_over=1.0)
-    scratch_b = scratch_a.with_(hn=(35.6, 26.0), hn_lift=160.0)
-    lifting = SIT.with_(hn=(35.0, 38.0), hn_lift=120.0, hind_over=1.0)
+    scratch_b = scratch_a.with_(hn=(32.2, 24.2), hn_knee=(35.3, 40.4))
+    lifting = SIT.with_(hn=(32.4, 33.0), hn_knee=(33.6, 41.0), hind_over=1.0)
     a["scratch"] = seq([lifting], [scratch_b, scratch_a] * 6, [lifting, SIT])
     # eating and drinking
     chew = [EAT, EAT.with_(mouth=0.35, head=_shift(EAT.head, 0, -0.5)), EAT,

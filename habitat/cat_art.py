@@ -281,6 +281,16 @@ def _hindleg(c, root, paw, lift):
     return fur, sock
 
 
+def _scratching_leg(c, root, knee, paw):
+    """A hind leg raised to scratch behind the ear: the thigh forward along
+    her flank, the knee up beside her chest, and only the lower leg
+    reaching up, so the foot comes from behind her head to the ear."""
+    hock = (knee[0] + (paw[0] - knee[0]) * 0.42 - 1.6, knee[1] + (paw[1] - knee[1]) * 0.42)   # just behind the neck, so the leg shows
+    fur = c.chain([root, knee, hock], [2.4, 1.8, 1.35])
+    sock = c.capsule(hock[0], hock[1], paw[0], paw[1], 1.25, 1.15) | c.ellipse(paw[0], paw[1], 1.6, 1.3)
+    return fur, sock
+
+
 def _limb(c, masks, near, crease_below=None):
     fur, sock = masks
     if near:
@@ -349,6 +359,10 @@ def _draw_side(p):
         _side_tail_tip(c, p, root)
     _limb(c, _foreleg(c, (sx + 0.4, sy + 2.4), p.fn, p.fn_rot, p.fore_bend), near=True,
           crease_below=min(sy + 2.0, p.fn[1] - 4.0))
+    if hind_over:
+        # drawn before her head, so the head sits in front and the paw
+        # peeks out behind her ear
+        _limb(c, _scratching_leg(c, (hx + 1.0, hy + 1.6), p.hn_knee, p.hn), near=True)
 
     qx, qy = p.head
     c.paint(c.capsule(sx + 1.0 * ca, sy - 1.0, qx - 1.0, qy + 1.0, 3.5 * puff, 3.0), BASE)
@@ -358,8 +372,6 @@ def _draw_side(p):
         _back_head(c, qx, qy, p)                 # walking away at three-quarters: the back of her head
     else:
         _side_head(c, qx, qy, p, features, late)
-    if hind_over:
-        _limb(c, _hindleg(c, (hx + 1.0, hy + 1.6), p.hn, p.hn_lift), near=True)
     return finish(c, features, late)
 
 
