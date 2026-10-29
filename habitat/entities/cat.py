@@ -863,7 +863,11 @@ class Cat(Entity):
         if stand:
             self.idle_pose()
 
-    def go_to_spot(self, spot, gait="walk", dawdle=False):
+    def go_to_spot(self, spot, gait="walk", dawdle=False, loose=False):
+        """Walk to a spot and face the way it wants.  A ``loose`` spot (a
+        place to nap or loaf, out of the rain or into the shade) doesn't
+        care which way she lies: she keeps the side she's facing, rather
+        than turning round on arrival."""
         status = yield from self.go(*spot.approach, gait=gait, dawdle=dawdle)
         if status != ARRIVED:
             return False
@@ -871,14 +875,17 @@ class Cat(Entity):
             # The last step may enter a blocked margin (under a bush, onto
             # the bank), so it is walked directly.
             yield from self.step_to(spot.x, spot.y)
-        if self.facing != spot.facing:
+        if loose:
+            if not self.side_view:
+                yield from self.face("right" if math.cos(self.heading) >= 0 else "left")
+        elif self.facing != spot.facing:
             yield from self.face(spot.facing)
         return True
 
     def step_to(self, x, y, speed=CAT_WALK_SPEED * 0.7):
         heading = self.heading_to(x, y)
-        if abs(wrap(heading - self.heading)) > 0.3:
-            yield from self.pivot(heading)
+        if abs(wrap(heading - self.heading)) > 0.3 and math.hypot(x - self.x, y - self.y) > 5:
+            yield from self.pivot(heading)       # (a step or two she just shuffles, without turning to it)
         while True:
             dx, dy = x - self.x, y - self.y
             d = math.hypot(dx, dy)
@@ -1195,7 +1202,7 @@ class Cat(Entity):
             yield from self.wait(self.rng.uniform(1.0, 2.5))
             self.idle_pose()
         elif roll < 0.8:
-            yield from self.pivot(wrap(self.heading + self.rng.choice((-1, 1)) * self.rng.uniform(0.8, 2.2)))
+            yield from self.pivot(wrap(self.heading + self.rng.choice((-1, 1)) * self.rng.uniform(0.5, 1.3)))
             yield from self.wait(self.rng.uniform(0.5, 1.5))
 
     def _wander_pace(self):
@@ -1271,7 +1278,7 @@ class Cat(Entity):
             spot = self._light_spot(want)
             if spot is not None:
                 self.label = "looking for some shade" if want == "shade" else "finding a patch of sun"
-                yield from self.go_to_spot(spot)
+                yield from self.go_to_spot(spot, loose=True)
         self._rest_label()
         self.speed = 0.0
         yield from self.to_posture("lie")
@@ -1317,11 +1324,13 @@ class Cat(Entity):
         if spot is None:
             spot = self._nap_spot()
         if spot is not None:
-            arrived = yield from self.go_to_spot(spot, gait="amble")
+            arrived = yield from self.go_to_spot(spot, gait="amble", loose=True)
             if arrived and type(self) is Cat:
                 world = self.world
                 if self.p.napped(world.terrain.seed, spot.x, spot.y):
                     world.say(f"{self.name} has a favourite nap spot now", "uncommon")
+        if self.gait_rng.random() < MOCHI["circle_before_nap"]:
+            yield from self.turn_round()
         if self.p.has("kneader") or (self.p.mood > 0.5 and self.rng.random() < 0.3):
             yield from self.knead()
         # A catnap or a proper sleep; she wakes once it's over and she's
@@ -1330,6 +1339,27 @@ class Cat(Entity):
         start = self.world.time
         yield from self.doze(until=lambda: self.world.time - start >= length and self.needs.energy >= 0.55
                              and not self._sleep_in())
+
+    def turn_round(self):
+        """Before settling for a proper sleep, a cat often turns round once
+        or twice on the spot, slowly, treading as she goes: an old
+        nest-making habit."""
+        if self.posture != "stand":
+            yield from self.to_posture("stand")
+        label = self.label
+        self.label = "turning round to settle"
+        rounds = 1 if self.gait_rng.random() < 0.7 else 2
+        way = self.gait_rng.choice((-1, 1))
+        left = rounds * TAU
+        while left > 0.02:
+            before = self.heading
+            self._turn_in_steps(way * left, "amble")
+            left -= abs(wrap(self.heading - before))
+            yield
+        self.idle_pose()
+        if not self.side_view:
+            yield from self.face("right" if math.cos(self.heading) >= 0 else "left")
+        self.label = label
 
     def _sleep_style(self):
         env = self.world.env
@@ -1507,7 +1537,7 @@ class Cat(Entity):
         else:
             yield from self.to_posture("stand")
         self.label = "following the shade" if want == "shade" else "moving into the sun"
-        yield from self.go_to_spot(spot)
+        yield from self.go_to_spot(spot, loose=True)
         yield from self.to_posture("lie")
         yield from self.wait(self.rng.uniform(1.0, 2.5))
         if asleep:
@@ -2035,7 +2065,7 @@ class Cat(Entity):
                 self.label = "woken by the snow" if env.snowing else "woken by the rain"
             yield from self.to_posture("sit")
             yield from self.wait(0.8)
-        ok = yield from self.go_to_spot(spot, gait="trot")
+        ok = yield from self.go_to_spot(spot, gait="trot", loose=spot.owner is t.tree)
         if not ok:
             return
         if weather:
@@ -2072,7 +2102,7 @@ class Cat(Entity):
         roof = self.world.terrain.spots["roof"]
         spot = min(roof, key=lambda s: abs(s.x - self.x) + abs(s.y - self.y))
         self.label = "ducking under the tree"
-        ok = yield from self.go_to_spot(spot)
+        ok = yield from self.go_to_spot(spot, loose=True)
         if not ok:
             return
         self.sheltered = True
@@ -2119,7 +2149,7 @@ class Cat(Entity):
             self.idle_pose()
             yield from self.wait(self.rng.uniform(1.0, 3.0))
         self.label = "hurrying back under cover"
-        yield from self.go_to_spot(home, gait="trot")
+        yield from self.go_to_spot(home, gait="trot", loose=home.owner is t.tree)
         self.label = "grooming the rain off"
         yield from self.shake_off()
         self.p.feel(0.05 if self.p["bold"] > 0.6 else -0.05)

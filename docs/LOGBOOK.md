@@ -596,6 +596,22 @@ commits are now made only when the full suite reports OK.
   diagonals use them, side-on-only actions turn her side-on, and turns
   skip views less than 10% of the time.
 
+- **"it was doing circles before sitting or laying down is it intentional
+  like real cats do"** (then "yes do both")
+  - **Not intentional:** separate turns ran back to back: the look-around
+    glance at the end of a wander (45–125°), a turn to step into the spot,
+    then a turn to face the spot's set direction. Before sitting that came
+    to 84° on average, at most about 210°. The deliberate steps from
+    step 1 made it more noticeable.
+  - **Fix 1:** loose spots (`go_to_spot(..., loose=True)`: nap, loaf,
+    shade or sun, and the tree) keep the side she's facing. A final step
+    under 5 px is shuffled, not turned to. The look-around glance is now
+    30–75°. Turning before sitting dropped to 45° on average; the bigger
+    turns left have a reason (facing the pond, a bush or prey).
+  - **Fix 2:** `turn_round()` adds the real habit. Before a nap she turns
+    round once (or sometimes twice) on the spot, slowly, at odds of
+    `circle_before_nap` (0.55). There's no circling before sitting.
+
 - **Known, not fixed:** two meadows starting at the same moment right after
   an art change can collide while redrawing the sprite cache. This was seen
   when six preview renders ran at once. It's rare in real use.

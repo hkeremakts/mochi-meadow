@@ -208,5 +208,62 @@ class ThreeQuarters(unittest.TestCase):
         self.assertLess(jumps / changes, 0.1, f"{jumps} of {changes} view changes skipped a view")
 
 
+class SettlingDown(unittest.TestCase):
+    def turning_on_the_spot_before(self, posture, circle, minutes=40):
+        """Degrees turned on the spot (standing still) just before each
+        time she sits or lies down."""
+        from habitat.entities import cat as catmod
+        old = catmod.MOCHI["circle_before_nap"]
+        catmod.MOCHI["circle_before_nap"] = circle
+        try:
+            w = World(427, 266, seed=11, clock=fixed_clock(9.0, date=datetime.date(2026, 6, 20)), weather="clear",
+                      weather_locked=True, personality=Personality.neutral())
+            cat = w.cat
+            last, spin, before, out = cat.heading, 0.0, cat.posture, []
+            for _ in range(int(minutes * 60 / DT)):
+                w.update(DT)
+                turn = abs((cat.heading - last + math.pi) % (2 * math.pi) - math.pi)
+                last = cat.heading
+                if cat.speed >= 1.0:
+                    spin = 0.0
+                elif cat.posture == "stand":
+                    spin += turn
+                if cat.posture != before:
+                    if cat.posture == posture and before in ("stand", "sit"):
+                        out.append(math.degrees(spin))
+                    if cat.posture != "sit":
+                        spin = 0.0
+                    before = cat.posture
+            return out
+        finally:
+            catmod.MOCHI["circle_before_nap"] = old
+
+    def test_no_circling_before_she_sits(self):
+        turns = self.turning_on_the_spot_before("sit", circle=0.0)
+        self.assertTrue(turns)
+        self.assertLess(max(turns), 200, "turns before sitting stay short")
+        self.assertLess(sorted(turns)[len(turns) // 2], 60)
+
+    def test_before_a_nap_she_may_turn_round_on_purpose(self):
+        w = meadow()
+        cat = w.cat
+        cat.x, cat.y = open_ground(w)
+        cat.gait_rng.seed(3)
+        gen = cat.turn_round()
+        turned, last, labels = 0.0, cat.heading, set()
+        try:
+            while True:
+                cat.dt = DT
+                next(gen)
+                labels.add(cat.label)
+                turned += abs((cat.heading - last + math.pi) % (2 * math.pi) - math.pi)
+                last = cat.heading
+        except StopIteration:
+            pass
+        self.assertIn("turning round to settle", labels)
+        self.assertGreater(math.degrees(turned), 340, "once round at least")
+        self.assertTrue(cat.side_view, "and ready to lie down")
+
+
 if __name__ == "__main__":
     unittest.main()

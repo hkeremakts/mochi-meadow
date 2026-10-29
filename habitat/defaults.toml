@@ -172,6 +172,7 @@ eat_seconds = { typical = 9, spread = 0.25, min = 5, max = 18 }
 mood_wander = 0.08        # her mood drifts a little on its own (Ornstein-Uhlenbeck sd)
 evening_zoomies_hours = [17.0, 21.5]   # dinner at dusk...
 evening_zoomies_chance = 0.4           # ...and the odds of a mad dash after it (scaled by how playful she is)
+circle_before_nap = 0.55   # odds she turns round once or twice before lying down for a nap
 dream_after = 90          # seconds asleep before she sleeps deeply enough to dream
 dream_wait = { mean_wait = 70, min = 15, max = 400 }   # seconds between dreams (paws paddling, an ear twitching)
 
