@@ -55,20 +55,34 @@ python main.py --help            # every option
 
 ### Testing mode
 
-For watching what takes days or months, without waiting for them. Press
-`X` in a window (or start with `--testing`), and the meadow leaves the
-wall clock and the real calendar and runs on a clock of its own. The sun
-and the moon, the seasons and the stories all follow it. An amber badge
-at the top says it's on, with the testing date and time and what the
+For watching what takes hours, days or months, without waiting for them.
+Press `X` in a window (or start with `--testing`), and the meadow leaves
+the wall clock and the real calendar and runs on a clock of its own, and
+everything runs at the testing pace: Mochi, the creatures, the weather,
+the events and the stories, not just the sun. An amber badge at the top
+says it's on, with the testing date and time, the weather, and what the
 stories are doing.
 
 | Key | in testing mode |
 |---|---|
-| `T` | the pace: real → an hour a minute → a day in two minutes → a week a minute → a day a second with the hour held still (the seasons sweep by without the light flickering) |
+| `T` | the pace: real → ten times as fast → an hour a minute → a day in two minutes → a day a second with the hour held still (the seasons sweep by without the light flickering) |
 | `←` / `→` | a day back or on |
 | `↓` / `↑` | an hour back or on |
 | `[` / `]` | back to the last step of a seasonal story, or on to the next one, arriving at an hour to see it |
 | `X` | back to the real clock |
+
+The meadow is fast-forwarded in short steps, as many as a frame can spare.
+If that isn't enough for the pace (heavy rain, a busy meadow, a slower
+computer), the clock alone jumps the rest of the way, so the day still
+passes on time, and the badge says how fast the meadow kept up. Captions
+still last their usual few seconds, so they can be read. At the hour-held
+pace the meadow lives at its real pace while whole days go by, each
+skipped day's weather and cold played through, so a snowy night leaves
+snow lying in the morning.
+
+Snow needs falling weather and frost at once, so it comes and goes: in a
+fast-forwarded winter it falls on many nights, and a thin cover takes
+about half a day to melt, so the meadow is often white in the morning.
 
 Nothing is remembered. Testing mode works on a scratch copy of the journal:
 the same Mochi and the same meadow, but no notices given yet, so each
@@ -120,7 +134,9 @@ native screensaver would do much better.
     let go of the bushes and gather under them.
   - **Winter:** dun grass, frost on cold clear mornings, and snow when it is
     cold enough. Snow dusts the grass, then settles over it and on top of
-    bushes and rocks, and melts in the sun. In a hard frost (below about
+    bushes and rocks, and melts slowly once it's above freezing (a thin
+    cover lasts about half a day), so a snowy night means a white
+    morning. In a hard frost (below about
     -2 °C) the pond freezes over: grey-blue ice, cracks spreading as it
     thickens, the fish out of sight. Going for a drink, Mochi tests it with
     a careful paw and licks at the ice instead.

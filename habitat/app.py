@@ -20,7 +20,7 @@ from .hud import Hud
 from .render import Renderer
 from .settings import SETTINGS
 from .sky import parse_place
-from .testing import PACES, TestClock, badge, scratch_copy, story_target
+from .testing import FastForward, TestClock, badge, scratch_copy, story_target
 from .world import World
 
 _screen = SETTINGS["screen"]
@@ -136,12 +136,11 @@ class App:
         self.clock = Clock(parse_hour(args.hour), speed=args.speed, date=args.date, place=args.place)
         self.speed_index = TIME_SPEEDS.index(int(args.speed)) if args.speed in TIME_SPEEDS else None
         self.testing = None       # while testing: the real (journal, personality, clock, meadow) to go back to
-        self.pace = 0             # which of testing.PACES
+        self.fast = FastForward()  # testing mode's pace
         if args.testing:
             self.testing = (real_journal, None, self.clock, self.seed)     # (the real cat is met on leaving)
             self.clock = TestClock(self.clock.moment, place=args.place)
-            if args.speed != 1:
-                self.clock.set_pace(args.speed)
+            self.fast = FastForward(custom=args.speed if args.speed != 1 else None)
         self.screen = self._set_mode()
         self.world = None
         self.renderer = None
@@ -282,10 +281,7 @@ class App:
             elif key == pygame.K_x:
                 self.toggle_testing()
             elif key == pygame.K_t and self.testing is not None:
-                self.pace = (self.pace + 1) % len(PACES)
-                name, speed, days = PACES[self.pace]
-                self.clock.set_pace(speed, days)
-                self.hud.toast(f"Testing: {name}")
+                self.hud.toast(f"Testing: {self.fast.next_pace()}")
             elif key == pygame.K_t:
                 self.speed_index = 0 if self.speed_index is None else (self.speed_index + 1) % len(TIME_SPEEDS)
                 self.clock.set_speed(TIME_SPEEDS[self.speed_index])
@@ -346,14 +342,7 @@ class App:
         mochi.first_meeting = False
         self.personality = mochi
         self.clock = TestClock(self.clock.moment, place=self.args.place)
-        self.pace = 0
-
-    @property
-    def pace_name(self):
-        name, speed, days = PACES[self.pace]
-        if self.clock.speed == speed and self.clock.days_per_second == days:
-            return name
-        return f"time x{self.clock.speed:g}"
+        self.fast = FastForward()
 
     def jump(self, delta, what):
         """Testing mode: move the clock on (or back), and let the meadow
@@ -413,7 +402,10 @@ class App:
                     self.pending_resize = None
                     self.screen = pygame.display.get_surface()
                     self._build_world()
-            self.world.update(dt)
+            if self.testing is not None:
+                self.fast.advance(self.world, self.clock, dt)     # everything at the testing pace
+            else:
+                self.world.update(dt)
             self.hud.update(dt)
             if self.journal.path and self.elapsed - self._saved_at > SAVE_EVERY:
                 self._save_session()
@@ -421,13 +413,14 @@ class App:
                 self.renderer.draw(self.world)
                 self.hud.draw_captions(self.screen, self.world.captions, CAPTION_TIME)
                 if self.show_info:
-                    self.hud.draw_info(self.screen, self.world, self.clock.speed)
+                    speed = self.fast.pace[1] if self.testing is not None else self.clock.speed
+                    self.hud.draw_info(self.screen, self.world, speed)
                 if self.show_debug:
                     self.hud.draw_debug(self.screen, self.world)
                 elif self.show_journal:
                     self.hud.draw_journal(self.screen, self.world.events)
                 if self.testing is not None:
-                    self.hud.draw_testing(self.screen, badge(self.clock, self.pace_name, self.world.stories))
+                    self.hud.draw_testing(self.screen, badge(self.clock, self.fast, self.world))
                 self.hud.draw_guide(self.screen)
                 self.hud.draw_toast(self.screen)
                 pygame.display.flip()

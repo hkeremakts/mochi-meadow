@@ -11,7 +11,6 @@ import pygame
 
 from habitat.app import App, parse_args
 from habitat.testing import PACES, TestClock, badge
-from tests.support import TEST_PLACE
 from tests.test_app import key
 
 
@@ -97,17 +96,80 @@ class Testing(unittest.TestCase):
         seen = []
         for _ in PACES:
             app.handle(key(pygame.K_t))
-            seen.append((app.clock.speed, app.clock.days_per_second))
-        self.assertEqual(seen, [(speed, days) for _, speed, days in PACES[1:] + PACES[:1]])
-        self.assertEqual(app.pace_name, PACES[0][0])
+            seen.append(app.fast.pace)
+        self.assertEqual(seen, PACES[1:] + PACES[:1])
+
+    def test_everything_runs_at_the_pace_not_just_the_clock(self):
+        app = make("--testing")
+        app.fast.index = 2                       # an hour a minute
+        w = app.world
+        w.say("a caption to read", "uncommon")
+        t0, m0 = w.time, app.clock.moment
+        for _ in range(30):                      # one real second
+            app.fast.advance(w, app.clock, 1 / 30)
+        self.assertAlmostEqual(w.time - t0, 60.0, delta=0.5, msg="Mochi, the creatures, the weather: a minute")
+        self.assertAlmostEqual((app.clock.moment - m0).total_seconds(), 60.0, delta=0.5)
+        mine = next(c for c in w.captions if c.text == "a caption to read")
+        self.assertAlmostEqual(mine.age, 1.0, delta=0.05, msg="captions last in real seconds")
+
+    def test_when_the_meadow_cannot_keep_up_the_clock_still_does(self):
+        import habitat.testing as testing
+        app = make("--testing")
+        app.fast.index = 3                       # a day in two minutes
+        w = app.world
+        old, testing.BUDGET = testing.BUDGET, 0.0
+        try:
+            t0, m0 = w.time, app.clock.moment
+            for _ in range(30):
+                app.fast.advance(w, app.clock, 1 / 30)
+        finally:
+            testing.BUDGET = old
+        self.assertLess(w.time - t0, 720.0)
+        self.assertAlmostEqual((app.clock.moment - m0).total_seconds(), 720.0, delta=1.0)
+        self.assertTrue(app.fast.lagging)
+        self.assertIn("keeping up", badge(app.clock, app.fast, w)[0])
+
+    def test_things_happen_when_fast_forwarded(self):
+        app = make("--testing")
+        app.fast.index = 2                       # an hour a minute
+        w = app.world
+        before = len(w.events.history)
+        spells = w.env.weather.spell
+        for _ in range(30 * 60):                 # a real minute: an hour of meadow
+            app.fast.advance(w, app.clock, 1 / 30)
+        self.assertGreater(len(w.events.history) - before, 2, "events came along")
+        self.assertGreater(w.env.weather.spell, spells, "and the weather changed")
+
+    def test_a_pace_of_your_own(self):
+        app = make("--testing", "--speed", "30")
+        self.assertEqual(app.fast.pace, ("30 times as fast", 30.0, False))
+        self.assertFalse(app.fast.lagging)
+        w, t0 = app.world, app.world.time
+        for _ in range(30):
+            app.fast.advance(w, app.clock, 1 / 30)
+        self.assertAlmostEqual(w.time - t0, 30.0, delta=0.5)
+        app.handle(key(pygame.K_t))
+        self.assertEqual(app.fast.pace, PACES[1])
 
     def test_at_its_fastest_the_days_go_by_and_the_hour_holds(self):
-        clock = TestClock(datetime.datetime(2027, 4, 1, 12, 0), place=TEST_PLACE, utc_offset=3)
-        clock.set_pace(86400.0, 1.0)
-        for _ in range(92):                     # three seconds (and a frame or two over)
-            clock.update(1 / 30)
-        self.assertEqual(clock.moment.date(), datetime.date(2027, 4, 4))
-        self.assertEqual((clock.moment.hour, clock.moment.minute), (12, 0))
+        app = make("--testing")
+        app.fast.index = len(PACES) - 1          # a day a second, the hour held
+        m0 = app.clock.moment
+        for _ in range(92):                      # three seconds (and a frame or two over)
+            app.fast.advance(app.world, app.clock, 1 / 30)
+        self.assertEqual(app.clock.moment.date() - m0.date(), datetime.timedelta(days=3))
+        self.assertLess(abs((app.clock.moment - m0).total_seconds() - 3 * 86400), 10, "the hour held")
+
+    def test_skipped_days_have_their_weather_and_snow(self):
+        app = make("--testing", "--date", "2027-01-05", "--time", "08:00", "--weather", "cloudy")
+        app.fast.index = len(PACES) - 1
+        env = app.world.env
+        spells, snowed = env.weather.spell, 0.0
+        for _ in range(30 * 25):                 # 25 January days
+            app.fast.advance(app.world, app.clock, 1 / 30)
+            snowed = max(snowed, env.snow_cover)
+        self.assertGreater(env.weather.spell, spells + 20, "the weather went on through the days")
+        self.assertGreater(snowed, 0.2, "and some nights it snowed")
 
     def test_arrows_jump_an_hour_or_a_day(self):
         app = make("--testing")
@@ -146,7 +208,7 @@ class Testing(unittest.TestCase):
 
     def test_the_badge_says_so(self):
         app = make("--testing")
-        lines = badge(app.clock, app.pace_name, app.world.stories)
+        lines = badge(app.clock, app.fast, app.world)
         self.assertIn("TESTING MODE", lines[0])
         self.assertIn("Sat 20 Mar 2027", lines[1])
         app.hud.draw_testing(app.screen, lines)

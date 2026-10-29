@@ -102,6 +102,17 @@ class Seasons(unittest.TestCase):
         self.assertGreater(env.snow_cover, 0.3)
         self.assertIn("Snow", env.weather_name)
 
+    def test_a_night_of_snow_lasts_into_the_morning(self):
+        # A thin snow cover takes about half a day to melt a degree or two
+        # above freezing, not minutes: it's still there after breakfast.
+        clock = Clock(8.0, date=datetime.date(2026, 1, 20), place=ISTANBUL, utc_offset=3)
+        env = Environment(random.Random(1), 100, 80, clock, "cloudy", weather_locked=True)
+        env.snow_cover = 1.0
+        for _ in range(360):              # an hour
+            env.update(10.0)
+        self.assertGreater(env.snow_cover, 0.6)
+        self.assertGreater(env.temperature, 0.5, "(above freezing: it is melting)")
+
 
 class Place(unittest.TestCase):
     def test_known_zone(self):

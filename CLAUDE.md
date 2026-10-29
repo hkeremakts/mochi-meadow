@@ -87,10 +87,14 @@ quits.
   changes, so the first start after an art change takes about 5 s).
 - Drawing: `render.py` (one MULT light pass, lite GPU-scaled mode), `hud.py`,
   `app.py` (loop, flags, keys, screensaver mode).
-- `testing.py`: testing mode's clock (`TestClock`: any pace, jumps, whole
-  days with the hour held) and its scratch copy of the journal. Use it to
-  try anything seasonal; it must never write the real journal
-  (`tests/test_testing.py` checks).
+- `testing.py`: testing mode. `TestClock` (its own clock, jumps),
+  `FastForward` (runs the *whole* meadow at the pace in short steps within
+  a per-frame budget, the clock making up any shortfall; at the hour-held
+  pace whole days go by with their weather played through) and the scratch
+  copy of the journal. Use it to try anything seasonal or slow; it must
+  never write the real journal (`tests/test_testing.py` checks).
+  `World.update(dt, real=...)` keeps captions in real seconds while
+  fast-forwarding.
 - `legacy/main_original.py` is the original game, kept for reference.
   `tools/` holds the old sprite-sheet scripts. Only `assets/environment/` is
   published; the other third-party art folders are git-ignored.

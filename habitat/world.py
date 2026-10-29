@@ -84,7 +84,10 @@ class World:
 
     # --- simulation -----------------------------------------------------
 
-    def update(self, dt):
+    def update(self, dt, real=None):
+        """``real``: the real seconds this step stands for, when the meadow
+        is being fast-forwarded (testing mode), so captions still last
+        long enough to read."""
         self.time += dt
         self.dt_hint = dt
         self.env.update(dt)
@@ -112,7 +115,7 @@ class World:
                 self.later.remove(item)
                 self.say(item[1], item[2])
         for c in self.captions:
-            c.age += dt
+            c.age += dt if real is None else real
         self.captions = [c for c in self.captions if c.age < CAPTION_TIME]
 
     def say(self, text, tier):

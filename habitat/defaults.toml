@@ -90,8 +90,8 @@ winter = { clear = 0.8, cloudy = 1.4, windy = 1.0, drizzle = 1.0, rain = 1.0 }
 [cold]
 snow_below = 1.0          # Celsius: colder than this, rain falls as snow
 snow_settles = 900        # seconds of heavy snow to cover the ground
-snow_melts = 2400         # seconds to melt at 1.5 C above freezing (faster when warmer)
-sun_melt = 0.4            # how much sunshine adds to melting
+snow_melts = 43200        # seconds to melt a full cover at 1.5 C above freezing (faster when warmer): about half a day
+sun_melt = 0.03           # how much sunshine adds to melting (a little: fresh snow throws most of the sun back)
 rain_melt = 3.0           # rain melts snow this many times faster
 frost_below = 1.5         # Celsius, on a clear, dark night
 frost_forms = 1800        # seconds to a full frost

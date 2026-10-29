@@ -753,7 +753,7 @@ its own clock").
 - **Its own clock:** `testing.TestClock` starts where the real one was and
   runs on its own. The sky, the moon's phase, the seasons and the stories
   all follow it.
-- **Paces (`T`):**
+- **Paces (`T`):** (changed the same day, see below)
   - real pace
   - an hour a minute
   - a day in two minutes
@@ -787,6 +787,50 @@ its own clock").
   real journal file is byte-for-byte unchanged after testing, a first run
   in testing makes no journal, the paces, the held hour, jumps, story
   steps, no winter left after a jump into summer, and the badge.
+
+- **Owner, after trying it:** "in testing mode I think it is only simulates
+  the time but I want everything to fasten up thus I can see the events
+  too. also you said in the winter the weather will be snowy but I
+  couldn't see snow".
+  - **Cause, events:** only the clock ran fast. Mochi, the creatures, the
+    weather spells and the event timers all still ran in real seconds, so
+    a day went by in two minutes with an hour's worth of life in it.
+  - **Cause, snow:** snow needs falling weather and cold at once. The
+    weather was still changing in real minutes, and at the hour-held pace
+    every day sat at the same (warm) hour.
+  - **And a second cause:** snow melted far too fast. A full cover went in
+    40 minutes at +1.5 °C (16 at +3 °C, half an hour in sunshine), where a
+    thin real cover takes half a day. Run at meadow speed, an Istanbul
+    winter had snow falling on about 49 of 90 days and the ground white at
+    some hour on 41, but white at 10:00 on fewer than 2: the snow came in
+    the night and was gone by breakfast.
+    - **Now:** `snow_melts` is 43200 (12 hours for a full cover at
+      +1.5 °C) and `sun_melt` 0.03 (fresh snow throws most of the sun
+      back). The ground is white at 10:00 on about 19 winter days in 90.
+    - **Still snowier than the real city,** because the generic
+      temperature formula runs 2–3 °C cold for Istanbul. The snow
+      threshold stays at a physical 1 °C. Raised with the owner, not
+      changed.
+  - **Now (`testing.FastForward`):** the whole meadow is fast-forwarded,
+    in steps of 0.05 s of meadow time (0.1 s above an hour a minute), as
+    many as fit in 14 ms a frame. If that isn't enough, the clock alone
+    jumps the rest and the badge says how fast the meadow kept up. A step
+    costs about 0.1 ms, so "a day in two minutes" keeps up at about 700×
+    with drawing.
+  - **Captions** age in real seconds while fast-forwarding
+    (`World.update(dt, real=...)`), so they can still be read.
+  - **The paces are now:** real, ten times as fast, an hour a minute, a
+    day in two minutes, and a day a second with the hour held. "A week a
+    minute" went: the meadow can't be simulated that fast, and the
+    hour-held pace covers long spans.
+  - **The hour-held pace** plays each skipped day's weather and cold
+    through in five-minute steps (8 ms a day), so a snowy night leaves
+    snow in the morning and a hard frost a frozen pond.
+  - **The badge** now shows the weather and the temperature, so it's clear
+    why there is (or isn't) snow.
+  - **Tests:** events come and the weather changes when fast-forwarded,
+    the clock keeps time when the meadow can't, captions last in real
+    seconds, and skipped January days bring snow.
 
 ---
 
