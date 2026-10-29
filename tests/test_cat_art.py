@@ -22,10 +22,11 @@ pygame.display.set_mode((64, 64))
 
 SIDE_NEEDED = ["walk", "trot", "run", "stalk", "stand", "sit", "lie", "sleep_curl", "sleep_loaf", "sleep_flat",
                "sitdown", "standup", "liedown", "situp", "curlup", "uncurl", "doze", "undoze", "sprawl",
-               "unsprawl", "stretch", "yawn_lie", "yawn_sit", "meow_sit", "groom", "groom_lie", "scratch",
+               "unsprawl", "stretch", "yawn_lie", "yawn_sit", "meow_sit", "groom", "groom_lie",
                "eat", "eat_start", "eat_end", "drink", "drink_start", "drink_end", "crouch", "pounce",
                "swipe_sit", "swipe_stand", "rear", "hiss", "hiss_start", "sniff", "sniff_start",
                "sit_look", "lie_look", "stand_look"]
+FRONT_ONLY = ["scratch"]     # an ear scratch reads face-on: the raised leg clear of her body
 FACING_NEEDED = ["walk", "trot", "run", "stalk", "stand", "sit", "sitdown", "standup", "eat", "eat_start",
                  "eat_end"]
 
@@ -46,8 +47,18 @@ class Library(unittest.TestCase):
             for view in ("front", "back"):
                 with self.subTest(key=f"{name}_{view}"):
                     self.assertIn(f"{name}_{view}", self.lib)
-        for name in ("meow_sit", "yawn_sit", "groom", "swipe_sit"):
+        for name in ("meow_sit", "yawn_sit", "groom", "swipe_sit") + tuple(FRONT_ONLY):
             self.assertIn(f"{name}_front", self.lib)
+
+    def test_scratching_an_ear_lifts_a_leg_clear_of_her_body(self):
+        frames = self.lib["scratch_front"]
+        sitting = self.lib["sit_front"][0].get_bounding_rect()
+        raking = frames[len(frames) // 2].get_bounding_rect()
+        self.assertLess(raking.left, sitting.left - 2, "the leg sticks out to the side")
+        top_left = min(y for y in range(64) for x in range(raking.left, raking.left + 3)
+                       if frames[len(frames) // 2].get_at((x, y)).a)
+        self.assertLess(top_left, sitting.top + 14, "...with the foot up at her ear")
+        self.assertNotIn("scratch_right", self.lib, "side-on, the raised leg vanishes into her: not drawn")
 
     def test_blink_twins_match_their_animation_frame_for_frame(self):
         twins = [k for k in self.lib if k.endswith("__blink")]
@@ -209,6 +220,28 @@ class Craft(unittest.TestCase):
         self.assertEqual(despeckle(grid, keep=(3,))[2, 2], 3)
         grid[2, 3] = 3                            # two together are a shape, not a crumb
         self.assertEqual(despeckle(grid)[2, 2], 3)
+
+
+class Scratching(unittest.TestCase):
+    def test_she_turns_to_you_to_scratch_an_ear(self):
+        import random
+        w = World(427, 266, seed=5, clock=fixed_clock(12.0), weather="clear", weather_locked=True)
+        cat = w.cat
+        w.entities = [cat]
+        cat.posture, cat.view, cat.heading = "stand", "right", 0.0
+        cat.idle_pose()
+        cat.rng = random.Random(0)
+        seen = set()
+        for attempt in range(6):                  # grooming scratches about half the time
+            cat._start("groom", cat.act_groom())
+            for _ in range(int(25 * 30)):
+                w.update(1 / 30)
+                seen.add(cat.anim.key)
+                if cat.activity_name != "groom":
+                    break
+            if "scratch_front" in seen:
+                break
+        self.assertIn("scratch_front", seen)
 
 
 if __name__ == "__main__":

@@ -226,7 +226,7 @@ class SettlingDown(unittest.TestCase):
                 last = cat.heading
                 if cat.speed >= 1.0:
                     spin = 0.0
-                elif cat.posture == "stand":
+                elif cat.posture == "stand" and cat.activity_name != "tail_chase":   # chasing her tail is meant to spin
                     spin += turn
                 if cat.posture != before:
                     if cat.posture == posture and before in ("stand", "sit"):

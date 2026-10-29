@@ -624,6 +624,19 @@ commits are now made only when the full suite reports OK.
     - It's drawn before the head, so her head sits in front and the paw
       peeks out behind it.
     - Her head tips toward the paw, with her eyes shut.
+  - **Owner: "no it looks even weirder. it looks broken and I couldn't
+    tell if it is scratching his ear".**
+    - **Why side-on can't work:** her raised near leg is the same grey as
+      her body, so it vanishes into her. Only fragments showed (a white
+      stripe, a stray paw).
+    - **Now:** the scratch is drawn face-on (`scratch_front`), where the
+      leg comes up out to the side, knee bent outward clear of her body,
+      the foot raking at the outside of her ear, eyes shut. The side-on
+      version and its leg code were removed.
+    - **Behaviour:** grooming decides up front whether she'll scratch, and
+      if so turns to face you once, before sitting.
+    - **Test fix:** the circling check now ignores tail chasing, which
+      spins on purpose.
 
 - **Known, not fixed:** two meadows starting at the same moment right after
   an art change can collide while redrawing the sprite cache. This was seen
@@ -663,6 +676,9 @@ commits are now made only when the full suite reports OK.
   - the sprite-cache collision when two meadows start at once after an art
     change
   - the npm cache, which needs the owner's password
+  - a test that failed once and then passed three times running
+    (2026-10-29), probably one of the timing tests in `test_render.py` when
+    the Mac was busy. Find it and make it robust.
 - **The Swift `.saver` rewrite:** last, and only when asked.
 - **After Swift:** things a screensaver can't do, such as live weather,
   interacting with Mochi, and widgets.
