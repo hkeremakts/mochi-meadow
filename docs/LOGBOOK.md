@@ -809,8 +809,8 @@ its own clock").
       back). The ground is white at 10:00 on about 19 winter days in 90.
     - **Still snowier than the real city,** because the generic
       temperature formula runs 2–3 °C cold for Istanbul. The snow
-      threshold stays at a physical 1 °C. Raised with the owner, not
-      changed.
+      threshold stays at a physical 1 °C. Raised with the owner, who
+      said: "keep the snowy winters".
   - **Now (`testing.FastForward`):** the whole meadow is fast-forwarded,
     in steps of 0.05 s of meadow time (0.1 s above an hour a minute), as
     many as fit in 14 ms a frame. If that isn't enough, the clock alone
@@ -831,6 +831,25 @@ its own clock").
   - **Tests:** events come and the weather changes when fast-forwarded,
     the clock keeps time when the meadow can't, captions last in real
     seconds, and skipped January days bring snow.
+
+- **"the tree has a small sprite bug, it shows black small lines at the
+  rectangle that limits the leaves"**
+  - **Cause:** the crown is drawn as clumps of leaves on a canvas sized
+    from the crown's radii, and some clumps reached past it.
+    - They were cut off flat at the edge.
+    - The outline is made by shifting the leaf mask a pixel each way with
+      `np.roll`, which wraps round, so leaves touching one edge put dashed
+      outline pixels along the opposite one.
+    - Every meadow's crown had them (12–69 opaque pixels on the border).
+  - **Fix:** `art.tree_canopy` widens its canvas, evenly so the crown's
+    middle stays put, until every clump and its outline fit with two
+    pixels to spare, and shifts masks without wrapping (`_shifted`).
+    - The random numbers are drawn exactly as before, so each meadow's
+      layout is unchanged (checked on 12 seeds: props, ground, walk grid,
+      the crown's position).
+    - Crowns that were clipped are a little fuller now.
+  - **Test:** in `test_tree.py`, no crown in 30 meadows touches the edge of
+    its picture (it fails on the old code).
 
 ---
 

@@ -250,15 +250,29 @@ def tree_canopy(rng, rx, ry):
     import numpy as np
     w, h = int(rx * 2 + 6), int(ry * 2 + 8)
     cx, cy = w / 2, h / 2 - 1
-    yy, xx = np.mgrid[0:h, 0:w].astype(np.float32)
-    inside = np.zeros((h, w), dtype=bool)
-    light = np.full((h, w), -9.0, dtype=np.float32)
     clumps = [(cx, cy, rx * 0.62, ry * 0.62)]
     for _ in range(int(rx * ry / 55)):
         a = rng.uniform(0, 2 * math.pi)
         d = rng.uniform(0.2, 0.78)
         r = rng.uniform(0.22, 0.36) * rx
         clumps.append((cx + math.cos(a) * rx * d, cy + math.sin(a) * ry * d, r, r * 0.8))
+    noise = np.array([[rng.random() for _ in range(w)] for _ in range(h)], dtype=np.float32)
+    # Some clumps reach past that box.  Cut off at its edge, they showed a
+    # straight black line there (and the outline, wrapping round, a dashed
+    # one along the opposite edge), so the box is widened, evenly so the
+    # crown's middle stays its middle, until every clump and its outline
+    # fit.  (The random numbers are drawn as before: the meadow's layout
+    # after the tree stays the same.)
+    margin = 2
+    px = max(0, math.ceil(max(max(margin - (x0 - a), x0 + a - (w - 1 - margin)) for x0, _, a, _ in clumps)))
+    py = max(0, math.ceil(max(max(margin - (y0 - b), y0 + b - (h - 1 - margin)) for _, y0, _, b in clumps)))
+    if px or py:
+        noise = np.pad(noise, ((py, py), (px, px)), mode="wrap")
+        clumps = [(x0 + px, y0 + py, a, b) for x0, y0, a, b in clumps]
+        w, h, cx, cy = w + 2 * px, h + 2 * py, cx + px, cy + py
+    yy, xx = np.mgrid[0:h, 0:w].astype(np.float32)
+    inside = np.zeros((h, w), dtype=bool)
+    light = np.full((h, w), -9.0, dtype=np.float32)
     # Back clumps first, so the front ones (lower on screen) sit over them.
     for x0, y0, a, b in sorted(clumps, key=lambda c: c[1]):
         q = ((xx - x0) / a) ** 2 + ((yy - y0) / b) ** 2
@@ -268,8 +282,7 @@ def tree_canopy(rng, rx, ry):
         light = np.where(disc, shade + (y0 - cy) / ry * -0.25, light)
         inside |= disc
     # Ragged leafy edge.
-    noise = np.array([[rng.random() for _ in range(w)] for _ in range(h)], dtype=np.float32)
-    edge = inside & ~(np.roll(inside, 1, 0) & np.roll(inside, -1, 0) & np.roll(inside, 1, 1) & np.roll(inside, -1, 1))
+    edge = inside & ~(_shifted(inside, 1, 0) & _shifted(inside, -1, 0) & _shifted(inside, 0, 1) & _shifted(inside, 0, -1))
     inside &= ~(edge & (noise < 0.35))
     tone = np.digitize(light + (noise - 0.5) * 0.25, [-0.75, -0.35, 0.0, 0.32, 0.62]).astype(np.int32)
     surf = blank(w, h)
@@ -280,12 +293,23 @@ def tree_canopy(rng, rx, ry):
     alpha[...] = np.where(inside, 255, 0).astype(np.uint8).T
     outline = np.zeros_like(inside)
     for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)):
-        outline |= np.roll(np.roll(inside, dy, 0), dx, 1)
+        outline |= _shifted(inside, dy, dx)
     outline &= ~inside
     rgb[outline.T] = (14, 30, 22)
     alpha[outline.T] = 255
     del rgb, alpha
     return surf
+
+
+def _shifted(mask, dy, dx):
+    """``mask`` moved ``dy`` rows and ``dx`` columns, nothing wrapping round
+    from the other side (``np.roll`` would)."""
+    import numpy as np
+    out = np.zeros_like(mask)
+    h, w = mask.shape
+    out[max(0, dy):h + min(0, dy), max(0, dx):w + min(0, dx)] = \
+        mask[max(0, -dy):h + min(0, -dy), max(0, -dx):w + min(0, -dx)]
+    return out
 
 
 def tree_trunk(rng, height=30, girth=1.0):

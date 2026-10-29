@@ -96,6 +96,20 @@ class Placement(unittest.TestCase):
         self.assertEqual(others, again)
 
 
+    def test_the_crown_is_never_cut_off_at_the_edge_of_its_picture(self):
+        # Clumps of leaves used to reach past the crown's sprite: cut off,
+        # they showed straight black lines along its edge (and the outline,
+        # wrapping round, dashed ones along the opposite edge).
+        from habitat.terrain import generate_terrain
+        for seed in range(30):
+            t = generate_terrain(427, 266, seed)
+            for canopy in t.canopies:
+                frame = canopy.base_frames[0]
+                w, h = frame.get_size()
+                edge = [(x, y) for x in range(w) for y in (0, h - 1)] + [(x, y) for y in range(h) for x in (0, w - 1)]
+                self.assertFalse([p for p in edge if frame.get_at(p).a], f"seed {seed}")
+
+
 class Roof(unittest.TestCase):
     def test_rain_does_not_reach_the_ground_beneath(self):
         w = meadow()
