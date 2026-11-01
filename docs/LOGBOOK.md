@@ -887,9 +887,9 @@ works there).
   notes): event rates, captions, how often she goes back to places, the new
   look in every light, and whether the 15 fps calm mode shows.
 - **Waiting on the owner's verdict from watching it:** movement steps 1
-  and 2, the seasonal stories and the testing mode (2026-10-29, see
-  above). In testing mode (`X`, then `]`) the stories can be watched
-  without waiting for spring.
+  and 2, the seasonal stories, the testing mode and its event list
+  (2026-10-29 to 2026-11-01, see above). In testing mode, `]` steps
+  through the stories and `E` makes any event happen.
 - **One window with everything I need** (owner, 2026-10-30: "a windows
   that holds every necessary info for me"; not to be built yet).
   - **The idea:** one place to read everything at once, instead of the

@@ -3,6 +3,8 @@
 A pixel-art cat called Mochi lives in a procedurally grown meadow that follows
 the real sky, seasons and clock. It is meant to end up as a lightweight macOS
 screensaver. Public repo: https://github.com/hkeremakts/mochi-meadow (MIT).
+The working copy lives at `~/Documents/other/apps/cursorapps/ADHD_trap`
+(moved there on 2026-11-01; the venv survived the move).
 
 The README describes every feature. `docs/LOGBOOK.md` records what was decided,
 when and why. Read it before re-proposing something that was already settled.
@@ -86,7 +88,9 @@ quits.
   plus `bird_art.py` (pigeon, sparrow, crow, the blackbirds and fledgling), `fox_art.py`,
   `deer_art.py`, `pond_art.py` and `critter_art.py`. Frames are cached in
   `assets/generated/` (git-ignored, redrawn when the drawing code's hash
-  changes, so the first start after an art change takes about 5 s).
+  changes, so the first start after an art change takes about 10 s).
+  `art.py` draws the props; the tree's crown canvas grows to fit every clump
+  (a clipped clump showed black lines, 2026-10-30).
 - Drawing: `render.py` (one MULT light pass, lite GPU-scaled mode), `hud.py`,
   `app.py` (loop, flags, keys, screensaver mode).
 - `testing.py`: testing mode. `TestClock` (its own clock, jumps),
@@ -130,6 +134,8 @@ quits.
   highlights warm, dark plum-tinted outlines, `despeckle` in every finish.
   `tests/test_style.py` and `test_cat_art.py` (via `tests/pixel_lint.py`)
   hold these rules.
+- Testing tools before guesswork: to check an event, use testing mode's `E`
+  list; to check anything slow or seasonal, its paces and `[`/`]`.
 - Commit messages describe what you'd see in the meadow (look at `git log`).
 - Before pushing, ask unless the owner already said to push.
 - When something notable is decided, add a dated entry to `docs/LOGBOOK.md`.
