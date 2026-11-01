@@ -1624,7 +1624,13 @@ class Events:
             self.journal.record(event.name, world.env.clock.moment)
         return True
 
-    def force(self, name):
-        """Make an event happen now, whatever the odds (``--event``)."""
+    def force(self, name, insist=False):
+        """Make an event happen now, whatever the odds (``--event``, and
+        testing mode's list of events).  ``insist``: Mochi drops whatever
+        she's doing for it, asleep or not."""
         event = ALL[name]
-        return self.happen(event)
+        self.world.cat.insist = insist
+        try:
+            return self.happen(event)
+        finally:
+            self.world.cat.insist = False

@@ -140,6 +140,37 @@ class Testing(unittest.TestCase):
         self.assertGreater(len(w.events.history) - before, 2, "events came along")
         self.assertGreater(w.env.weather.spell, spells, "and the weather changed")
 
+    def test_e_lists_the_events_each_with_its_own_key(self):
+        from habitat.testing import event_menu
+        menu = event_menu()
+        keys = [k for k, _, _ in menu]
+        self.assertEqual(len(keys), len(set(keys)), "a different key for each")
+        self.assertNotIn("e", keys)
+        self.assertNotIn("x", keys)
+        app = make()
+        app.handle(key(pygame.K_e))
+        self.assertIsNone(app.menu, "only in testing mode")
+        app.handle(key(pygame.K_x))
+        app.handle(key(pygame.K_e))
+        self.assertIsNotNone(app.menu)
+        app.handle(key(pygame.K_e))
+        self.assertIsNone(app.menu, "E closes it again")
+
+    def test_its_key_makes_that_event_happen_now_even_if_mochi_is_asleep(self):
+        from habitat.testing import event_menu
+        app = make("--testing")
+        app.world.cat.posture = "sleep"
+        app.world.cat.interruptible = False
+        for k, name, _ in event_menu():
+            if name in ("tail chase", "a fox"):
+                app.handle(key(pygame.K_e))
+                app.handle(pygame.event.Event(pygame.KEYDOWN, key=ord(k), mod=0, unicode=k, scancode=0))
+                self.assertIsNone(app.menu)
+                self.assertEqual(app.world.events.history[-1][1], name)
+        self.assertEqual(app.world.cat.activity_name, "tail_chase")
+        self.assertTrue(any(e.kind == "fox" for e in app.world.entities))
+        self.assertTrue(app.running, "and the keys didn't do anything else")
+
     def test_a_pace_of_your_own(self):
         app = make("--testing", "--speed", "30")
         self.assertEqual(app.fast.pace, ("30 times as fast", 30.0, False))

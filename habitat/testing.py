@@ -10,6 +10,8 @@ weather, the events and the stories, not just the sun.
              seasons sweep by without the light flickering day-night-day)
     arrows   an hour back or on (up, down), a day back or on (left, right)
     [ ]      back to the last step of a seasonal story, on to the next one
+    E        the events: a list of every one, each with its own key,
+             and pressing it makes that event happen now
     X        back to the real clock
 
 Fast-forwarding is done in short steps of meadow time, as many as a frame
@@ -45,6 +47,9 @@ BUDGET = 0.014            # seconds of computing a frame may spend fast-forwardi
 FINE_STEP = 0.05          # meadow seconds a step, up to an hour a minute...
 COARSE_STEP = 0.1         # ...and faster (the longest step the meadow ever takes)
 DAY_STEPS = 288           # a skipped day's weather and cold, played through in five-minute steps
+MENU_KEYS = "1234567890abcdfghijklmnopqrstuvwyz"     # (not e or x: E closes the list)
+# Noticed rather than rolled, but with something to see when made to happen.
+NOTICED = ("a meteor shower", "New Year fireworks", "a carved pumpkin")
 # The hour to arrive at a story's next step, to see it happening.
 GOOD_HOURS = {"nest": 10.0, "spawn": 11.0, "tadpoles": 13.0, "froglets": 19.5, "storks": 12.5, "geese": 8.5}
 
@@ -134,6 +139,15 @@ class FastForward:
             world._scenery_check = 0.0
 
 
+def event_menu():
+    """[(key, event name, tier)]: every event that has something to see,
+    commonest first.  (The seasonal stories' steps are reached with [ and ]
+    instead: their captions alone would show nothing.)"""
+    from .events import ALL, ROLLED, TIERS
+    events = sorted(ROLLED, key=lambda e: TIERS.index(e.tier)) + [ALL[name] for name in NOTICED]
+    return [(MENU_KEYS[i], e.name, e.tier) for i, e in enumerate(events)]
+
+
 def scratch_copy(journal):
     """A journal to test with: the same cat and meadow (and what has been
     seen, for the J page), but no notices given yet, and never saved."""
@@ -171,5 +185,5 @@ def badge(clock, fast, world):
     season = world.stories.describe() if getattr(world, "stories", None) is not None else []
     if season:
         lines.append("  ·  ".join(season))
-    lines.append("T pace   left/right a day   up/down an hour   [ ] story steps   X leave")
+    lines.append("T pace   E events   left/right a day   up/down an hour   [ ] story steps   X leave")
     return lines

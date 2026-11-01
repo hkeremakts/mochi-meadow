@@ -202,6 +202,7 @@ class Cat(Entity):
         self.interruptible = True
         self._perceive_timer = 0.0
         self._cooldowns = {}
+        self.insist = False       # testing mode is making an event happen: she won't be too busy for it
         self._ignored = {}  # prey.serial -> time until which the cat ignores it
         self._noticed = set()     # serials of creatures whose place she has already remembered
         self.air = None           # how she carries her tail and ears: happy, cross, wary, or calm (None)
@@ -1139,12 +1140,20 @@ class Cat(Entity):
         """Something happened that Mochi responds to (an event): start
         ``generator`` if she is free.  A sleeping cat is only roused when
         ``wake`` is set."""
+        if self.insist:                    # testing mode asked for it: she drops everything
+            self._start(name, self._roused(generator))
+            return True
         busy = not self.interruptible or self.activity_name in ("eat", "drink", "hunt", "zoomies")
         if busy or (self.posture == "sleep" and not wake):
             generator.close()
             return False
         self._start(name, generator)
         return True
+
+    def _roused(self, generator):
+        if self.posture == "sleep":
+            yield from self.to_posture("stand")
+        yield from generator
 
     # ======================================================================
     # Activities

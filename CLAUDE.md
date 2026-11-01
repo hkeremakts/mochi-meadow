@@ -48,8 +48,10 @@ then uninstall it (it isn't a project dependency).
 
 Keys in a window: I info, J journal, D event odds/debug, W weather, T time-lapse,
 N new meadow, S screenshot, F fullscreen, X testing mode. In testing mode T
-steps through its paces, the arrows jump a day or an hour, and `[`/`]` go
-to the last or next step of a seasonal story. In `--screensaver` any key
+steps through its paces, E opens a list of every event with its own key
+(`testing.event_menu`; the key makes it happen now via
+`Events.force(name, insist=True)`), the arrows jump a day or an hour, and
+`[`/`]` go to the last or next step of a seasonal story. In `--screensaver` any key
 quits.
 
 ## Layout

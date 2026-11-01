@@ -108,6 +108,8 @@ class Hud:
         margin = self.pad * 2
         if anchor == "bottomleft":
             pos = (margin, sh - h - margin)
+        elif anchor == "bottomright":
+            pos = (sw - w - margin, sh - h - margin)
         elif anchor == "topleft":
             pos = (margin, margin)
         else:
@@ -259,6 +261,26 @@ class Hud:
             panel.blit(r, ((w - r.get_width()) // 2, y))
             y += r.get_height() + 3
         screen.blit(panel, ((screen.get_width() - w) // 2, self.pad))
+
+    def draw_event_menu(self, screen, menu):
+        """Testing mode's list of events: a key for each, in two columns,
+        coloured by rarity."""
+        light, dim = (236, 238, 240), (170, 178, 188)
+        half = (len(menu) + 1) // 2
+        columns = [menu[:half], menu[half:]]
+        panels = []
+        for i, column in enumerate(columns):
+            lines = [("Make an event happen now" if i == 0 else "E or Esc to close", self.font, light if i == 0 else dim)]
+            for k, name, tier in column:
+                color = TIER_STYLE.get(tier, ((200, 206, 212), 0))[0] if tier != "common" else light
+                lines.append((f"{k}   {name}", self.small, color))
+            panels.append(lines)
+        layer = pygame.Surface(screen.get_size(), pygame.SRCALPHA)
+        self._panel(layer, panels[0], "bottomleft", alpha=200)
+        right = pygame.Surface(screen.get_size(), pygame.SRCALPHA)
+        self._panel(right, panels[1], "bottomright", alpha=200)
+        screen.blit(layer, (0, 0))
+        screen.blit(right, (0, 0))
 
     def draw_guide(self, screen):
         if self.guide_time <= 0:

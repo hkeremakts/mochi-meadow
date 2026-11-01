@@ -20,7 +20,7 @@ from .hud import Hud
 from .render import Renderer
 from .settings import SETTINGS
 from .sky import parse_place
-from .testing import FastForward, TestClock, badge, scratch_copy, story_target
+from .testing import FastForward, TestClock, badge, event_menu, scratch_copy, story_target
 from .world import World
 
 _screen = SETTINGS["screen"]
@@ -137,6 +137,7 @@ class App:
         self.speed_index = TIME_SPEEDS.index(int(args.speed)) if args.speed in TIME_SPEEDS else None
         self.testing = None       # while testing: the real (journal, personality, clock, meadow) to go back to
         self.fast = FastForward()  # testing mode's pace
+        self.menu = None           # testing mode's list of events, while it's open (E)
         if args.testing:
             self.testing = (real_journal, None, self.clock, self.seed)     # (the real cat is met on leaving)
             self.clock = TestClock(self.clock.moment, place=args.place)
@@ -264,6 +265,9 @@ class App:
             if event.type == pygame.MOUSEMOTION and max(abs(event.rel[0]), abs(event.rel[1])) > 3:
                 self.running = False
                 return
+        if event.type == pygame.KEYDOWN and self.menu is not None:
+            self._menu_key(event)
+            return
         if event.type == pygame.KEYDOWN:
             key = event.key
             if key in (pygame.K_ESCAPE, pygame.K_q):
@@ -280,6 +284,8 @@ class App:
                 self.hud.show_guide()
             elif key == pygame.K_x:
                 self.toggle_testing()
+            elif key == pygame.K_e and self.testing is not None:
+                self.menu = event_menu()
             elif key == pygame.K_t and self.testing is not None:
                 self.hud.toast(f"Testing: {self.fast.next_pace()}")
             elif key == pygame.K_t:
@@ -310,6 +316,21 @@ class App:
 
     # --- testing mode ---------------------------------------------------------
 
+    def _menu_key(self, event):
+        """Testing mode's list of events is open: its key makes an event
+        happen now; E or Esc closes the list."""
+        if event.key in (pygame.K_e, pygame.K_ESCAPE):
+            self.menu = None
+            return
+        pick = {k: name for k, name, _ in self.menu}.get((event.unicode or "").lower())
+        if pick is None:
+            return
+        self.menu = None
+        if self.world.events.force(pick, insist=True):
+            self.hud.toast(f"Now: {pick}")
+        else:
+            self.hud.toast(f"{pick}: can't happen here just now")
+
     def toggle_testing(self):
         if self.testing is None:
             if self.journal.path:
@@ -329,6 +350,7 @@ class App:
                     personality.journal = None
             self.journal, self.personality, self.clock = journal, personality, clock
             self.testing = None
+            self.menu = None
             self._build_world()
             self.hud.toast("Back to the real clock")
 
@@ -421,6 +443,8 @@ class App:
                     self.hud.draw_journal(self.screen, self.world.events)
                 if self.testing is not None:
                     self.hud.draw_testing(self.screen, badge(self.clock, self.fast, self.world))
+                if self.menu is not None:
+                    self.hud.draw_event_menu(self.screen, self.menu)
                 self.hud.draw_guide(self.screen)
                 self.hud.draw_toast(self.screen)
                 pygame.display.flip()

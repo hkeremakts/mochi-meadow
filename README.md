@@ -69,6 +69,7 @@ stories are doing.
 | `←` / `→` | a day back or on |
 | `↓` / `↑` | an hour back or on |
 | `[` / `]` | back to the last step of a seasonal story, or on to the next one, arriving at an hour to see it |
+| `E` | a list of every event, each with its own key: press one and it happens right now (Mochi drops whatever she's doing for hers), so each can be watched and tested; `E` or `Esc` closes the list |
 | `X` | back to the real clock |
 
 The meadow is fast-forwarded in short steps, as many as a frame can spare.

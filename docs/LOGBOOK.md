@@ -851,6 +851,34 @@ its own clock").
   - **Test:** in `test_tree.py`, no crown in 30 meadows touches the edge of
     its picture (it fails on the old code).
 
+## 2026-11-01 · A key for every event, in testing mode
+
+**Asked:** "do events for certain part in to-do list". The project folder
+had moved to `~/Documents/other/apps/cursorapps/ADHD_trap` (the venv still
+works there).
+
+- **First try:** `E` set every event's odds to 1, so events came one after
+  another, ones not yet seen first. **Owner: "no I want different keys
+  for different events so I can test the system easily".** Dropped before
+  it was pushed.
+- **Now:** in testing mode, `E` opens a list of every event, each with its
+  own key (`1`–`0`, then letters, never `e` or `x`). Pressing one makes that
+  event happen right away (`Events.force(name, insist=True)`); `E` or
+  `Esc` closes the list.
+  - **What's listed:** the 27 rolled events in order of rarity, coloured by
+    tier, plus the noticed ones with something to see: a meteor shower,
+    New Year fireworks and the carved pumpkin. The seasonal stories' steps
+    are reached with `[`/`]` instead: their captions alone would show
+    nothing.
+  - **Mochi drops everything:** her own events (tail chase, a shadow
+    pounce, a gift, coming to the glass) used to be refused while she
+    slept or was busy. With `insist` she gets up and does it.
+  - **What can still refuse:** the duck family where a meadow has no way
+    to the pond, the ginger cat when he can't find a way in. A note says
+    so.
+  - **Checked:** all 30 forced in three meadows at dawn, noon and night,
+    with no errors. Tests are in `test_testing.py`.
+
 ---
 
 ## Open items
@@ -862,22 +890,6 @@ its own clock").
   and 2, the seasonal stories and the testing mode (2026-10-29, see
   above). In testing mode (`X`, then `]`) the stories can be watched
   without waiting for spring.
-- **Events for certain, for testing** (owner, 2026-10-30: "add making the
-  possibility of seeing an event 1 for testing … this way I can test
-  everything in real life"; not to be built yet).
-  - **The idea:** a testing switch that sets the odds of seeing an event
-    to 1, so each event happens as soon as its conditions allow, at real
-    pace, and every one can be checked as it really plays out.
-  - **Already there:** `--event NAME` makes one event happen at the start;
-    `D` shows each tier's odds and what could happen right now; testing
-    mode fast-forwards everything.
-  - **To design:**
-    - every event in turn (a queue), the next possible one on a key, or
-      every chance at 1 (with cooldowns kept, so they don't pile up)
-    - how it fits with one rare-or-better event at a time, and with the
-      hush before a legendary one
-    - whether it's only in testing mode, so the real meadow keeps its
-      rarities
 - **One window with everything I need** (owner, 2026-10-30: "a windows
   that holds every necessary info for me"; not to be built yet).
   - **The idea:** one place to read everything at once, instead of the
