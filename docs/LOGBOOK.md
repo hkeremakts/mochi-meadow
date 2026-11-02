@@ -879,6 +879,34 @@ works there).
   - **Checked:** all 30 forced in three meadows at dawn, noon and night,
     with no errors. Tests are in `test_testing.py`.
 
+## 2026-11-01 · Graphify, and the big files
+
+- **"what is graphify skill and is it useful for this scenario … the
+  codebase become very big"**
+  - **What it is:** an open-source tool, installed as a `/graphify` skill,
+    that parses code locally (tree-sitter) into a knowledge graph
+    (`graph.json`, `graph.html`, `GRAPH_REPORT.md`). Its Claude Code
+    integration can edit `CLAUDE.md` and add a hook before every search.
+  - **Advice: not worth it here.** The project is 42 modules, about
+    18,700 lines plus 5,200 of tests, all Python, and search already finds
+    anything at once. What takes time is understanding behaviour (timing,
+    random-number order, generators), which a call graph doesn't show.
+    There are also costs: the edits to `CLAUDE.md`, a `graphify-out/`
+    folder, a graph that goes stale, and a doubly-named PyPI package
+    (`graphifyy`) with several forks.
+  - **Owner:** "I get it". Not installed.
+- **Proposed instead, waiting for the owner's go:** split the three largest
+  files by topic: `entities/cat.py` (2,484 lines: walking, activities, body
+  language), `entities/wildlife.py` (2,390: birds, pond, ground creatures,
+  visitors) and `events.py` (1,630). Seeded fingerprints would prove
+  behaviour unchanged.
+
+## 2026-11-02 · Where things stand
+
+Everything is committed and pushed (`main` level with GitHub, 364 tests
+passing). The owner cleared the conversation here, so a new session starts
+from `CLAUDE.md`, this logbook and the README.
+
 ---
 
 ## Open items
@@ -905,6 +933,8 @@ works there).
   - **Decided** (owner, 2026-10-30: "panel over window"): a panel drawn
     over the meadow, not a second window beside it.
   - **To design:** which of the existing panels it would replace.
+- **Split the three largest files** (proposed 2026-11-01, see above):
+  waiting for the owner's go.
 - **Snapshots of rare moments** (brainstorm #1): deferred.
 - **Small fixes:**
   - the sprite-cache collision when two meadows start at once after an art
